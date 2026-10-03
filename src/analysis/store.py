@@ -1,4 +1,8 @@
-"""Read and write versioned artifacts through artifact:// URIs."""
+"""Read and write versioned artifacts through artifact:// URIs.
+
+Paths stay inside the store root. A relative segment or an absolute path is
+rejected before the file is opened.
+"""
 
 import json
 from pathlib import Path
@@ -31,7 +35,11 @@ class ArtifactStore:
     def write_json(self, relative: str, payload: dict) -> str:
         path = self._relative(relative)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        try:
+            encoded = json.dumps(payload, indent=2, sort_keys=True, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise StorageError("artifact JSON must be finite") from exc
+        path.write_text(encoded + "\n")
         return f"artifact://{relative}"
 
     def resolve(self, uri: str) -> Path:

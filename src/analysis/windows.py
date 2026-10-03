@@ -6,7 +6,7 @@ from analysis.prepare import as_utc
 from analysis.report import fmt
 
 
-def window_comparison(frame: pd.DataFrame, roles: dict, windows: list) -> dict:
+def window_comparison(frame: pd.DataFrame, roles: dict, windows: list, query_range=None) -> dict:
     displacement = roles["daily_displacement"].name
     entity = roles["entity_id"].name
     event_time = roles["event_time"].name
@@ -20,8 +20,24 @@ def window_comparison(frame: pd.DataFrame, roles: dict, windows: list) -> dict:
     return {
         "findings": [finding],
         "metrics": {"windows": blocks},
+        "warnings": _clipped(windows, query_range),
         "limitations": ["A before/after difference in tracked movement is not evidence of restoration success."],
     }
+
+
+def _clipped(windows, query_range) -> list[str]:
+    if query_range is None:
+        return []
+    start = pd.Timestamp(as_utc(query_range.start))
+    end = pd.Timestamp(as_utc(query_range.end))
+    warnings = []
+    for window in windows:
+        if pd.Timestamp(as_utc(window.start)) < start or pd.Timestamp(as_utc(window.end)) > end:
+            warnings.append(
+                f"Window {window.name} extends outside the query time range, "
+                "so its counts use only the overlapping days."
+            )
+    return warnings
 
 
 def _window_phrase(block: dict, unit: str) -> str:

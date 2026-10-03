@@ -71,6 +71,11 @@ def test_two_animals_stay_separate_in_the_baseline(tmp_path):
     result = run(request, store=store)["output"]["result"]
     assert result["metrics"]["n_animals"] == 2
     assert result["metrics"]["baseline_mae"] == 0
+    by_animal = {}
+    for point in result["metrics"]["forward"]:
+        by_animal.setdefault(point["entity_id"], []).append(point["predicted_displacement_km"])
+    assert by_animal["A"] == [2.0] * 7
+    assert by_animal["B"] == [8.0] * 7
     assert len(result["map"]["features"]) == 2
     assert {item["properties"]["entity_id"] for item in result["map"]["features"]} == {"A", "B"}
 

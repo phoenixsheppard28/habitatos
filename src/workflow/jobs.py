@@ -1,7 +1,9 @@
 """Job persistence. Memory is the default. SQLite keeps a job after the process stops."""
 
 import json
+import math
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 from workflow.coordinator import Job, StageRecord
@@ -50,7 +52,7 @@ class SqliteJobStore:
         return None if row is None else _load(row[0])
 
     def save(self, job: Job) -> None:
-        body = json.dumps(_dump(job), sort_keys=True)
+        body = json.dumps(_plain(_dump(job)), sort_keys=True, allow_nan=False)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -60,10 +62,38 @@ class SqliteJobStore:
                 (job.job_id, job.request.get("request_id"), body),
             )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         connection = sqlite3.connect(self.path)
-        connection.execute("PRAGMA journal_mode=WAL")
-        return connection
+        try:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("PRAGMA busy_timeout=5000")
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+
+def _plain(value):
+    """Make a job body safe to store. Non-finite numbers become null, not NaN."""
+    if isinstance(value, dict):
+        return {str(key): _plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(item) for item in value]
+    if isinstance(value, bool) or value is None or isinstance(value, (str, int)):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    item = getattr(value, "item", None)
+    if callable(item):
+        try:
+            return _plain(item())
+        except Exception:
+            return str(value)
+    return str(value)
 
 
 def _dump(job: Job) -> dict:

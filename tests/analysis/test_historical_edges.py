@@ -34,6 +34,28 @@ def test_paths_follow_observed_points_in_time(tmp_path):
     assert all(row["predicted"] is False for row in run(request, store=store)["output"]["result"]["timeline"]["series"])
 
 
+def test_coordinates_outside_wgs84_are_rejected(tmp_path):
+    request, store = movement_request(tmp_path)
+    frame = movement_frame()
+    frame.loc[frame.index[0], "lon"] = 200
+    replace_frame(tmp_path, request, frame)
+    response = run(request, store=store)
+    assert response["status"] == "error"
+    assert response["error"]["code"] == "invalid_values"
+    assert "32" not in response.get("output", {}).get("result", {}).get("report", "")
+
+
+def test_negative_displacement_is_kept_and_named(tmp_path):
+    request, store = movement_request(tmp_path)
+    frame = movement_frame()
+    frame.loc[frame.index[1], "km_moved"] = -3
+    replace_frame(tmp_path, request, frame)
+    response = run(request, store=store)
+    assert response["status"] == "ok"
+    assert any("negative" in warning for warning in response["warnings"])
+    assert response["output"]["result"]["metrics"]["displacement_km_total"] == 19
+
+
 def test_null_displacement_is_not_zero(tmp_path):
     request, store = movement_request(tmp_path)
     frame = movement_frame()

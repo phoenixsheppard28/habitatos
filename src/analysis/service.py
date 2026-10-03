@@ -1,4 +1,8 @@
-"""Analysis entry point. Reads a feature table and returns a cited result."""
+"""Analysis entry point. Reads a feature table and returns a cited result.
+
+Checks that can be decided from the question and the descriptor happen before
+the file is opened. A refused question therefore does not depend on the table.
+"""
 
 import hashlib
 import json
@@ -188,10 +192,16 @@ def _finish_historical(request, parsed, frame, roles, warnings):
         metrics["habitat"] = habitat["metrics"]
     warnings.extend(habitat["warnings"])
     if parsed.input.query.comparison_windows:
-        compared = window_comparison(frame, roles, parsed.input.query.comparison_windows)
+        compared = window_comparison(
+            frame,
+            roles,
+            parsed.input.query.comparison_windows,
+            parsed.input.query.time_range,
+        )
         findings.extend(compared["findings"])
         metrics["comparison"] = compared["metrics"]
         limitations.extend(compared["limitations"])
+        warnings.extend(compared["warnings"])
     if parsed.input.boundaries:
         overlap = route_overlap(frame, roles, parsed.input.boundaries)
         findings.extend(overlap["findings"])
@@ -468,6 +478,7 @@ def _same_instant(left, right) -> bool:
 
 
 def _digest(payload: dict) -> str:
+    """Identity of a result or model. created_at is excluded so a repeat matches."""
     raw = json.dumps(_rounded(payload), sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 

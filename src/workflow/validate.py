@@ -1,4 +1,8 @@
-"""Validate a query and pin relative dates once."""
+"""Validate a query and pin relative dates once.
+
+Absolute start and end win when both kinds of date are present. The caller's
+dict is copied first, so a rejected or pinned request does not edit it.
+"""
 
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone

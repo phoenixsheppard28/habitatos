@@ -66,3 +66,21 @@ def test_monitor_reruns_only_when_the_checksum_changes(tmp_path):
     assert changed["ran"] is True
     assert changed["result_changed"] is True
     assert changed["job_id"] != first["job_id"]
+
+
+def test_a_failed_monitor_run_keeps_the_checksum_available(tmp_path):
+    request, _store = _bare_request(tmp_path)
+    calls = {"n": 0}
+
+    def analyze(incoming):
+        calls["n"] += 1
+        raise RuntimeError("down")
+
+    coordinator = Coordinator(handlers={"analysis": analyze})
+    registry = MonitorRegistry(tmp_path / "monitors.sqlite")
+    registry.register("watch-2", request)
+    first = registry.run_if_changed("watch-2", "aaa", coordinator)
+    second = registry.run_if_changed("watch-2", "aaa", coordinator)
+    assert first["accepted"] is False
+    assert second["accepted"] is False
+    assert calls["n"] == 2

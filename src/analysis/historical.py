@@ -1,4 +1,8 @@
-"""Historical movement, revisit, and habitat summaries."""
+"""Historical movement, revisit, and habitat summaries.
+
+Displacement totals skip nulls. A gap is a missing calendar day inside an
+animal's own first-to-last span, not a day before the animal was tagged.
+"""
 
 import pandas as pd
 

@@ -32,6 +32,15 @@ def test_before_and_after_windows_report_both_samples(tmp_path):
     assert "not a restoration outcome" in response["output"]["result"]["report"]
 
 
+def test_a_window_outside_the_query_is_marked_clipped(tmp_path):
+    late = {"name": "late", "start": "2026-01-03T00:00:00Z", "end": "2026-01-10T00:00:00Z"}
+    request, store = movement_request(tmp_path, comparison_windows=[EARLY, late])
+    response = run(request, store=store)
+    assert response["status"] == "ok"
+    assert any("late" in warning and "outside" in warning for warning in response["warnings"])
+    assert response["output"]["result"]["metrics"]["comparison"]["windows"][1]["n_displacement_rows"] == 3
+
+
 def test_one_comparison_window_is_invalid(tmp_path):
     request, store = movement_request(tmp_path)
     request["input"]["query"]["comparison_windows"] = [EARLY]

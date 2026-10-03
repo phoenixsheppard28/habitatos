@@ -1,4 +1,8 @@
-"""Next-cell forecast for tracked animals. Not a migration route."""
+"""Next-cell forecast for tracked animals. Not a migration route.
+
+The baseline is the previous cell. The model is the most common next cell
+seen in training. An unseen cell stays put. A tie keeps the baseline.
+"""
 
 from collections import Counter, defaultdict
 

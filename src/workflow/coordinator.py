@@ -43,6 +43,8 @@ class Coordinator:
         self.job_store = job_store
 
     def submit_query(self, request: dict) -> dict:
+        # The first body for a request_id wins. A later submit with the same id
+        # returns that job even when the question text differs.
         if isinstance(request, dict) and request.get("request_id"):
             existing = self.job_store.find_request(request["request_id"])
             if existing is not None:
@@ -134,7 +136,8 @@ class Coordinator:
             try:
                 response = self.handlers[stage.name](self._stage_request(job))
             except Exception as exc:
-                self._mark_failed(job, stage, str(exc))
+                message = str(exc).strip() or exc.__class__.__name__
+                self._mark_failed(job, stage, message)
                 return
             if not isinstance(response, dict) or "status" not in response:
                 self._mark_failed(job, stage, "stage returned an invalid response", retryable=False)

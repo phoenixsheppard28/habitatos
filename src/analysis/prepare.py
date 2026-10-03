@@ -1,4 +1,8 @@
-"""Turn a feature table into the columns a method is allowed to use."""
+"""Turn a feature table into the columns a method is allowed to use.
+
+Rows outside the query, and rows for a different species, are removed here.
+A missing displacement stays missing. It is never filled with zero.
+"""
 
 from datetime import datetime, timezone
 
@@ -28,6 +32,7 @@ def as_utc(value) -> datetime:
 
 
 def scope_allows(request_scope: str, artifact_scope: str) -> bool:
+    """A public table is readable by anyone. Any other table requires the same scope."""
     if artifact_scope == "public":
         return True
     return request_scope == artifact_scope
@@ -96,6 +101,16 @@ def prepare_frame(frame: pd.DataFrame, artifact: FeatureArtifact, query: QuerySp
         if bad.any():
             raise PrepareError("invalid_values", f"{column.name} contains non-numeric values")
         frame[column.name] = numeric
+        if role == "longitude" and numeric.notna().any() and ((numeric < -180) | (numeric > 180)).any():
+            raise PrepareError("invalid_values", f"{column.name} has a longitude outside -180 to 180")
+        if role == "latitude" and numeric.notna().any() and ((numeric < -90) | (numeric > 90)).any():
+            raise PrepareError("invalid_values", f"{column.name} has a latitude outside -90 to 90")
+        if role == "daily_displacement":
+            negative = int((numeric < 0).sum())
+            if negative:
+                warnings.append(
+                    f"{negative} displacement values are negative. They are kept and are not treated as zero."
+                )
 
     start = as_utc(query.time_range.start)
     end = as_utc(query.time_range.end)
@@ -117,6 +132,8 @@ def prepare_frame(frame: pd.DataFrame, artifact: FeatureArtifact, query: QuerySp
         if frame.empty:
             raise PrepareError("no_rows_for_species", "no feature rows match the requested species")
 
+    # Grain is one row per animal per UTC day. A second fix on that day is an error,
+    # not an average, because averaging here would hide a join mistake.
     if entity is not None:
         frame["_day"] = frame[event_time].dt.floor("D")
         if frame.duplicated([entity, "_day"]).any():

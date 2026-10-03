@@ -1,4 +1,10 @@
-"""Next-day displacement forecasts with a baseline and a holdout."""
+"""Next-day displacement forecasts with a baseline and a holdout.
+
+The headline model is pooled. The forward series is not: each animal starts
+from its own last observation, so one animal's recent movement cannot set
+another animal's projection. A model is shown only when its holdout error
+beats the recent-mean baseline.
+"""
 
 import math
 from collections.abc import Callable
@@ -30,6 +36,7 @@ class FittedModel:
 
 
 def select_presented(baseline_mae: float, model_mae: float | None) -> str:
+    """Hide a model that is missing, tied, or worse than the baseline."""
     if model_mae is None:
         return "baseline"
     if model_mae < baseline_mae - 1e-9:
@@ -109,6 +116,11 @@ def forecast_next_day(frame: pd.DataFrame, roles: dict, cutoff, horizon_days: in
     residual_p10 = float(np.quantile(residuals, 0.1))
     residual_p90 = float(np.quantile(residuals, 0.9))
     used_features = list(fitted.feature_names) if presented == "model" and fitted is not None else []
+    scenario_rain = _scenario_rain(scenario)
+    invalid_scenario = isinstance(scenario_rain, float) and math.isnan(scenario_rain)
+    if invalid_scenario:
+        scenario_rain = None
+    uses_scenario = presented == "model" and scenario_rain is not None and "rainfall" in used_features
     forward = _forward(
         frame,
         roles,
@@ -117,14 +129,16 @@ def forecast_next_day(frame: pd.DataFrame, roles: dict, cutoff, horizon_days: in
         fitted,
         residual_p10,
         residual_p90,
-        scenario,
+        scenario_rain if uses_scenario else None,
         used_features,
     )
-    uses_scenario = presented == "model" and _scenario_rain(scenario) is not None and "rainfall" in used_features
+    clamped = sum(1 for point in forward if point.pop("_clamped", False))
     recursive_mae = _recursive_mae(examples, cutoff_ts, presented, fitted, used_features)
     per_animal = _per_animal_one_step(test, shown_predictions)
     limitations = [SAMPLE_LIMITATION, FORECAST_TARGET_LIMITATION, HOLDOUT_LIMITATION]
-    if scenario:
+    if invalid_scenario:
+        limitations.append("The rainfall scenario was not a number, so it was ignored.")
+    elif scenario:
         if uses_scenario:
             limitations.append(
                 "The forward series uses the supplied rainfall scenario as a constant assumption. It is not a weather forecast."
@@ -134,7 +148,12 @@ def forecast_next_day(frame: pd.DataFrame, roles: dict, cutoff, horizon_days: in
                 "The rainfall scenario is an assumption supplied with the question. "
                 "This forecast does not apply it, because the presented method does not use rainfall."
             )
-    limitations.append("The model pools tracked animals in this sample. It is not an individual route.")
+    limitations.append(
+        "The scored model pools tracked animals in this sample. "
+        "Each forward series still starts from that animal's own last observation."
+    )
+    if clamped:
+        limitations.append("Forward displacement is not shown below zero.")
 
     metrics = {
         **counts,
@@ -148,6 +167,7 @@ def forecast_next_day(frame: pd.DataFrame, roles: dict, cutoff, horizon_days: in
         "horizon_days": horizon_days,
         "cutoff": cutoff_ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "forward": forward,
+        "forward_clamped_steps": clamped,
         "missing_displacement_fraction": float(frame[displacement].isna().mean()),
         "one_step_mae": shown_mae,
         "recursive_mae": recursive_mae,
@@ -250,42 +270,59 @@ def _baseline_predictions(examples: pd.DataFrame, test_index) -> pd.Series:
     return predictions.loc[test_index]
 
 
-def _forward(frame, roles, horizon_days, presented, fitted, residual_p10, residual_p90, scenario, feature_names):
+def _forward(frame, roles, horizon_days, presented, fitted, residual_p10, residual_p90, scenario_rain, feature_names):
+    """Project each animal from its own last observed day.
+
+    The baseline holds that animal's recent mean. The model, when shown,
+    feeds only that animal's predicted displacement forward.
+    """
     entity = roles["entity_id"].name
     event_time = roles["event_time"].name
     displacement = roles["daily_displacement"].name
-    last_day = frame[event_time].max()
-    recent = frame.loc[frame[displacement].notna()].sort_values(event_time)
-    window_start = last_day - pd.Timedelta(days=7)
-    window = recent.loc[recent[event_time] > window_start, displacement]
-    baseline_value = float(window.mean()) if len(window) else float(recent[displacement].iloc[-1])
-    last_row = recent.iloc[-1]
-    current = {"daily_displacement": float(last_row[displacement])}
-    for role in ("rainfall", "vegetation_index"):
-        if role in feature_names:
-            current[role] = float(last_row[roles[role].name]) if pd.notna(last_row[roles[role].name]) else 0.0
-    scenario_rain = _scenario_rain(scenario)
     points = []
-    for step in range(1, horizon_days + 1):
-        if presented == "model" and fitted is not None:
-            row = dict(current)
-            if scenario_rain is not None and "rainfall" in feature_names:
-                row["rainfall"] = scenario_rain
-            predicted = float(fitted.predict(row))
-            current["daily_displacement"] = predicted
-        else:
-            predicted = baseline_value
-        scale = math.sqrt(step)
-        day = (pd.Timestamp(last_day).tz_convert("UTC") + pd.Timedelta(days=step)).date().isoformat()
-        points.append(
-            {
-                "date": day,
-                "predicted_displacement_km": predicted,
-                "low_km": predicted + residual_p10 * scale,
-                "high_km": predicted + residual_p90 * scale,
-                "predicted": True,
-            }
-        )
+    for animal, group in frame.groupby(entity, sort=True):
+        recent = group.loc[group[displacement].notna()].sort_values(event_time)
+        if recent.empty:
+            continue
+        last_row = recent.iloc[-1]
+        last_day = pd.Timestamp(last_row[event_time])
+        if last_day.tzinfo is None:
+            last_day = last_day.tz_localize("UTC")
+        window_start = last_day - pd.Timedelta(days=7)
+        window = recent.loc[recent[event_time] > window_start, displacement]
+        baseline_value = float(window.mean()) if len(window) else float(last_row[displacement])
+        current = {"daily_displacement": float(last_row[displacement])}
+        for role in ("rainfall", "vegetation_index"):
+            if role in feature_names:
+                value = last_row[roles[role].name]
+                current[role] = 0.0 if pd.isna(value) else float(value)
+        for step in range(1, horizon_days + 1):
+            if presented == "model" and fitted is not None:
+                row = dict(current)
+                if scenario_rain is not None and "rainfall" in feature_names:
+                    row["rainfall"] = scenario_rain
+                predicted = float(fitted.predict(row))
+                current["daily_displacement"] = predicted
+            else:
+                predicted = baseline_value
+            clamped = predicted < 0
+            if clamped:
+                predicted = 0.0
+                current["daily_displacement"] = 0.0
+            scale = math.sqrt(step)
+            low = max(0.0, predicted + residual_p10 * scale)
+            high = max(low, predicted + residual_p90 * scale)
+            points.append(
+                {
+                    "entity_id": str(animal),
+                    "date": (last_day.tz_convert("UTC") + pd.Timedelta(days=step)).date().isoformat(),
+                    "predicted_displacement_km": predicted,
+                    "low_km": low,
+                    "high_km": high,
+                    "predicted": True,
+                    "_clamped": clamped,
+                }
+            )
     return points
 
 
@@ -369,9 +406,13 @@ def _recursive_mae(examples, cutoff_ts, presented, fitted, used_features) -> flo
 
 
 def _scenario_rain(scenario: dict | None) -> float | None:
+    """Return the assumed rainfall, or NaN when the value cannot be read."""
     if not scenario or "rainfall_mm" not in scenario or scenario["rainfall_mm"] is None:
         return None
-    return float(scenario["rainfall_mm"])
+    try:
+        return float(scenario["rainfall_mm"])
+    except (TypeError, ValueError):
+        return math.nan
 
 
 def _last_points(frame, roles) -> dict:
@@ -401,6 +442,7 @@ def _last_points(frame, roles) -> dict:
 
 
 def _forecast_timeline(frame, roles, forward, unit) -> dict:
+    """Observed days stay as medians. Each future day is the median across animals."""
     from analysis.historical import _timeline
 
     timeline = _timeline(
@@ -410,16 +452,20 @@ def _forecast_timeline(frame, roles, forward, unit) -> dict:
         roles["daily_displacement"].name,
         unit,
     )
+    by_date: dict[str, list[dict]] = {}
     for point in forward:
+        by_date.setdefault(point["date"], []).append(point)
+    for day in sorted(by_date):
+        points = by_date[day]
         timeline["series"].append(
             {
-                "date": point["date"],
-                "median_daily_displacement": point["predicted_displacement_km"],
+                "date": day,
+                "median_daily_displacement": float(np.median([point["predicted_displacement_km"] for point in points])),
                 "unit": unit,
-                "n_animals": None,
+                "n_animals": len(points),
                 "predicted": True,
-                "low": point["low_km"],
-                "high": point["high_km"],
+                "low": float(np.median([point["low_km"] for point in points])),
+                "high": float(np.median([point["high_km"] for point in points])),
             }
         )
     return timeline

@@ -90,6 +90,14 @@ def test_missing_cutoff_guarantee(tmp_path):
     assert response["output"]["result"]["code"] == "cutoff_not_guaranteed"
 
 
+def test_a_non_numeric_scenario_is_ignored(tmp_path):
+    request, store = _forecast_request(tmp_path, days=80, value=lambda index: 5.0, cutoff_day=40)
+    request["input"]["query"]["forecast"]["scenario"] = {"name": "drier", "rainfall_mm": "wet"}
+    response = run(request, store=store)
+    assert response["status"] == "ok"
+    assert "not a number" in response["output"]["result"]["report"]
+
+
 def test_scenario_is_an_assumption_for_the_baseline(tmp_path):
     request, store = _forecast_request(tmp_path, days=80, value=lambda index: 5.0, cutoff_day=40)
     request["input"]["query"]["forecast"]["scenario"] = {"name": "drier", "rainfall_mm": 0}

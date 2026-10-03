@@ -1,10 +1,17 @@
-"""Share of a tracked path that falls inside a named boundary."""
+"""Share of a tracked path that falls inside a named boundary.
+
+Distance is equirectangular kilometers. The inside fraction of a segment is
+measured in that same local frame, so a segment that only clips a boundary
+is not scored with degree-length.
+"""
 
 import math
 
 import pandas as pd
-from shapely.geometry import LineString, Point, shape
+from shapely import make_valid
+from shapely.geometry import LineString, MultiPolygon, Point, shape
 from shapely.geometry.base import BaseGeometry
+from shapely.ops import transform
 
 
 def route_overlap(frame: pd.DataFrame, roles: dict, boundaries: list) -> dict:
@@ -68,9 +75,28 @@ def _geometry(payload: dict) -> BaseGeometry | None:
         geometry = shape(payload)
     except Exception:
         return None
+    if geometry.is_empty:
+        return None
+    if not geometry.is_valid:
+        geometry = make_valid(geometry)
+    if geometry.geom_type == "GeometryCollection":
+        parts = [part for part in geometry.geoms if part.geom_type in {"Polygon", "MultiPolygon"}]
+        if not parts:
+            return None
+        geometry = parts[0] if len(parts) == 1 else MultiPolygon(_polygon_parts(parts))
     if geometry.geom_type not in {"Polygon", "MultiPolygon"} or geometry.is_empty:
         return None
     return geometry
+
+
+def _polygon_parts(parts) -> list:
+    polygons = []
+    for part in parts:
+        if part.geom_type == "Polygon":
+            polygons.append(part)
+        else:
+            polygons.extend(part.geoms)
+    return polygons
 
 
 def _paths(frame, entity, event_time, lon, lat):
@@ -92,11 +118,22 @@ def _lengths(coords: list[tuple[float, float]], geometry: BaseGeometry) -> tuple
     for start, end in zip(coords, coords[1:]):
         length = _segment_km(*start, *end)
         total += length
-        segment = LineString([start, end])
-        if segment.length == 0 or not segment.intersects(geometry):
+        if length == 0:
             continue
-        inside += length * (segment.intersection(geometry).length / segment.length)
+        local_segment = LineString([(0.0, 0.0), _local_xy(end[0], end[1], start[0], start[1])])
+        local_boundary = transform(lambda x, y, z=None, origin=start: _local_xy(x, y, origin[0], origin[1]), geometry)
+        if local_segment.length == 0 or not local_segment.intersects(local_boundary):
+            continue
+        crossed = local_segment.intersection(local_boundary)
+        inside += length * (crossed.length / local_segment.length)
     return total, inside
+
+
+def _local_xy(lon: float, lat: float, origin_lon: float, origin_lat: float) -> tuple[float, float]:
+    mid_lat = math.radians(origin_lat)
+    x = (lon - origin_lon) * math.cos(mid_lat) * 111.32
+    y = (lat - origin_lat) * 110.574
+    return x, y
 
 
 def _segment_km(lon1: float, lat1: float, lon2: float, lat2: float) -> float:

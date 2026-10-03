@@ -1,4 +1,8 @@
-"""Render report text from values that were already computed."""
+"""Render report text from values that were already computed.
+
+The report is a template over metrics. It does not invent a sentence for a
+number that was not already in the result.
+"""
 
 
 def fmt(value) -> str:

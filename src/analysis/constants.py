@@ -1,4 +1,8 @@
-"""Thresholds and method versions for the analysis lane."""
+"""Thresholds and method versions for the analysis lane.
+
+Train and holdout floors are animal-days, not animals. Below the floor the
+forecast is insufficient data rather than an unevaluated number.
+"""
 
 SCHEMA_VERSION = "1.0"
 MOVEMENT_METHOD = "movement_summary"

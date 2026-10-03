@@ -1,4 +1,8 @@
-"""Environmental summary when the feature table has no tracked animals."""
+"""Environmental summary when the feature table has no tracked animals.
+
+This path is only for a table that has time and rainfall or vegetation and
+does not carry animal, coordinate, or displacement roles.
+"""
 
 import pandas as pd
 
