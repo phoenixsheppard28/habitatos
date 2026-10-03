@@ -65,16 +65,22 @@ def run(
     if response.status in NO_PUBLISH_STATUSES:
         return PipelineResult(response)
 
-    aoi = tuple(request.input.requirements.bbox) if request.input.requirements.bbox else None
+    request_aoi = tuple(request.input.requirements.bbox) if request.input.requirements.bbox else None
     outcomes, ingests = [], []
     for manifest in response.output.raw_artifacts:
-        outcome, ingest = process(manifest, workspace, aoi)
+        outcome, ingest = process(manifest, workspace, request_aoi or fetched_area(manifest))
         outcomes.append(outcome)
         if ingest is not None:
             ingests.append(ingest)
 
     published = publish_changed(ingests, workspace, request.access_scope, use_ai)
     return PipelineResult(response, outcomes, published)
+
+
+def fetched_area(manifest: RawManifest) -> BBox | None:
+    """On the agent path the area is in the question; the connector recorded the bbox that it fetched."""
+    bbox = manifest.extensions.properties.get("requested_bbox")
+    return tuple(bbox) if bbox else None
 
 
 def process(manifest: RawManifest, workspace: Workspace, aoi: BBox | None):

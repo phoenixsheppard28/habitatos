@@ -142,7 +142,10 @@ def fetch_day(
             processing_version=PROCESSING_VERSION,
             product_status=status,
             assets={"precipitation": filename},
-            properties={"units": "mm", "resolution_degrees": 0.05, "compression": "gzip"},
+            properties={
+                "units": "mm", "resolution_degrees": 0.05, "compression": "gzip",
+                "requested_bbox": list(request.bbox),
+            },
         ),
     )
     return archive.record(manifest)

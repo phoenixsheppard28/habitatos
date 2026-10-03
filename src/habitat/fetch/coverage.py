@@ -2,7 +2,7 @@
 
 from datetime import UTC, date, datetime, time
 
-from habitat.contracts import FetchRequest, RawManifest
+from habitat.contracts import Coverage, FetchRequest, RawManifest
 
 
 def requested_instant(value: str, end: bool) -> datetime:
@@ -13,9 +13,37 @@ def requested_instant(value: str, end: bool) -> datetime:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
-def coverage_gaps(manifest: RawManifest, request: FetchRequest) -> list[str]:
+def combined_coverage(manifests: list[RawManifest]) -> Coverage:
+    """The union of the declared bounds of several files, for example the daily files of one source."""
+    if len(manifests) == 1:
+        return manifests[0].coverage
+
+    boxes = [m.coverage.bbox for m in manifests]
+    starts = [m.coverage.start for m in manifests]
+    ends = [m.coverage.end for m in manifests]
+    return Coverage(
+        bbox=None if None in boxes else (
+            min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)
+        ),
+        start=None if None in starts else min(starts),
+        end=None if None in ends else max(ends),
+    )
+
+
+def source_coverage_gaps(manifests: list[RawManifest], request: FetchRequest) -> list[str]:
+    by_source: dict[str, list[RawManifest]] = {}
+    for manifest in manifests:
+        by_source.setdefault(manifest.extensions.source_id, []).append(manifest)
+
+    gaps = []
+    for source_id, group in by_source.items():
+        label = group[0].artifact_id if len(group) == 1 else f"{source_id} ({len(group)} files)"
+        gaps += [f"{label}: {gap}" for gap in coverage_gaps(combined_coverage(group), request)]
+    return gaps
+
+
+def coverage_gaps(coverage: Coverage, request: FetchRequest) -> list[str]:
     query, requirements = request.input.query, request.input.requirements
-    coverage = manifest.coverage
     gaps = []
 
     bbox = requirements.bbox or (query.region or {}).get("bbox")
@@ -42,4 +70,4 @@ def coverage_gaps(manifest: RawManifest, request: FetchRequest) -> list[str]:
         if (field == "start" and actual > wanted) or (field == "end" and actual < wanted):
             gaps.append(f"file {field} does not cover the requested date")
 
-    return [f"{manifest.artifact_id}: {gap}" for gap in gaps]
+    return gaps

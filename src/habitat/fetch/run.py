@@ -12,7 +12,7 @@ from habitat.contracts import FetchError, FetchRequest, FetchResponse, FetchResp
 from habitat.fetch import service
 from habitat.fetch.agent import MAX_ITERATIONS, run_agent
 from habitat.fetch.connectors import ConnectorRequest
-from habitat.fetch.coverage import coverage_gaps
+from habitat.fetch.coverage import source_coverage_gaps
 from habitat.fetch.session import Receipts, current_archive, current_receipts
 
 
@@ -44,9 +44,7 @@ def connector_request(req: FetchRequest) -> ConnectorRequest:
 def response_from(
     req: FetchRequest, artifacts: list[RawManifest], warnings: list[str], failure: FetchError | None, **extensions
 ) -> FetchResponse:
-    warnings = list(warnings)
-    for artifact in artifacts:
-        warnings.extend(coverage_gaps(artifact, req))
+    warnings = list(warnings) + source_coverage_gaps(artifacts, req)
 
     found_kinds = {kind for artifact in artifacts for kind in data_kinds(artifact)}
     for missing in sorted(set(req.input.requirements.data_kinds) - found_kinds):

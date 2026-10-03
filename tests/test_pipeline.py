@@ -91,3 +91,12 @@ def test_a_corrupt_archive_file_is_quarantined(workspace):
     outcome, _ = process(manifest, workspace, None)
 
     assert outcome.status == "quarantined" and "checksum" in outcome.reason
+
+
+def test_the_area_of_an_agent_request_comes_from_the_manifest():
+    from habitat.pipeline import fetched_area
+
+    manifest = make_manifest("chirps", {}, datetime(2024, 1, 1, tzinfo=UTC), properties={"requested_bbox": [1, 2, 3, 4]})
+
+    assert fetched_area(manifest) == (1, 2, 3, 4)
+    assert fetched_area(make_manifest("chirps", {}, datetime(2024, 1, 1, tzinfo=UTC))) is None

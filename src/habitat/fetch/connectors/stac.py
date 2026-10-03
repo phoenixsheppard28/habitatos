@@ -229,7 +229,7 @@ def scene_manifest(
             available_at=published_at(item, retrieved_at),
             processing_version=processing_version,
             assets=assets,
-            properties={**properties, "clipped_to_bbox": list(bbox), "collection": item.collection_id},
+            properties={**properties, "requested_bbox": list(bbox), "collection": item.collection_id},
         ),
     )
 
