@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from fetch.connectors.fixture import FIXTURE_CATALOG
+from fetch.connectors.movebank import search_movebank
+from fetch.connectors.zenodo import search_zenodo
 
 
-def search_catalog(query: str, species: list[str] | None = None) -> list[dict]:
-    """
-    Search known dataset entries. Plain Python — safe to call from tests without an LLM.
-    """
+def _search_fixtures(query: str, species: list[str] | None) -> list[dict]:
     tokens = [t for t in query.lower().split() if t]
     species_filter = {s.lower() for s in (species or [])}
     results: list[dict] = []
@@ -40,4 +39,20 @@ def search_catalog(query: str, species: list[str] | None = None) -> list[dict]:
                 "source_name": entry.source.name,
             }
         )
+    return results
+
+
+def search_catalog(
+    query: str,
+    species: list[str] | None = None,
+    *,
+    include_internet: bool = False,
+    include_zenodo: bool = False,
+) -> list[dict]:
+    """Search fixtures; optional Movebank (fast index) and Zenodo (slower API)."""
+    results = _search_fixtures(query, species)
+    if include_internet and query.strip():
+        results.extend(search_movebank(query))
+        if include_zenodo:
+            results.extend(search_zenodo(query))
     return results

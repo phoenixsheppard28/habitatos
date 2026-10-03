@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from fetch.archive import register_raw_artifact_from_path
+from fetch.archive import register_raw_artifact_from_path, save_manifest
 from fetch.models import Coverage, RawManifest, Rights, SourceRef
 
 FIXTURES_DIR = Path(__file__).resolve().parents[3] / "tests" / "fetch" / "fixtures"
@@ -151,4 +151,6 @@ def download_fixture(dataset_id: str) -> RawManifest | dict:
         source_key=source_key,
         file_format="csv",
     )
+    manifest.extensions["data_kind"] = entry.data_kind
+    save_manifest(manifest)
     return manifest

@@ -11,10 +11,32 @@ from fetch.connectors.fixture import (
     download_fixture,
     inspect_fixture,
 )
+from fetch.connectors.movebank import (
+    check_movebank_access,
+    download_movebank,
+    inspect_movebank,
+)
+from fetch.connectors.zenodo import (
+    check_zenodo_access,
+    download_zenodo,
+    inspect_zenodo,
+)
 from fetch.models import RawManifest
 
 
+def _is_movebank(dataset_id: str) -> bool:
+    return dataset_id.startswith("movebank:")
+
+
+def _is_zenodo(dataset_id: str) -> bool:
+    return dataset_id.startswith("zenodo:")
+
+
 def inspect_source(dataset_id: str) -> dict[str, Any]:
+    if _is_movebank(dataset_id):
+        return inspect_movebank(dataset_id)
+    if _is_zenodo(dataset_id):
+        return inspect_zenodo(dataset_id)
     info = inspect_fixture(dataset_id)
     if info.get("found"):
         return info
@@ -22,13 +44,28 @@ def inspect_source(dataset_id: str) -> dict[str, Any]:
 
 
 def check_access(dataset_id: str) -> dict[str, Any]:
+    if _is_movebank(dataset_id):
+        return check_movebank_access(dataset_id)
+    if _is_zenodo(dataset_id):
+        return check_zenodo_access(dataset_id)
     return check_fixture_access(dataset_id)
 
 
-def download_dataset(dataset_id: str) -> RawManifest | dict[str, Any]:
+def _download_dataset(dataset_id: str) -> RawManifest | dict[str, Any]:
+    if _is_movebank(dataset_id):
+        return download_movebank(dataset_id)
+    if _is_zenodo(dataset_id):
+        return download_zenodo(dataset_id)
     result = download_fixture(dataset_id)
     if isinstance(result, RawManifest):
         return result
+    return result
+
+
+def download_dataset(dataset_id: str) -> RawManifest | dict[str, Any]:
+    from fetch.session import record
+    result = _download_dataset(dataset_id)
+    record(result)
     return result
 
 
