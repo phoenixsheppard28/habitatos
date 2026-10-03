@@ -69,7 +69,24 @@ One test assertion changed meaning: the old CHIRPS test checked that the manifes
 - Raw files from before the merge stay in the old layout `data/raw/<item>/<file>`. The new layout is `data/raw/<artifact_id>/<version>/<file>`. The `raw_artifacts` table does not know the old files. Tests only read them.
 - The old Sentinel-2 duplicates of 2024-02-02 (about 0.8 GB) are still in `data/raw/`. The plan says not to delete raw data.
 
-## 6. Open items
+## 6. Definition of done: verification
+
+| Item | Result |
+| --- | --- |
+| `fetch_pipeline/`, `processing_pipeline/`, `FETCH_INTEGRATION.md` | Deleted |
+| `uv sync` on a clean checkout | A fresh `git clone` of the branch: `uv sync` succeeded. `uv run pytest`: 135 passed, 29 skipped. The skips are database tests (no `.env`), live tests, and one test that needs a real scene in the ignored `data/raw/`. Section 7.1 of the plan allows that skip. |
+| `uv run pytest` with `HABITAT_DATABASE_URL` | 159 passed, 5 skipped (the 5 live tests) |
+| `grep -rn "openrouter\|OPENROUTER\|openai\|from agents" src tests` | No output |
+| `grep -rn "RawArchive\|artifact_index.json" src tests` | No output |
+| Old source ids `"sentinel-2"`, `"modis"` in `src` and `tests` | No output (also a test: `tests/test_registry.py`) |
+| Every connector emits a `RawManifest` with a `SourceItem` and an `artifact://` URI | Tested per connector; the model rejects any other URI |
+| Path traversal tests | `tests/test_archive.py`, `tests/test_movebank_repository.py`, `tests/test_zenodo.py` pass |
+| Live checks 1–4 | Section 2 |
+| `PIPELINE.md`, `SOURCES.md` | Written in STE |
+| Migration 007 in `list_migrations` | Yes (section 1) |
+| `.env.example` | Tracked. A global gitignore rule `.env.*` hid it, so the repo `.gitignore` has `!.env.example`. |
+
+## 7. Open items
 
 Checked and closed: the content links of the wildebeest package (`5b6706c8-…`) answer HTTP 200 on `datarepository.movebank.org` with no redirect, so the host check of `movebank_repository` lets them through.
 
