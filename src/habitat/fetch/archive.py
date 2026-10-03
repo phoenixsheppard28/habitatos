@@ -6,6 +6,8 @@ from pathlib import Path
 
 import httpx
 
+from habitat.archive.paths import contained, safe_name
+
 CHUNK_BYTES = 1 << 20
 
 
@@ -24,7 +26,7 @@ class RawArchive:
         self.client = client or httpx.Client(timeout=120, follow_redirects=True)
 
     def download(self, url: str, artifact_id: str, filename: str) -> ArchivedFile:
-        target = self.root / artifact_id / filename
+        target = contained(self.root, safe_name(artifact_id), safe_name(filename))
         target.parent.mkdir(parents=True, exist_ok=True)
         partial = target.with_suffix(target.suffix + ".part")
         digest = hashlib.sha256()

@@ -1,12 +1,12 @@
 import argparse
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import psycopg
 
+from habitat.archive.index import AlreadyIngested, ingested
 from habitat.catalog.ai import CatalogAssistant
 from habitat.catalog.publish import publish_series_version
 from habitat.catalog.store import PostgresCatalog
@@ -89,17 +89,6 @@ def resolve_entity_taxa(batch: NormalizedBatch) -> None:
         entity.gbif_taxon_key = keys.get(entity.taxon_name)
 
 
-AlreadyIngested = Callable[[str, str, str], bool]
-
-
-def already_ingested_in(store: SeriesStore, series: str) -> AlreadyIngested:
-    latest = store.latest_version(series)
-    if latest is None:
-        return lambda *_: False
-
-    return latest.has_item
-
-
 def fetch_manifests(
     source: str,
     bbox: BBox | None,
@@ -146,7 +135,7 @@ def run(
     store = workspace.store
     grid = workspace.grid
 
-    already_ingested = already_ingested_in(store, series_id_for(source, PRODUCTS[source], grid))
+    already_ingested = ingested(store, series_id_for(source, PRODUCTS[source], grid))
     manifests = fetch_manifests(source, bbox, start, end, workspace.archive, already_ingested, package)
     outcomes = [ingest_manifest(manifest, store, grid, bbox) for manifest in manifests]
 

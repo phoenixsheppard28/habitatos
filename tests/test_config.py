@@ -29,9 +29,11 @@ def test_relative_data_dir_is_relative_to_the_project(tmp_path, monkeypatch):
 
 
 def test_override_after_import_takes_effect(tmp_path):
+    from habitat.archive.store import LocalArtifactStore
+
     config.configure(data_dir=tmp_path)
 
-    assert config.settings().raw_dir == tmp_path / "raw"
+    assert LocalArtifactStore().root == (tmp_path / "raw").resolve()
 
 
 def test_missing_database_url_raises(monkeypatch):
