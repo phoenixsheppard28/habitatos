@@ -1,0 +1,4 @@
+cell_id,interval_start,interval_end,rainfall_mm
+cell-a,2025-01-01T00:00:00Z,2025-01-01T23:59:59Z,12.4
+cell-a,2025-01-02T00:00:00Z,2025-01-02T23:59:59Z,0.0
+cell-b,2025-01-02T00:00:00Z,2025-01-02T23:59:59Z,3.1
