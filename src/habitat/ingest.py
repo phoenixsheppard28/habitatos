@@ -4,16 +4,15 @@ from dataclasses import dataclass
 import psycopg
 
 from habitat.archive import Archive, ChecksumMismatch
-from habitat.archive.index import PostgresArtifactIndex, ingested
+from habitat.archive.index import PostgresArtifactIndex
 from habitat.catalog.ai import CatalogAssistant
 from habitat.catalog.publish import publish_series_version
 from habitat.catalog.store import PostgresCatalog
 from habitat.catalog.taxa import resolve_taxon
 from habitat.contracts import BBox, RawManifest
-from habitat.fetch.connectors import ConnectorRequest, ConnectorResult
 from habitat.grid import Grid
 from habitat.normalize.router import normalize
-from habitat.normalize.rows import NormalizedBatch, QuarantineError, series_id, series_id_for
+from habitat.normalize.rows import NormalizedBatch, QuarantineError, series_id
 from habitat.sources import get_source
 from habitat.storage.series import AppendResult, SeriesStore
 
@@ -75,16 +74,6 @@ def resolve_entity_taxa(batch: NormalizedBatch) -> None:
         entity.gbif_taxon_key = keys.get(entity.taxon_name)
 
 
-def fetch_new(source_id: str, request: ConnectorRequest, workspace: Workspace) -> ConnectorResult:
-    """Download only the items that the series does not hold yet."""
-    source = get_source(source_id)
-    if source is None:
-        raise ValueError(f"unknown source {source_id!r}")
-
-    already = ingested(workspace.store, series_id_for(source_id, source.product, workspace.grid))
-    return source.fetch(request, workspace.archive, already)
-
-
 def publish_changed(
     outcomes: list[IngestOutcome], workspace: Workspace, access_scope: str = "public", use_ai: bool = False
 ) -> list[str]:
@@ -106,17 +95,3 @@ def publish_changed(
             published.append(series)
     return published
 
-
-def run(source_id: str, workspace: Workspace, request: ConnectorRequest, use_ai: bool = False) -> list[IngestOutcome]:
-    fetched = fetch_new(source_id, request, workspace)
-    for warning in fetched.warnings:
-        logger.warning(warning)
-    for error in fetched.errors:
-        logger.error("%s: %s", error.code, error.message)
-
-    outcomes = [
-        ingest_manifest(manifest, workspace.archive, workspace.store, workspace.grid, request.bbox)
-        for manifest in fetched.manifests
-    ]
-    publish_changed(outcomes, workspace, request.access_scope, use_ai)
-    return outcomes

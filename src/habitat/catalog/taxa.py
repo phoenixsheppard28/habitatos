@@ -4,6 +4,7 @@ from typing import Literal
 import httpx
 
 from habitat.contracts import TaxonRef
+from habitat.fetch import http
 
 GBIF_API = "https://api.gbif.org/v1"
 SPECIES_RANKS = {"SPECIES", "SUBSPECIES"}
@@ -24,7 +25,7 @@ def resolve_taxon(name: str, client: httpx.Client | None = None) -> TaxonResolut
     A common name for a group, such as "antelope", is ambiguous. The caller must ask the user to choose
     from the candidates. Search must not expand it to every species silently.
     """
-    client = client or httpx.Client(base_url=GBIF_API, timeout=20)
+    client = client or http.client(base_url=GBIF_API, timeout=20)
 
     match = client.get("/species/match", params={"name": name}).json()
     if match.get("matchType") == "EXACT" and match.get("rank") in SPECIES_RANKS:

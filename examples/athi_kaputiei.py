@@ -9,7 +9,8 @@ from pathlib import Path
 
 from habitat.db import connect
 from habitat.grid import default_grid
-from habitat.ingest import Workspace, run
+from habitat.ingest import Workspace
+from habitat.pipeline import build_request, run
 
 ATHI_KAPUTIEI = (36.85, -1.60, 37.10, -1.35)
 WILDEBEEST_PACKAGE = "5b6706c8-e7e5-46e4-82ba-da5a82324298"
@@ -22,18 +23,18 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     with connect() as connection:
-        workspace = Workspace(Path("data/raw"), connection, default_grid())
+        workspace = Workspace(connection, default_grid())
         steps = [
-            ("movebank", {"package": WILDEBEEST_PACKAGE}),
-            ("chirps", {"bbox": ATHI_KAPUTIEI, "start": LONG_RAINS_2011[0], "end": LONG_RAINS_2011[1]}),
-            ("modis_mod13q1", {"bbox": ATHI_KAPUTIEI, "start": LONG_RAINS_2011[0], "end": LONG_RAINS_2011[1]}),
-            ("sentinel2", {"bbox": ATHI_KAPUTIEI, "start": CLEAR_SENTINEL2_DAY, "end": CLEAR_SENTINEL2_DAY}),
+            ("movebank_repository", None, None, None, WILDEBEEST_PACKAGE),
+            ("chirps", ATHI_KAPUTIEI, *LONG_RAINS_2011, None),
+            ("modis_mod13q1", ATHI_KAPUTIEI, *LONG_RAINS_2011, None),
+            ("sentinel2", ATHI_KAPUTIEI, CLEAR_SENTINEL2_DAY, CLEAR_SENTINEL2_DAY, None),
         ]
-        for source, arguments in steps:
-            outcomes = run(source, workspace, **arguments)
-            appended = sum(1 for o in outcomes if o.append and o.append.appended)
-            quarantined = [o.quarantine_reason for o in outcomes if o.quarantine_reason]
-            print(f"{source}: {appended} new item(s), {len(outcomes) - appended} skipped, quarantined: {quarantined}")
+        for source, bbox, start, end, package in steps:
+            result = run(build_request(source, bbox, start, end, package, None), use_agent=False, workspace=workspace)
+            appended = sum(1 for o in result.outcomes if o.status == "appended")
+            quarantined = [o.reason for o in result.outcomes if o.status == "quarantined"]
+            print(f"{source}: {result.status}, {appended} new item(s), quarantined: {quarantined}")
 
         for title, sql in named_queries(QUERIES.read_text()):
             rows = connection.execute(sql).fetchall()
