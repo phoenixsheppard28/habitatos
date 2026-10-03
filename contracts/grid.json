@@ -1,0 +1,12 @@
+{
+  "grid_id": "ease2-global-1km",
+  "version": "1",
+  "crs": "EPSG:6933",
+  "cell_size_m": 1000.8950233495556,
+  "columns": 34704,
+  "rows": 14616,
+  "origin_x_m": -17367530.445161488,
+  "origin_y_m": 7314540.830638552,
+  "cell_id_format": "E1K-r{row}-c{col}",
+  "reference": "https://nsidc.org/data/user-resources/help-center/guide-ease-grids"
+}
