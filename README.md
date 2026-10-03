@@ -284,5 +284,3 @@ Contractors gain easier reporting and project comparisons. With sufficient compa
 Offer a free limited analysis and paid deeper queries, forecasts, recurring monitoring, and report exports. Later, add organization plans and commissioned field collection. Validate pricing against retrieval, storage, and processing costs.
 
 Validate whether users find defensible answers, save research/reporting time, return with new questions, and pay for continued use before expanding sources or adding hardware.
-# habitatos
-# habitatos
