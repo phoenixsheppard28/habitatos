@@ -154,5 +154,7 @@ def modis_processing_version(item: pystac.Item) -> str:
 
 def published_at(item: pystac.Item, fallback: datetime) -> datetime:
     """When the value became public. The retrieval time is a safe upper bound when the catalog does not say."""
-    created = item.properties.get("created")
-    return datetime.fromisoformat(created) if created else fallback
+    for key in ("created", "s2:generation_time"):
+        if value := item.properties.get(key):
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return fallback
