@@ -7,6 +7,7 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
+from habitat import config
 from habitat.contracts import (
     Coverage,
     ProductStatus,
@@ -55,8 +56,8 @@ def make_manifest(
         created_at=datetime(2026, 10, 3, tzinfo=UTC),
         access_scope="public",
         source=SourceRef(name=source_id),
-        storage=StorageRef(uri="memory://", format=storage_format),
-        checksum=None,
+        storage=StorageRef(uri=f"artifact://{item_id}/1", format=storage_format),
+        checksum="sha256:test",
         retrieved_at=datetime(2026, 10, 3, tzinfo=UTC),
         coverage=Coverage(start=time_start, end=time_end),
         rights=Rights(),
@@ -64,6 +65,7 @@ def make_manifest(
             source_id=source_id,
             product=product,
             source_item_id=item_id,
+            source_key=f"{source_id}:{item_id}",
             time_start=time_start,
             time_end=time_end,
             time_precision=precision,
@@ -74,6 +76,14 @@ def make_manifest(
             properties=properties or {},
         ),
     )
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings(tmp_path):
+    """Every test writes below its own tmp_path, never to the project data folder."""
+    config.reset()
+    yield config.configure(data_dir=tmp_path / "data")
+    config.reset()
 
 
 @pytest.fixture

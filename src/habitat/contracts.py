@@ -6,11 +6,15 @@ from pathlib import Path
 from typing import Any, Literal
 
 import pyarrow as pa
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[2] / "contracts"
 
 BBox = tuple[float, float, float, float]
+ARTIFACT_URI_PREFIX = "artifact://"
+ContractVersion = Literal["1.0"]
+FetchStatus = Literal["ok", "partial", "pending", "insufficient_data", "error"]
+TaskType = Literal["historical", "forecast", "discovery"]
 
 
 class TimePrecision(StrEnum):
@@ -56,6 +60,7 @@ class SourceItem(BaseModel):
     source_id: str
     product: str
     source_item_id: str
+    source_key: str
     kind: Literal["raster", "tabular"] = "raster"
     time_start: datetime
     time_end: datetime
@@ -74,11 +79,79 @@ class RawManifest(BaseModel):
     access_scope: str
     source: SourceRef
     storage: StorageRef
-    checksum: str | None
+    checksum: str
     retrieved_at: datetime
     coverage: Coverage
     rights: Rights
     extensions: SourceItem
+
+    @field_validator("storage")
+    @classmethod
+    def storage_is_an_artifact_uri(cls, storage: StorageRef) -> StorageRef:
+        if not storage.uri.startswith(ARTIFACT_URI_PREFIX):
+            raise ValueError(f"storage.uri must start with {ARTIFACT_URI_PREFIX}, got {storage.uri!r}")
+        return storage
+
+
+class TimeRange(BaseModel):
+    start: str | None = None
+    end: str | None = None
+
+
+class QuerySpec(BaseModel):
+    query_id: str
+    question: str
+    task_type: TaskType
+    species: list[str] = Field(default_factory=list)
+    region: dict[str, Any] | None = None
+    time_range: TimeRange = Field(default_factory=TimeRange)
+
+
+class FetchRequirements(BaseModel):
+    """What the coordinator still needs retrieved. Dates are inclusive YYYY-MM-DD days."""
+
+    species: list[str] = Field(default_factory=list)
+    data_kinds: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+    bbox: list[float] | None = None
+    start: str | None = None
+    end: str | None = None
+    package: str | None = None
+
+
+class FetchError(BaseModel):
+    code: str
+    message: str
+    retryable: bool = False
+
+
+class FetchRequestInput(BaseModel):
+    query: QuerySpec
+    requirements: FetchRequirements = Field(default_factory=FetchRequirements)
+
+
+class FetchRequest(BaseModel):
+    contract_version: ContractVersion = "1.0"
+    request_id: str
+    query_id: str
+    access_scope: str = "public"
+    input: FetchRequestInput
+
+
+class FetchResponseOutput(BaseModel):
+    raw_artifacts: list[RawManifest] = Field(default_factory=list)
+
+
+class FetchResponse(BaseModel):
+    contract_version: ContractVersion = "1.0"
+    request_id: str
+    query_id: str
+    access_scope: str
+    status: FetchStatus
+    output: FetchResponseOutput = Field(default_factory=FetchResponseOutput)
+    warnings: list[str] = Field(default_factory=list)
+    error: FetchError | None = None
+    extensions: dict[str, Any] = Field(default_factory=dict)
 
 
 class TagOrigin(StrEnum):

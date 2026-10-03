@@ -1,18 +1,14 @@
-import os
 from pathlib import Path
 
 import psycopg
-from dotenv import load_dotenv
 
-DATABASE_URL_VARIABLE = "HABITAT_DATABASE_URL"
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+from habitat.config import DATABASE_URL_VARIABLE, PROJECT_ROOT, settings
+
 MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
 
 
 def database_url() -> str:
-    load_dotenv(PROJECT_ROOT / ".env")
-    load_dotenv(PROJECT_ROOT.parent / ".env")
-    url = os.environ.get(DATABASE_URL_VARIABLE)
+    url = settings().database_url
     if not url:
         raise RuntimeError(f"set {DATABASE_URL_VARIABLE} in the environment or in .env")
 
