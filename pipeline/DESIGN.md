@@ -403,7 +403,9 @@ Access:
 
 ## 11. Code layout
 
-The scaffold implements this design in `src/habitat/`. Run the tests with `uv run pytest`.
+The code is in `pipeline/`. All paths in this section are relative to `pipeline/`.
+Run every command from `pipeline/`. Run the tests with `uv run pytest`.
+For the integration surface of this system, read `INTEGRATIONS.md` at the repository root.
 
 | Path | Content |
 | --- | --- |

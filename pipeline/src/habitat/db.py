@@ -11,6 +11,7 @@ MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
 
 def database_url() -> str:
     load_dotenv(PROJECT_ROOT / ".env")
+    load_dotenv(PROJECT_ROOT.parent / ".env")
     url = os.environ.get(DATABASE_URL_VARIABLE)
     if not url:
         raise RuntimeError(f"set {DATABASE_URL_VARIABLE} in the environment or in .env")

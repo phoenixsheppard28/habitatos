@@ -2,7 +2,7 @@
 name = "habitat"
 version = "0.1.0"
 description = "Habitat Watch data pipeline: fetch, normalize, catalog and search"
-readme = "README.md"
+readme = "DESIGN.md"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.70",

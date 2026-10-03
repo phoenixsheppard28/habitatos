@@ -6,6 +6,40 @@ For the design reasons, read `pipeline/DESIGN.md`. For the full product contract
 
 Status at 2026-10-03, branch `psheppard/pipeline-1`.
 
+## 0. Repository layout and setup
+
+```text
+README.md          Product contract for all lanes
+INTEGRATIONS.md    This document
+.env               HABITAT_DATABASE_URL and ANTHROPIC_API_KEY (not in git)
+.mcp.json          Supabase MCP server for this project
+pipeline/          The Fetch + Normalize system (a uv Python project)
+  DESIGN.md        Design reasons and per-source processing steps
+  PIPELINE.MD      Original design discussion (history only)
+  src/habitat/     Package code
+  tests/           Unit tests and database tests
+  migrations/      SQL for Supabase, applied in number order
+  contracts/       Grid definition and tag vocabulary
+  examples/        Real example script and SQL queries for the Recipe lane
+  data/raw/        Downloaded source files (not in git)
+```
+
+Setup:
+
+1. Install `uv`. Python 3.12 is pinned in `pipeline/.python-version`.
+2. Write `.env` at the repository root (or in `pipeline/`):
+   - `HABITAT_DATABASE_URL`: the Supabase session pooler string, port 5432. The direct `db.<ref>.supabase.co` host is IPv6 only. It does not resolve on most networks.
+   - `ANTHROPIC_API_KEY`: optional. Necessary only for `--ai-tags`.
+3. Run all commands from `pipeline/`:
+
+```bash
+cd pipeline
+uv sync
+uv run pytest            # 48 tests; database tests use a temporary schema and remove it
+```
+
+Database tests are skipped when `HABITAT_DATABASE_URL` is not set.
+
 ## 1. What this part does
 
 This part takes satellite data and animal tracking data from public sources.
@@ -41,7 +75,7 @@ uv run python -m habitat.ingest sentinel2     --bbox W,S,E,N --start YYYY-MM-DD 
 uv run python -m habitat.ingest movebank      --package <data-repository-item-uuid>
 ```
 
-Python (`src/habitat/ingest.py`):
+Python (`pipeline/src/habitat/ingest.py`):
 
 ```python
 from habitat.ingest import Workspace, run
@@ -76,7 +110,7 @@ The function returns `uuid`, `title`, `taxon` and `study_id` for each package.
 
 ### 2.3 Fetch → Normalize handoff: `RawManifest`
 
-Fetch writes one `RawManifest` per source item (`src/habitat/contracts.py`).
+Fetch writes one `RawManifest` per source item (`pipeline/src/habitat/contracts.py`).
 The manifest follows the README v1 shape. `extensions` is a typed `SourceItem`:
 
 ```json
@@ -98,11 +132,11 @@ The manifest follows the README v1 shape. `extensions` is a typed `SourceItem`:
 
 - The router selects a normalizer by `(extensions.source_id, storage.format)`.
 - An unknown pair raises `QuarantineError`. The item is not ingested.
-- Raw bytes stay on local disk under `data/raw/<artifact_id>/`. `storage.uri` is a local path today.
+- Raw bytes stay on local disk under `pipeline/data/raw/<artifact_id>/`. `storage.uri` is a local path today.
 - Each `ingest_batches` row stores the full manifest in the `raw_manifest` JSONB column.
 
 If your lane produces raw files for this part, write a `RawManifest` with these `extensions` fields.
-Then add a normalizer to `NORMALIZERS` in `src/habitat/normalize/router.py`.
+Then add a normalizer to `NORMALIZERS` in `pipeline/src/habitat/normalize/router.py`.
 
 ## 3. Output surface: PostgreSQL
 
@@ -111,7 +145,7 @@ Read them with SQL. Do not depend on Python classes or file paths.
 
 ### 3.1 Connection and access
 
-- Set `HABITAT_DATABASE_URL` in `.env`. Use the session pooler string (port 5432).
+- Set `HABITAT_DATABASE_URL` in `.env`. Use the session pooler string (port 5432). See section 0.
 - Grant the group role `habitat_reader` to read. Grant `habitat_writer` to append.
 - Row-level security is on. The Supabase `anon` and `authenticated` roles cannot read the tables.
 - The session time zone is UTC. All timestamps are `timestamptz`.
@@ -136,7 +170,7 @@ Base tables: `cell_observations`, `animal_locations`, `ingest_batches`, `series`
 
 ### 3.3 The join key: `cell_id`
 
-- Grid: EASE-Grid 2.0 Global, 1 km, `EPSG:6933`. Definition: `contracts/grid.json`.
+- Grid: EASE-Grid 2.0 Global, 1 km, `EPSG:6933`. Definition: `pipeline/contracts/grid.json`.
 - Format: `E1K-r{row}-c{col}`, for example `E1K-r4410-c21877`.
 - Every gridded row has a `cell_id`. Every animal fix has the `cell_id` that contains the fix.
 - Thus a fix joins to rainfall and vegetation on `cell_id` plus a time rule. No spatial query is necessary.
@@ -152,7 +186,7 @@ Grain: one row per `cell_id`, `variable`, `source_id` and UTC day.
 | `time_start` | timestamptz | Start of the period that the value covers |
 | `time_end` | timestamptz | End of the period. Equal to `time_start` for an instant. |
 | `time_precision` | text | `instant` (Sentinel-2), `day` (CHIRPS), `composite` (MODIS 16-day) |
-| `available_at` | timestamptz | When the value became public. Use it to prevent leakage in forecasts. |
+| `available_at` | timestamptz | When the value became public. Use it to prevent leakage in forecasts. Sentinel-2: `s2:generation_time`. MODIS: production time. CHIRPS: file `Last-Modified`. |
 | `source_id` | text | `sentinel2`, `chirps`, `modis_mod13q1` |
 | `source_item_id` | text | STAC item or file that produced the row |
 | `processing_version` | text | Provider processing version |
@@ -210,7 +244,7 @@ Join `animal_entities` on `entity_id` for taxon, `gbif_taxon_key`, sex, life sta
 
 ### 3.7 Example joins
 
-`examples/queries.sql` has ready queries:
+`pipeline/examples/queries.sql` has ready queries:
 
 - Fixes per animal inside an area and a period.
 - Rainfall sum in the 14 days before each daily position.
@@ -285,7 +319,7 @@ matches = PostgresCatalog(connection).search_datasets(SearchFilters(
 ### 4.3 Tags
 
 - Deterministic keys: `sensor_type`, `temporal_resolution`, `variable`, `country`, `ecoregion`, `biome`, `year`, `taxon_class`.
-- AI keys and allowed values: `contracts/tag_vocabulary.json` (`habitat`, `topic`, `behaviour`, `study_design`).
+- AI keys and allowed values: `pipeline/contracts/tag_vocabulary.json` (`habitat`, `topic`, `behaviour`, `study_design`).
 - Validation rejects an AI tag value that is not in the vocabulary.
 - Set `include_ai_tags=False` to search with deterministic tags only.
 
@@ -293,16 +327,41 @@ matches = PostgresCatalog(connection).search_datasets(SearchFilters(
 
 Checked on 2026-10-03:
 
-| Object | Rows |
-| --- | --- |
-| `cell_observations` (Sentinel-2 only) | 4,734 |
-| `animal_locations` | 0 |
-| `animal_entities` | 0 |
-| `grid_cells` | 800 |
-| `latest_datasets` | 1 (`sentinel2--sentinel-2-l2a--ease2-global-1km`, version 2) |
+| Dataset (`series_id`) | Family | Version | Rows | Period |
+| --- | --- | --- | --- | --- |
+| `sentinel2--sentinel-2-l2a--ease2-global-1km` | `cell_observations` | 4 | 9,534 | 2024-02-02 to 2024-03-03 (4 items, 3 dates) |
+| `modis_mod13q1--mod13q1-061--ease2-global-1km` | `cell_observations` | 3 | 4,800 | 2024-01-17 to 2024-03-04 (3 composites) |
+| `movebank--movebank-data-repository--ease2-global-1km` | `animal_locations` | 1 | 279,082 | 2010-05-25 to 2013-01-15 |
 
-The demo area is the Athi-Kaputiei Plains, Kenya (bbox `36.85,-1.60,37.10,-1.35`).
-To load wildebeest fixes, CHIRPS and MODIS for March–April 2011, run `uv run python examples/athi_kaputiei.py`.
+- Satellite data: the Athi-Kaputiei Plains, Kenya (bbox `36.85,-1.60,37.10,-1.35`), about 800 cells.
+- Tracking data: 36 white-bearded wildebeest (*Connochaetes taurinus*, GBIF key 2441105) at three sites: Mara, Athi-Kaputiei Plains and Amboseli Basin. Source: Movebank Data Repository, doi:10.5441/001/1.h0t27719, CC0.
+- `grid_cells` has 6,129 cells.
+
+The satellite data (2024) and the tracking data (2010–2013) do not overlap in time yet.
+To load CHIRPS and MODIS for March–April 2011, run `uv run python examples/athi_kaputiei.py` from `pipeline/`.
+Then the joins in `examples/queries.sql` return rows.
+
+### 5.1 Verified behaviour
+
+These checks ran against the live database with real data:
+
+| Check | Result |
+| --- | --- |
+| Same Sentinel-2 item again | No download, no append. 2.6 s. |
+| New Sentinel-2 date | Same series, next version |
+| Two processing runs of one acquisition (2024-02-02) | Both stored. The current view has one row per cell, variable and day. |
+| MODIS after Sentinel-2 | Same table, separate series and catalog row. The Sentinel-2 versions did not change. |
+| Pinned version 1 after later appends | Returns only the 2,337 rows of version 1 |
+| `as_of` cutoff 2024-02-20 | Returns the 02-02 and 02-17 items. It excludes 03-03. |
+| Sentinel-2 NDVI against MODIS NDVI per cell | Correlation 0.71 over 423 cells |
+| Same Movebank package again | No download, no append. 2 s. |
+| Duplicate keys in `current_cell_observations` | 0 |
+
+### 5.2 Data corrections
+
+- The first Sentinel-2 ingests set `available_at` to the download time. The code now uses `s2:generation_time`.
+  A one-off SQL update corrected the 9,534 stored Sentinel-2 rows and their `raw_manifest`. No other observation row was ever changed.
+- Migration `006` adds `source_item_id` as the last tie-breaker of the current view. It was applied with the pipeline connection, so the Supabase migration history shows only `001`–`005`.
 
 ## 6. Gaps against the README v1 contract
 
@@ -331,13 +390,18 @@ Other lanes must know these gaps before they integrate.
 
 ## 8. Files to read
 
+All paths are in `pipeline/`.
+
 | Path | Content |
 | --- | --- |
-| `migrations/001`–`005` | Roles, catalog, `cell_observations` and views, `animal_locations`, indexes |
+| `migrations/001`–`006` | Roles, catalog, `cell_observations` and views, `animal_locations`, indexes, tie-breaker |
 | `src/habitat/contracts.py` | `RawManifest`, `SourceItem`, `DatasetVersion`, `SearchFilters`, Arrow schemas |
+| `src/habitat/db.py` | Connection from `HABITAT_DATABASE_URL` |
 | `src/habitat/ingest.py` | Entry point: fetch, normalize, append, publish |
+| `src/habitat/fetch/` | CHIRPS, STAC (Sentinel-2, MODIS) and Movebank Data Repository connectors |
 | `src/habitat/normalize/router.py` | Source/format → normalizer map |
 | `src/habitat/storage/series.py` | Batches, versions, `COPY` of rows |
 | `src/habitat/catalog/` | Search, tags, taxon resolution, publish |
+| `examples/athi_kaputiei.py` | Real example: tracking, rainfall and vegetation for one area |
 | `examples/queries.sql` | Join examples for the Recipe lane |
-| `pipeline/DESIGN.md` | Design reasons and per-source processing steps |
+| `DESIGN.md` | Design reasons and per-source processing steps |
