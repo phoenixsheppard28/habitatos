@@ -6,9 +6,9 @@ import anthropic
 from pydantic import BaseModel
 
 from habitat.catalog.tags import validate_ai_tags
+from habitat import llm
 from habitat.contracts import DatasetVersion, Tag, load_contract
 
-MODEL = "claude-opus-5-5"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 TAGGING_SYSTEM = """You label ecological datasets for a search catalog.
@@ -55,8 +55,8 @@ def tag_schema(vocabulary: dict[str, list[str]]) -> dict[str, Any]:
 
 
 class CatalogAssistant:
-    def __init__(self, client: anthropic.Anthropic | None = None, model: str = MODEL):
-        self.client = client or anthropic.Anthropic()
+    def __init__(self, client: anthropic.Anthropic | None = None, model: str = llm.CATALOG_MODEL):
+        self.client = client or llm.client()
         self.model = model
         self.vocabulary: dict[str, list[str]] = load_contract("tag_vocabulary.json")["ai_keys"]
 
