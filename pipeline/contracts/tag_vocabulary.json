@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "ai_keys": {
+    "habitat": ["savanna", "grassland", "shrubland", "forest", "woodland", "wetland", "desert", "salt_pan", "riparian", "cropland", "urban", "mountain"],
+    "topic": ["drought", "flooding", "fire", "migration", "seasonal_movement", "vegetation_greening", "water_availability", "land_use_change", "human_wildlife_conflict"],
+    "behaviour": ["migration", "foraging", "resting", "dispersal", "range_residency"],
+    "study_design": ["gps_collar", "argos_tag", "camera_trap", "transect_survey", "opportunistic_sighting", "remote_sensing", "gridded_climate"]
+  },
+  "deterministic_keys": ["sensor_type", "temporal_resolution", "variable", "country", "ecoregion", "biome", "year", "taxon_class"]
+}
