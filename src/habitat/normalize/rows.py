@@ -1,16 +1,21 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 import pyarrow as pa
 
-from habitat.contracts import CELL_OBSERVATIONS_SCHEMA, ProductStatus, RawManifest
+from habitat.contracts import CELL_OBSERVATIONS_SCHEMA, AnimalEntity, ProductStatus, RawManifest
 from habitat.grid import Grid
+
+CELL_OBSERVATIONS = "cell_observations"
+ANIMAL_LOCATIONS = "animal_locations"
 
 
 @dataclass
 class NormalizedBatch:
     table: pa.Table
     mapping_version: str
+    family: str = CELL_OBSERVATIONS
+    entities: list[AnimalEntity] = field(default_factory=list)
 
 
 class QuarantineError(ValueError):

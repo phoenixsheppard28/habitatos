@@ -50,13 +50,13 @@ class Rights(BaseModel):
     attribution: str | None = None
 
 
-class RasterItem(BaseModel):
-    """Typed `extensions` of a RawManifest for one gridded source item."""
+class SourceItem(BaseModel):
+    """Typed `extensions` of a RawManifest for one source item: a raster scene or a tabular file."""
 
     source_id: str
     product: str
     source_item_id: str
-    kind: Literal["raster"] = "raster"
+    kind: Literal["raster", "tabular"] = "raster"
     time_start: datetime
     time_end: datetime
     time_precision: TimePrecision
@@ -78,7 +78,7 @@ class RawManifest(BaseModel):
     retrieved_at: datetime
     coverage: Coverage
     rights: Rights
-    extensions: RasterItem
+    extensions: SourceItem
 
 
 class TagOrigin(StrEnum):
@@ -180,6 +180,39 @@ CELL_OBSERVATIONS_SCHEMA = pa.schema(
         pa.field("source_resolution_m", pa.float64(), nullable=False),
     ]
 )
+
+ANIMAL_LOCATIONS_SCHEMA = pa.schema(
+    [
+        pa.field("source_record_id", pa.string(), nullable=False),
+        pa.field("dataset_id", pa.string(), nullable=False),
+        pa.field("entity_id", pa.string(), nullable=False),
+        pa.field("tag_id", pa.string(), nullable=True),
+        pa.field("observed_at", UTC_TIMESTAMP, nullable=False),
+        pa.field("available_at", UTC_TIMESTAMP, nullable=False),
+        pa.field("longitude", pa.float64(), nullable=False),
+        pa.field("latitude", pa.float64(), nullable=False),
+        pa.field("cell_id", pa.string(), nullable=False),
+        pa.field("sensor_type", pa.string(), nullable=False),
+        pa.field("quality_flag", pa.string(), nullable=False),
+        pa.field("mapping_version", pa.string(), nullable=False),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
+
+class AnimalEntity(BaseModel):
+    entity_id: str
+    source_id: str
+    study_id: str
+    local_identifier: str
+    taxon_name: str | None = None
+    gbif_taxon_key: int | None = None
+    sex: str | None = None
+    life_stage: str | None = None
+    deploy_on: datetime | None = None
+    deploy_off: datetime | None = None
+    study_site: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 @cache

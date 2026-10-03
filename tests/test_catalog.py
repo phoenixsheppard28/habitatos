@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from shapely.geometry import box
 
-from habitat.catalog.store import LocalCatalog
+from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.catalog.tags import deterministic_tags, merge_tags, validate_ai_tags
 from habitat.contracts import Coverage, DatasetVersion, SearchFilters, StorageRef, Tag, TagOrigin, TaxonRef
 
@@ -22,9 +22,9 @@ def dataset(dataset_id, family, footprint, start, end, species=(), tags=(), vers
     )
 
 
-@pytest.fixture
-def catalog(tmp_path):
-    catalog = LocalCatalog(tmp_path / "catalog.json")
+@pytest.fixture(params=["memory", "postgres"])
+def catalog(request):
+    catalog = MemoryCatalog() if request.param == "memory" else PostgresCatalog(request.getfixturevalue("database"))
     catalog.register_dataset(dataset(
         "springbok-etosha", "animal_locations", box(15.8, -19.2, 16.6, -18.8),
         datetime(2019, 1, 1, tzinfo=UTC), datetime(2019, 12, 31, tzinfo=UTC), species=[SPRINGBOK],
@@ -84,6 +84,7 @@ def test_matches_report_the_matched_tags(catalog):
 def test_unknown_footprint_is_kept_but_marked_unknown(catalog):
     unknown = dataset("unknown-coverage", "occurrences", box(0, 0, 1, 1), datetime(2019, 1, 1, tzinfo=UTC), datetime(2019, 2, 1, tzinfo=UTC))
     unknown.footprint_wkt = None
+    unknown.coverage.bbox = None
     catalog.register_dataset(unknown)
 
     match = next(m for m in catalog.search_datasets(SearchFilters(access_scope=["public"], region_wkt=ETOSHA.wkt))

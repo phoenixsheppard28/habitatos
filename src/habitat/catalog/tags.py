@@ -22,6 +22,11 @@ SOURCE_TAGS: dict[str, list[Tag]] = {
         Tag(key="temporal_resolution", value="daily"),
         Tag(key="study_design", value="gridded_climate"),
     ],
+    "movebank": [
+        Tag(key="sensor_type", value="gps"),
+        Tag(key="temporal_resolution", value="sub_daily"),
+        Tag(key="study_design", value="gps_collar"),
+    ],
 }
 
 MIN_REGION_SHARE = 0.05

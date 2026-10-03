@@ -6,7 +6,7 @@ import httpx
 from habitat.contracts import (
     Coverage,
     ProductStatus,
-    RasterItem,
+    SourceItem,
     RawManifest,
     Rights,
     SourceRef,
@@ -69,7 +69,7 @@ def fetch_chirps_day(
         retrieved_at=retrieved_at,
         coverage=Coverage(bbox=(-180.0, -50.0, 180.0, 50.0), start=start, end=start + timedelta(days=1)),
         rights=RIGHTS,
-        extensions=RasterItem(
+        extensions=SourceItem(
             source_id="chirps",
             product=PRODUCT,
             source_item_id=item_id(day),

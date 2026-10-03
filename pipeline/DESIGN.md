@@ -123,12 +123,15 @@ The two values are not interchangeable, so Recipe must select the source explici
 These numbers are estimates. We did not measure them.
 
 - One Sentinel-2 tile (~110 × 110 km) is about 12,000 cells.
-- One acquisition gives about 36,000 rows. That is about 0.5–1 MB as Parquet.
-- One year (~70 acquisitions per tile) is about 50 MB as Parquet. The raw bands for the same year are tens of GB.
+- One acquisition gives about 36,000 rows. That is about 5–10 MB in PostgreSQL, with indexes.
+- One year (~70 acquisitions per tile) is about 0.5 GB in PostgreSQL. The raw bands for the same year are tens of GB.
+- If a table becomes too large, partition it by month with `pg_partman`. Supabase supplies this extension.
 
 ## 5. One output shape for every source
 
-Every source ends as rows in one long-format table, `cell_observations`, stored as Parquet.
+Every gridded source ends as rows in one long-format PostgreSQL table, `cell_observations`.
+Animal tracking data ends in a second table, `animal_locations`.
+The next lane writes SQL against these tables and their views. It does not read files.
 CSV is only an export format for users, because CSV loses types, time zones and the difference between null and empty.
 
 ### 5.1 Common core (every canonical table)
@@ -172,12 +175,27 @@ CSV is only an export format for users, because CSV loses types, time zones and 
 ### 5.4 Compatibility with the README families
 
 The README v1 contract names `rainfall_observations` and `vegetation_observations`.
-The storage adapter exposes both as filtered views of `cell_observations`:
+Migration `003_cell_observations.sql` makes both as views of `current_cell_observations`.
+Each view also has the cell polygon in the `geometry` column:
 
 - `rainfall_observations`: `variable = 'rainfall_mm'`. Map `time_start` → `interval_start`, `time_end` → `interval_end`, `value` → `rainfall_mm`.
 - `vegetation_observations`: the vegetation and water indices. Map `time_start` → `observed_at`, `variable` → `index_name`, `value` → `index_value`.
 
 Thus the existing contract does not change, and Recipe can still use one generic join on `cell_id` and time.
+
+### 5.5 Animal locations
+
+Migration `004_animal_locations.sql` makes two tables:
+
+- `animal_entities`: one row per animal. `entity_id` has the form `movebank:<study id>:<local name>`. The same local name in two studies is two animals.
+- `animal_locations`: one row per fix, with `observed_at`, `longitude`, `latitude`, a PostGIS point, and the `cell_id` of the fix.
+
+The `cell_id` column lets Recipe join a fix to `cell_observations` without a spatial query.
+Movebank columns without a canonical column go into `attributes` (JSONB). The original file stays in the raw archive.
+Movebank marks outliers with `visible = false`. The normalizer keeps these fixes and sets `quality_flag = 'marked_outlier'`.
+
+The first source is the Movebank Data Repository. Its data packages are public, have a DOI and a license, and need no login.
+The Movebank REST API needs an account. Add it later for studies that are not in the repository.
 
 ## 6. Dataset search with metadata filters
 
@@ -300,22 +318,16 @@ MODIS collection 061 and a future collection 062 are two series.
 - Batch key: `(source_id, source_item_id, processing_version, product_status, mapping_version)`.
 - Fetch checks the latest series version before it downloads. It does not download an item that the series already holds.
 - If the batch key already exists, the job stops and does nothing. Retries are therefore safe.
-- Each batch writes new Parquet files. The job never edits an existing file.
-
-Layout:
-
-```text
-cell_observations/
-  source_id=sentinel2/
-    year=2024/month=03/
-      batch=S2B_36KWD_20240304_0_L2A__m3.parquet
-```
+- Each batch inserts new rows. The job never updates or deletes an observation row.
+- One append is one transaction. A failed append leaves no rows.
+- The writer locks the `series` row. Two writers of one series therefore never make the same version.
 
 ### 7.3 Versions
 
-- An append creates a new `dataset_version`. That version is the previous file list plus the new batch files.
-- Old versions stay readable. A saved recipe pins a version, so its results do not change.
-- A version is a small manifest that lists its Parquet files. Delta Lake or Apache Iceberg can do this job later if the manual manifest becomes difficult.
+- An append creates a new version in `series_versions`.
+- `ingest_batches` records for each batch the version that added it (`added_in_version`) and the version that replaced it (`superseded_in_version`).
+- Version N holds each batch with `added_in_version <= N` that was not replaced at or before N.
+- Old versions stay readable. A saved recipe pins a version with `current_cell_observations_at(series_id, version)`, so its results do not change.
 
 ### 7.4 Overlaps and replacements
 
@@ -353,7 +365,7 @@ Raster jobs run on their own worker, so they do not block tabular jobs.
 | Item | Lane |
 | --- | --- |
 | Manifest fields `source_id`, `source_item_id`, `format`, `kind`, time fields | 1. Fetch |
-| Source router, per-source adapters, zonal statistics, `cell_observations`, batches and versions | 2. Normalize |
+| Source router, per-source adapters, zonal statistics, `cell_observations`, `animal_locations`, batches and versions | 2. Normalize |
 | Grid definition, column contract, tag vocabulary (`contracts/`) | 2. Normalize, agreed with all lanes |
 | Catalog search fields, tagging, `search_datasets` | 2. Normalize (storage adapter) |
 | Point sampling from COGs, time-window joins with `available_at` | 3. Recipe |
@@ -366,21 +378,46 @@ Raster jobs run on their own worker, so they do not block tabular jobs.
 4. The first version of the tag vocabulary.
 5. The target species and study. These decide the region for the first scheduled appends.
 
-## 10. Code layout
+## 10. Tables and views for the next lane
+
+All objects are in the `public` schema of the Supabase project.
+
+| Object | Use |
+| --- | --- |
+| `current_cell_observations` (view) | One current value per cell, variable, source and day |
+| `rainfall_observations` (view) | README form of CHIRPS rainfall, with the cell polygon |
+| `vegetation_observations` (view) | README form of NDVI, EVI, MNDWI and NDMI, with the cell polygon |
+| `current_cell_observations_at(series_id, version, cutoff)` (function) | The current view at a pinned version, with only values public at `cutoff` |
+| `current_animal_locations` (view) | Animal fixes after replacement by later batches |
+| `animal_entities` (table) | Animal, taxon, GBIF key, sex, deployment dates |
+| `grid_cells` (table) | Cell polygon and centre point for each `cell_id` |
+| `latest_datasets` (view), `dataset_tags` (table) | The catalog |
+
+`examples/queries.sql` has queries that join animal fixes to rainfall and to NDVI.
+
+Access:
+
+- Row-level security is on for every table. The `anon` and `authenticated` API roles cannot read the tables.
+- Give a person or service the group role `habitat_reader` to read. Give the pipeline `habitat_writer` to append.
+- Set `HABITAT_DATABASE_URL` in `.env`. Use the session pooler connection string (port 5432), because the writer uses `COPY` and session settings.
+
+## 11. Code layout
 
 The scaffold implements this design in `src/habitat/`. Run the tests with `uv run pytest`.
 
 | Path | Content |
 | --- | --- |
 | `contracts/grid.json`, `contracts/tag_vocabulary.json` | Shared grid definition and tag vocabulary |
-| `migrations/001_catalog.sql` | PostgreSQL and PostGIS form of the catalog, tags and batches |
-| `src/habitat/contracts.py` | `RawManifest`, `DatasetVersion`, `SearchFilters`, `Tag`, and the `cell_observations` Parquet schema |
+| `migrations/` | Roles, catalog, `cell_observations` and its views, `animal_locations`, indexes. All are applied to Supabase. |
+| `src/habitat/contracts.py` | `RawManifest`, `DatasetVersion`, `SearchFilters`, `Tag`, and the Arrow schemas of a normalized batch |
+| `src/habitat/db.py` | Connection from `HABITAT_DATABASE_URL` |
 | `src/habitat/grid.py` | EASE-Grid 2.0 1 km cells and `cell_id` |
-| `src/habitat/fetch/` | Raw archive, CHIRPS connector, STAC connector for Sentinel-2 and MODIS |
+| `src/habitat/fetch/` | Raw archive, CHIRPS connector, STAC connector for Sentinel-2 and MODIS, Movebank Data Repository connector |
 | `src/habitat/normalize/` | Index math, block-wise zonal statistics, per-source adapters, router |
-| `src/habitat/storage/series.py` | Append-only batches, versions, current view and `as_of` reads |
+| `src/habitat/storage/series.py` | Append-only batches and versions in PostgreSQL, `COPY` of rows, grid cells, animal entities |
 | `src/habitat/catalog/` | Footprints, deterministic tags, Claude tags and question parsing, GBIF taxon resolution, `search_datasets`, publish |
 | `src/habitat/ingest.py` | Command line: fetch, normalize, append and publish one source |
+| `examples/athi_kaputiei.py`, `examples/queries.sql` | Real example: wildebeest fixes, CHIRPS, MODIS and Sentinel-2 on the Athi-Kaputiei Plains, Kenya |
 
 Example:
 
@@ -388,6 +425,11 @@ Example:
 uv run python -m habitat.ingest chirps --bbox 15.8,-19.2,16.6,-18.8 --start 2024-03-04 --end 2024-03-07
 uv run python -m habitat.ingest modis_mod13q1 --bbox 15.8,-19.2,16.6,-18.8 --start 2024-03-01 --end 2024-03-31
 uv run python -m habitat.ingest sentinel2 --bbox 16.0,-19.1,16.3,-18.9 --start 2024-03-09 --end 2024-03-09 --ai-tags
+uv run python -m habitat.ingest movebank --package 5b6706c8-e7e5-46e4-82ba-da5a82324298
+uv run python examples/athi_kaputiei.py
 ```
+
+The database tests make a temporary schema, apply the migrations, and remove the schema after the test.
+They are skipped when `HABITAT_DATABASE_URL` is not set.
 
 The `--ai-tags` option calls Claude. It needs `ANTHROPIC_API_KEY` or an `ant auth login` profile.

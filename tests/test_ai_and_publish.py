@@ -8,7 +8,7 @@ import pytest
 from conftest import make_manifest
 from habitat.catalog.ai import CatalogAssistant, RefusedError
 from habitat.catalog.publish import publish_series_version
-from habitat.catalog.store import LocalCatalog
+from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.contracts import SearchFilters, Tag, TagOrigin, TimePrecision
 from habitat.normalize.rows import series_id, to_cell_observations
 from habitat.storage.series import SeriesStore
@@ -81,9 +81,9 @@ def append_rainfall(store, grid, day, cells):
     return store.append_batch(series_id(manifest, grid), manifest, batch)
 
 
-def test_publish_labels_once_then_reuses_labels_for_small_appends(tmp_path, grid):
-    store = SeriesStore(tmp_path / "canonical")
-    catalog = LocalCatalog(tmp_path / "catalog.json")
+def test_publish_labels_once_then_reuses_labels_for_small_appends(database, grid):
+    store = SeriesStore(database, grid)
+    catalog = PostgresCatalog(database)
     assistant, messages = fake_assistant([LABELS])
     cells = [f"E1K-r9000-c{col}" for col in range(18600, 18620)]
 
@@ -103,9 +103,9 @@ def test_publish_labels_once_then_reuses_labels_for_small_appends(tmp_path, grid
     assert [m.dataset.version for m in matches] == [2]
 
 
-def test_publish_relabels_when_coverage_grows_materially(tmp_path, grid):
-    store = SeriesStore(tmp_path / "canonical")
-    catalog = LocalCatalog(tmp_path / "catalog.json")
+def test_publish_relabels_when_coverage_grows_materially(database, grid):
+    store = SeriesStore(database, grid)
+    catalog = MemoryCatalog()
     assistant, messages = fake_assistant([LABELS, LABELS])
 
     first = append_rainfall(store, grid, datetime(2024, 3, 5, tzinfo=UTC), [f"E1K-r9000-c{c}" for c in range(18600, 18610)])
@@ -116,9 +116,9 @@ def test_publish_relabels_when_coverage_grows_materially(tmp_path, grid):
     assert len(messages.requests) == 2
 
 
-def test_publish_skips_a_version_that_is_already_registered(tmp_path, grid):
-    store = SeriesStore(tmp_path / "canonical")
-    catalog = LocalCatalog(tmp_path / "catalog.json")
+def test_publish_skips_a_version_that_is_already_registered(database, grid):
+    store = SeriesStore(database, grid)
+    catalog = PostgresCatalog(database)
     first = append_rainfall(store, grid, datetime(2024, 3, 5, tzinfo=UTC), ["E1K-r9000-c18600"])
 
     assert publish_series_version(store, catalog, grid, first.series_id, "chirps", "rain", "public") is not None

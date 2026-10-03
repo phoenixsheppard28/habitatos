@@ -7,6 +7,10 @@ from habitat.contracts import ProductStatus, TimePrecision
 from habitat.normalize.rows import series_id, to_cell_observations
 from habitat.storage.series import SeriesStore
 
+
+def values(rows):
+    return {row["value"] for row in rows}
+
 DAY = datetime(2024, 3, 5, tzinfo=UTC)
 NEXT_DAY = datetime(2024, 3, 6, tzinfo=UTC)
 
@@ -25,8 +29,8 @@ def chirps_manifest(status, available_at, day=DAY, item_id="chirps-2024.03.05"):
     )
 
 
-def test_append_is_idempotent(tmp_path, grid):
-    store = SeriesStore(tmp_path)
+def test_append_is_idempotent(database, grid):
+    store = SeriesStore(database, grid)
     manifest = chirps_manifest(ProductStatus.FINAL, NEXT_DAY)
     series = series_id(manifest, grid)
 
@@ -37,8 +41,8 @@ def test_append_is_idempotent(tmp_path, grid):
     assert not second.appended and second.version == 1
 
 
-def test_each_append_makes_a_new_version_and_keeps_the_old_one(tmp_path, grid):
-    store = SeriesStore(tmp_path)
+def test_each_append_makes_a_new_version_and_keeps_the_old_one(database, grid):
+    store = SeriesStore(database, grid)
     day_one = chirps_manifest(ProductStatus.FINAL, NEXT_DAY)
     day_two = chirps_manifest(ProductStatus.FINAL, NEXT_DAY, day=NEXT_DAY, item_id="chirps-2024.03.06")
     series = series_id(day_one, grid)
@@ -46,30 +50,30 @@ def test_each_append_makes_a_new_version_and_keeps_the_old_one(tmp_path, grid):
     store.append_batch(series, day_one, rainfall_batch(grid, day_one, 3.0))
     store.append_batch(series, day_two, rainfall_batch(grid, day_two, 7.0))
 
-    assert store.current_rows(store.version(series, 1)).num_rows == 2
-    assert store.current_rows(store.latest_version(series)).num_rows == 4
+    assert len(store.current_cell_rows(series, version=1)) == 2
+    assert len(store.current_cell_rows(series)) == 4
+    assert store.latest_version(series).version == 2
 
 
-def test_final_replaces_preliminary_but_as_of_still_sees_preliminary(tmp_path, grid):
-    store = SeriesStore(tmp_path)
+def test_final_replaces_preliminary_but_as_of_still_sees_preliminary(database, grid):
+    store = SeriesStore(database, grid)
     preliminary = chirps_manifest(ProductStatus.PRELIMINARY, datetime(2024, 3, 7, tzinfo=UTC))
     final = chirps_manifest(ProductStatus.FINAL, datetime(2024, 3, 25, tzinfo=UTC))
     series = series_id(final, grid)
 
     store.append_batch(series, preliminary, rainfall_batch(grid, preliminary, 2.0))
     result = store.append_batch(series, final, rainfall_batch(grid, final, 5.0))
-    latest = store.latest_version(series)
 
     assert result.appended
-    assert set(store.current_rows(latest).column("value").to_pylist()) == {5.0}
-    assert store.all_rows(latest).count("*").fetchone()[0] == 4
+    assert values(store.current_cell_rows(series)) == {5.0}
+    assert database.execute("SELECT count(*) FROM cell_observations").fetchone()[0] == 4
+    assert values(store.current_cell_rows(series, as_of=datetime(2024, 3, 10, tzinfo=UTC))) == {2.0}
+    rainfall = database.execute("SELECT DISTINCT rainfall_mm, product_status FROM rainfall_observations")
+    assert rainfall.fetchall() == [(5.0, "final")]
 
-    before_final = store.current_rows(latest, as_of=datetime(2024, 3, 10, tzinfo=UTC))
-    assert set(before_final.column("value").to_pylist()) == {2.0}
 
-
-def test_overlapping_scenes_keep_the_clearest_view(tmp_path, grid):
-    store = SeriesStore(tmp_path)
+def test_overlapping_scenes_keep_the_clearest_view(database, grid):
+    store = SeriesStore(database, grid)
     acquired = datetime(2024, 3, 9, 8, 47, tzinfo=UTC)
     tile_a = make_manifest("sentinel2", {}, acquired, item_id="T33KXV", product="s2")
     tile_b = make_manifest("sentinel2", {}, acquired, item_id="T33KYV", product="s2")
@@ -85,12 +89,13 @@ def test_overlapping_scenes_keep_the_clearest_view(tmp_path, grid):
     store.append_batch(series, tile_a, ndvi(tile_a, 0.6, 0.30))
     store.append_batch(series, tile_b, ndvi(tile_b, 0.9, 0.42))
 
-    current = store.current_rows(store.latest_version(series))
-    assert current.column("value").to_pylist() == [0.42]
+    assert [row["value"] for row in store.current_cell_rows(series)] == [0.42]
+    vegetation = database.execute("SELECT index_name, index_value, ST_GeometryType(geometry) FROM vegetation_observations")
+    assert vegetation.fetchall() == [("ndvi", 0.42, "ST_Polygon")]
 
 
-def test_rebuild_supersedes_old_batches(tmp_path, grid):
-    store = SeriesStore(tmp_path)
+def test_rebuild_supersedes_old_batches(database, grid):
+    store = SeriesStore(database, grid)
     manifest = chirps_manifest(ProductStatus.FINAL, NEXT_DAY)
     series = series_id(manifest, grid)
     old = store.append_batch(series, manifest, rainfall_batch(grid, manifest, 3.0))
@@ -101,3 +106,5 @@ def test_rebuild_supersedes_old_batches(tmp_path, grid):
 
     latest = store.latest_version(series)
     assert [b.mapping_version for b in latest.batches] == ["chirps-v2"]
+    assert values(store.current_cell_rows(series)) == {4.0}
+    assert values(store.current_cell_rows(series, version=1)) == {3.0}

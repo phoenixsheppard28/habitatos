@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 import pytest
@@ -9,13 +10,14 @@ from rasterio.transform import from_origin
 from habitat.contracts import (
     Coverage,
     ProductStatus,
-    RasterItem,
+    SourceItem,
     RawManifest,
     Rights,
     SourceRef,
     StorageRef,
     TimePrecision,
 )
+from habitat.db import DATABASE_URL_VARIABLE, connect, database_url, migration_files
 from habitat.grid import default_grid
 
 # A point in northern Namibia (UTM 33S), close to Etosha.
@@ -58,7 +60,7 @@ def make_manifest(
         retrieved_at=datetime(2026, 10, 3, tzinfo=UTC),
         coverage=Coverage(start=time_start, end=time_end),
         rights=Rights(),
-        extensions=RasterItem(
+        extensions=SourceItem(
             source_id=source_id,
             product=product,
             source_item_id=item_id,
@@ -106,3 +108,25 @@ def sentinel2_scene(tmp_path):
         processing_version="05.10",
         properties={"boa_add_offset": -1000.0},
     )
+
+
+@pytest.fixture
+def database():
+    """A throwaway schema with the migrations applied. Skips when no database is configured."""
+    try:
+        url = database_url()
+    except RuntimeError:
+        pytest.skip(f"{DATABASE_URL_VARIABLE} is not set")
+
+    schema = f"habitat_test_{uuid4().hex[:10]}"
+    connection = connect(url)
+    connection.execute(f"CREATE SCHEMA {schema}")
+    connection.execute(f"SET search_path = {schema}, extensions")
+    try:
+        for migration in migration_files():
+            if migration.name != "001_roles.sql":
+                connection.execute(migration.read_text())
+        yield connection
+    finally:
+        connection.execute(f"DROP SCHEMA {schema} CASCADE")
+        connection.close()

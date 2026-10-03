@@ -7,7 +7,7 @@ from pystac_client import Client
 from habitat.contracts import (
     BBox,
     Coverage,
-    RasterItem,
+    SourceItem,
     RawManifest,
     Rights,
     SourceRef,
@@ -96,7 +96,7 @@ def sentinel2_manifest(item: pystac.Item, archive: RawArchive, access_scope: str
         retrieved_at=retrieved_at,
         coverage=Coverage(bbox=tuple(item.bbox), start=item.datetime, end=item.datetime),
         rights=SENTINEL2_RIGHTS,
-        extensions=RasterItem(
+        extensions=SourceItem(
             source_id="sentinel2",
             product=SENTINEL2_PRODUCT,
             source_item_id=item.id,
@@ -132,7 +132,7 @@ def modis_manifest(item: pystac.Item, archive: RawArchive, access_scope: str = "
         retrieved_at=retrieved_at,
         coverage=Coverage(bbox=tuple(item.bbox), start=start, end=end),
         rights=MODIS_RIGHTS,
-        extensions=RasterItem(
+        extensions=SourceItem(
             source_id="modis_mod13q1",
             product=MODIS_PRODUCT,
             source_item_id=item.id,

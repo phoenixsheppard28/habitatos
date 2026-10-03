@@ -1,58 +1,119 @@
-import json
 import re
-from pathlib import Path
+from collections.abc import Iterable
 
+import psycopg
+from psycopg.types.json import Jsonb
 from shapely import wkt
 
 from habitat.catalog.footprint import area_share
 from habitat.contracts import DatasetMatch, DatasetVersion, SearchFilters, Tag, TagOrigin
 
 
-class LocalCatalog:
-    """File-backed catalog for development. `migrations/001_catalog.sql` is the PostgreSQL form of the same data."""
+class MemoryCatalog:
+    """In-process catalog for tests and notebooks. PostgresCatalog is the shared one."""
 
-    def __init__(self, path: Path):
-        self.path = Path(path)
+    def __init__(self):
+        self.records: list[DatasetVersion] = []
 
     def register_dataset(self, descriptor: DatasetVersion) -> None:
-        records = self.load()
         key = (descriptor.dataset_id, descriptor.version)
-        if any((r.dataset_id, r.version) == key for r in records):
+        if any((r.dataset_id, r.version) == key for r in self.records):
             raise ValueError(f"dataset version {key} already exists; published versions are immutable")
 
-        records.append(descriptor)
-        self.save(records)
+        self.records.append(descriptor)
 
     def latest(self, dataset_id: str) -> DatasetVersion | None:
-        versions = [r for r in self.load() if r.dataset_id == dataset_id]
+        versions = [r for r in self.records if r.dataset_id == dataset_id]
         return max(versions, key=lambda r: r.version) if versions else None
 
     def search_datasets(self, filters: SearchFilters) -> list[DatasetMatch]:
-        matches = [
-            match
-            for dataset in self.latest_versions()
-            if (match := match_dataset(dataset, filters)) is not None
-        ]
-        return sorted(matches, key=lambda m: (m.score, len(m.matched_tags)), reverse=True)
-
-    def latest_versions(self) -> list[DatasetVersion]:
         latest: dict[str, DatasetVersion] = {}
-        for record in self.load():
+        for record in self.records:
             if record.dataset_id not in latest or record.version > latest[record.dataset_id].version:
                 latest[record.dataset_id] = record
-        return list(latest.values())
+        return rank_matches(latest.values(), filters)
 
-    def load(self) -> list[DatasetVersion]:
-        if not self.path.exists():
-            return []
 
-        return [DatasetVersion.model_validate(item) for item in json.loads(self.path.read_text())]
+class PostgresCatalog:
+    """Catalog in the `datasets` and `dataset_tags` tables. SQL narrows the candidates; Python scores them."""
 
-    def save(self, records: list[DatasetVersion]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(json.dumps([r.model_dump(mode="json") for r in records], indent=2))
-        temporary.rename(self.path)
+    def __init__(self, connection: psycopg.Connection):
+        self.connection = connection
+
+    def register_dataset(self, descriptor: DatasetVersion) -> None:
+        coverage = descriptor.coverage
+        try:
+            with self.connection.transaction():
+                self.connection.execute(
+                    """
+                    INSERT INTO datasets (dataset_id, version, created_at, access_scope, family, source_id, status,
+                                          description, summary, footprint, time_range, variables, species_keys,
+                                          descriptor)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            ST_Multi(ST_GeomFromText(%s, 4326)), tstzrange(%s, %s, '[]'), %s, %s, %s)
+                    """,
+                    (
+                        descriptor.dataset_id, descriptor.version, descriptor.created_at, descriptor.access_scope,
+                        descriptor.family, descriptor.source_id, descriptor.status, descriptor.description,
+                        descriptor.summary, descriptor.footprint_wkt, coverage.start, coverage.end,
+                        descriptor.variables, [taxon.gbif_key for taxon in descriptor.species],
+                        Jsonb(descriptor.model_dump(mode="json")),
+                    ),
+                )
+                with self.connection.cursor() as cursor:
+                    cursor.executemany(
+                        """
+                        INSERT INTO dataset_tags (dataset_id, version, key, value, origin, model, confidence, evidence)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT DO NOTHING
+                        """,
+                        [
+                            (descriptor.dataset_id, descriptor.version, t.key, t.value, t.origin.value, t.model,
+                             t.confidence, t.evidence)
+                            for t in descriptor.tags
+                        ],
+                    )
+        except psycopg.errors.UniqueViolation as error:
+            key = (descriptor.dataset_id, descriptor.version)
+            raise ValueError(f"dataset version {key} already exists; published versions are immutable") from error
+
+    def latest(self, dataset_id: str) -> DatasetVersion | None:
+        row = self.connection.execute(
+            "SELECT descriptor FROM latest_datasets WHERE dataset_id = %s", (dataset_id,)
+        ).fetchone()
+        return DatasetVersion.model_validate(row[0]) if row else None
+
+    def search_datasets(self, filters: SearchFilters) -> list[DatasetMatch]:
+        rows = self.connection.execute(
+            """
+            SELECT descriptor FROM latest_datasets
+            WHERE access_scope = ANY(%(scopes)s)
+              AND status = %(status)s
+              AND (%(families)s::text[] IS NULL OR family = ANY(%(families)s))
+              AND (%(variables)s::text[] IS NULL OR variables && %(variables)s)
+              AND (%(species)s::bigint[] IS NULL OR species_keys && %(species)s::bigint[])
+              AND (%(region)s::text IS NULL OR footprint IS NULL
+                   OR ST_Intersects(footprint, ST_GeomFromText(%(region)s, 4326)))
+              AND (%(start)s::timestamptz IS NULL OR %(end)s::timestamptz IS NULL OR time_range IS NULL
+                   OR time_range && tstzrange(%(start)s, %(end)s, '[]'))
+            """,
+            {
+                "scopes": filters.access_scope,
+                "status": filters.status,
+                "families": filters.family,
+                "variables": filters.variables,
+                "species": [taxon.gbif_key for taxon in filters.species] if filters.species else None,
+                "region": filters.region_wkt,
+                "start": filters.start,
+                "end": filters.end,
+            },
+        ).fetchall()
+        return rank_matches((DatasetVersion.model_validate(row[0]) for row in rows), filters)
+
+
+def rank_matches(datasets: Iterable[DatasetVersion], filters: SearchFilters) -> list[DatasetMatch]:
+    matches = [match for dataset in datasets if (match := match_dataset(dataset, filters)) is not None]
+    return sorted(matches, key=lambda m: (m.score, len(m.matched_tags)), reverse=True)
 
 
 def match_dataset(dataset: DatasetVersion, filters: SearchFilters) -> DatasetMatch | None:
