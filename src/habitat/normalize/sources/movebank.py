@@ -1,14 +1,18 @@
+import hashlib
 import json
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 
+from habitat.archive.store import ArtifactStore
 from habitat.contracts import ANIMAL_LOCATIONS_SCHEMA, AnimalEntity, BBox, RawManifest
 from habitat.grid import Grid, transformer
 from habitat.normalize.rows import ANIMAL_LOCATIONS, NormalizedBatch, QuarantineError, series_id
 
 MAPPING_VERSION = "movebank-csv-v1"
+DIRECT_READ_MAPPING_VERSION = "movebank-direct-read-csv-v1"
+ENTITY_SOURCE_ID = "movebank"
 REQUIRED_COLUMNS = ["event-id", "timestamp", "location-long", "location-lat", "individual-local-identifier"]
 MAPPED_COLUMNS = {
     *REQUIRED_COLUMNS,
@@ -31,17 +35,44 @@ def entity_id(study_id: str, local_identifier: str) -> str:
     return f"movebank:{study_id}:{local_identifier}"
 
 
-def normalize_movebank(manifest: RawManifest, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
+def normalize_movebank(
+    manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None
+) -> NormalizedBatch:
     """Movebank CSV export to animal_locations. Movebank timestamps are UTC by definition.
 
     https://www.movebank.org/cms/movebank-content/mb-data-model
     """
+    fixes = pd.read_csv(store.open(manifest, "locations"), low_memory=False)
+    reference = store.open(manifest, "reference") if "reference" in manifest.extensions.assets else None
+    return normalize_fixes(manifest, fixes, reference, grid, aoi, MAPPING_VERSION)
+
+
+def normalize_movebank_study(
+    manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None
+) -> NormalizedBatch:
+    """The direct-read API names attributes with underscores and the public preview has no event ids."""
+    fixes = pd.read_csv(store.open(manifest, "locations"), low_memory=False)
+    fixes.columns = [column.replace("_", "-") for column in fixes.columns]
+    if "event-id" not in fixes.columns or fixes["event-id"].isna().any():
+        fixes["event-id"] = [
+            synthetic_event_id(manifest.extensions.properties.get("study_id"), name, time)
+            for name, time in zip(fixes["individual-local-identifier"], fixes["timestamp"])
+        ]
+    return normalize_fixes(manifest, fixes, None, grid, aoi, DIRECT_READ_MAPPING_VERSION)
+
+
+def synthetic_event_id(study_id, individual, timestamp) -> str:
+    return "synthetic:" + hashlib.sha256(f"{study_id}|{individual}|{timestamp}".encode()).hexdigest()[:24]
+
+
+def normalize_fixes(
+    manifest: RawManifest, fixes: pd.DataFrame, reference_path, grid: Grid, aoi: BBox | None, mapping_version: str
+) -> NormalizedBatch:
     item = manifest.extensions
     study_id = item.properties.get("study_id")
     if study_id is None:
         raise QuarantineError("the manifest has no Movebank study id; entity ids cannot be namespaced")
 
-    fixes = pd.read_csv(item.assets["locations"], low_memory=False)
     missing = [column for column in REQUIRED_COLUMNS if column not in fixes.columns]
     if missing:
         raise QuarantineError(f"Movebank file has no column(s) {missing}")
@@ -64,14 +95,14 @@ def normalize_movebank(manifest: RawManifest, grid: Grid, aoi: BBox | None = Non
             "cell_id": cell_ids_for_points(grid, fixes["location-long"].to_numpy(), fixes["location-lat"].to_numpy()),
             "sensor_type": fixes.get("sensor-type", pd.Series("gps", index=fixes.index)).fillna("unknown"),
             "quality_flag": quality_flags(fixes),
-            "mapping_version": MAPPING_VERSION,
+            "mapping_version": mapping_version,
             "attributes": unmapped_attributes(fixes),
         }
     )
     table = pa.Table.from_pandas(rows, schema=ANIMAL_LOCATIONS_SCHEMA, preserve_index=False)
 
-    entities = entities_from(fixes, item.assets.get("reference"), study_id)
-    return NormalizedBatch(table, MAPPING_VERSION, family=ANIMAL_LOCATIONS, entities=entities)
+    entities = entities_from(fixes, reference_path, study_id)
+    return NormalizedBatch(table, mapping_version, family=ANIMAL_LOCATIONS, entities=entities)
 
 
 def cell_ids_for_points(grid: Grid, longitudes: np.ndarray, latitudes: np.ndarray) -> np.ndarray:
@@ -106,7 +137,7 @@ def entities_from(fixes: pd.DataFrame, reference_path: str | None, study_id: str
     entities = {
         str(name): AnimalEntity(
             entity_id=entity_id(study_id, str(name)),
-            source_id="movebank",
+            source_id=ENTITY_SOURCE_ID,
             study_id=study_id,
             local_identifier=str(name),
             taxon_name=taxa.get(name),

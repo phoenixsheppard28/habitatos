@@ -1,5 +1,6 @@
 import rasterio
 
+from habitat.archive.store import ArtifactStore
 from habitat.contracts import BBox, RawManifest
 from habitat.grid import Grid
 from habitat.normalize.indices import chirps_rainfall
@@ -11,7 +12,7 @@ UNITS = {"rainfall_mm": "mm"}
 SOURCE_RESOLUTION_M = 5566.0
 
 
-def normalize_chirps(manifest: RawManifest, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
+def normalize_chirps(manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
     item = manifest.extensions
     if aoi is None:
         raise QuarantineError("CHIRPS is quasi-global; an area of interest is required to bound the cell count")
@@ -19,7 +20,9 @@ def normalize_chirps(manifest: RawManifest, grid: Grid, aoi: BBox | None = None)
     if "precipitation" not in item.assets:
         raise QuarantineError(f"{item.source_item_id}: missing asset 'precipitation'")
 
-    with rasterio.open(item.assets["precipitation"]) as source:
+    path = store.open(manifest, "precipitation")
+    gdal_path = f"/vsigzip/{path}" if path.name.endswith(".gz") else str(path)
+    with rasterio.open(gdal_path) as source:
         sampled = sample_cell_centres(grid, source, aoi)
 
     sampled["value"] = chirps_rainfall(sampled.pop("raw").to_numpy())

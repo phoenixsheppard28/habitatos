@@ -1,3 +1,4 @@
+from habitat.archive.store import ArtifactStore
 from habitat.contracts import BBox, RawManifest
 from habitat.grid import Grid
 from habitat.normalize.indices import sentinel2_indices
@@ -11,7 +12,9 @@ UNITS = {"ndvi": "index", "mndwi": "index", "ndmi": "index"}
 SOURCE_RESOLUTION_M = 10.0
 
 
-def normalize_sentinel2(manifest: RawManifest, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
+def normalize_sentinel2(
+    manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None
+) -> NormalizedBatch:
     item = manifest.extensions
     missing = [name for name in REQUIRED_ASSETS if name not in item.assets]
     if missing:
@@ -28,7 +31,7 @@ def normalize_sentinel2(manifest: RawManifest, grid: Grid, aoi: BBox | None = No
             boa_add_offset=boa_add_offset,
         )
 
-    assets = {name: item.assets[name] for name in REQUIRED_ASSETS}
+    assets = {name: str(store.open(manifest, name)) for name in REQUIRED_ASSETS}
     blocks = iter_aligned_blocks(assets, reference="red", aoi=aoi)
     stats = aggregate_blocks(grid, blocks, compute)
 

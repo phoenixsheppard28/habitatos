@@ -1,53 +1,36 @@
-import argparse
 import logging
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
-from pathlib import Path
 
 import psycopg
 
-from habitat.archive.index import AlreadyIngested, ingested
+from habitat.archive import Archive, ChecksumMismatch
+from habitat.archive.index import PostgresArtifactIndex, ingested
 from habitat.catalog.ai import CatalogAssistant
 from habitat.catalog.publish import publish_series_version
 from habitat.catalog.store import PostgresCatalog
 from habitat.catalog.taxa import resolve_taxon
 from habitat.contracts import BBox, RawManifest
-from habitat.db import connect
-from habitat.fetch import chirps, movebank, stac
-from habitat.fetch.archive import RawArchive
-from habitat.grid import Grid, default_grid
+from habitat.fetch.connectors import ConnectorRequest, ConnectorResult
+from habitat.grid import Grid
 from habitat.normalize.router import normalize
 from habitat.normalize.rows import NormalizedBatch, QuarantineError, series_id, series_id_for
+from habitat.sources import get_source
 from habitat.storage.series import AppendResult, SeriesStore
 
 logger = logging.getLogger(__name__)
 
-PRODUCTS = {
-    "sentinel2": stac.SENTINEL2_PRODUCT,
-    "modis_mod13q1": stac.MODIS_PRODUCT,
-    "chirps": chirps.PRODUCT,
-    "movebank": movebank.PRODUCT,
-}
-
-DESCRIPTIONS = {
-    "sentinel2": "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition",
-    "modis_mod13q1": "MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell",
-    "chirps": "CHIRPS v2.0 daily rainfall per 1 km cell",
-    "movebank": "Animal GPS fixes from published Movebank data packages",
-}
-
 
 @dataclass
 class Workspace:
-    """Raw downloads stay on local disk. Canonical rows and the catalog live in PostgreSQL."""
+    """Raw files stay in the archive. Manifests, canonical rows and the catalog live in PostgreSQL."""
 
-    raw_root: Path
     connection: psycopg.Connection
     grid: Grid
+    archive: Archive | None = None
 
-    @property
-    def archive(self) -> RawArchive:
-        return RawArchive(self.raw_root)
+    def __post_init__(self):
+        if self.archive is None:
+            self.archive = Archive(index=PostgresArtifactIndex(self.connection))
 
     @property
     def store(self) -> SeriesStore:
@@ -65,10 +48,13 @@ class IngestOutcome:
     quarantine_reason: str | None = None
 
 
-def ingest_manifest(manifest: RawManifest, store: SeriesStore, grid: Grid, aoi: BBox | None) -> IngestOutcome:
+def ingest_manifest(
+    manifest: RawManifest, archive: Archive, store: SeriesStore, grid: Grid, aoi: BBox | None
+) -> IngestOutcome:
     try:
-        batch = normalize(manifest, grid, aoi)
-    except QuarantineError as error:
+        archive.resolve(manifest)
+        batch = normalize(manifest, archive.store, grid, aoi)
+    except (QuarantineError, ChecksumMismatch, FileNotFoundError) as error:
         logger.warning("quarantined %s: %s", manifest.artifact_id, error)
         return IngestOutcome(manifest, None, str(error))
 
@@ -89,101 +75,48 @@ def resolve_entity_taxa(batch: NormalizedBatch) -> None:
         entity.gbif_taxon_key = keys.get(entity.taxon_name)
 
 
-def fetch_manifests(
-    source: str,
-    bbox: BBox | None,
-    start: date | None,
-    end: date | None,
-    archive: RawArchive,
-    already_ingested: AlreadyIngested,
-    package: str | None = None,
-) -> list[RawManifest]:
+def fetch_new(source_id: str, request: ConnectorRequest, workspace: Workspace) -> ConnectorResult:
     """Download only the items that the series does not hold yet."""
-    if source == "movebank":
-        return movebank.fetch_data_package(package, archive, already_ingested)
+    source = get_source(source_id)
+    if source is None:
+        raise ValueError(f"unknown source {source_id!r}")
 
-    start_time = datetime.combine(start, datetime.min.time(), tzinfo=UTC)
-    end_time = datetime.combine(end, datetime.max.time(), tzinfo=UTC)
-
-    if source == "sentinel2":
-        items = stac.search_sentinel2(bbox, start_time, end_time)
-        new = [i for i in items if not already_ingested(i.id, i.properties["s2:processing_baseline"], "final")]
-        return [stac.sentinel2_manifest(item, archive) for item in new]
-
-    if source == "modis_mod13q1":
-        items = stac.search_modis_terra(bbox, start_time, end_time)
-        new = [i for i in items if not already_ingested(i.id, stac.modis_processing_version(i), "final")]
-        return [stac.modis_manifest(item, archive) for item in new]
-
-    if source == "chirps":
-        days = (start + timedelta(days=offset) for offset in range((end - start).days + 1))
-        manifests = (chirps.fetch_chirps_day(day, archive, already_ingested) for day in days)
-        return [manifest for manifest in manifests if manifest is not None]
-
-    raise ValueError(f"unknown source {source!r}")
+    already = ingested(workspace.store, series_id_for(source_id, source.product, workspace.grid))
+    return source.fetch(request, workspace.archive, already)
 
 
-def run(
-    source: str,
-    workspace: Workspace,
-    bbox: BBox | None = None,
-    start: date | None = None,
-    end: date | None = None,
-    package: str | None = None,
-    use_ai: bool = False,
-) -> list[IngestOutcome]:
-    store = workspace.store
-    grid = workspace.grid
-
-    already_ingested = ingested(store, series_id_for(source, PRODUCTS[source], grid))
-    manifests = fetch_manifests(source, bbox, start, end, workspace.archive, already_ingested, package)
-    outcomes = [ingest_manifest(manifest, store, grid, bbox) for manifest in manifests]
-
+def publish_changed(
+    outcomes: list[IngestOutcome], workspace: Workspace, access_scope: str = "public", use_ai: bool = False
+) -> list[str]:
     appended = [o for o in outcomes if o.append and o.append.appended]
+    published = []
     for series in sorted({o.append.series_id for o in appended}):
-        publish_series_version(
-            store,
+        source_id = next(o.manifest.extensions.source_id for o in appended if o.append.series_id == series)
+        descriptor = publish_series_version(
+            workspace.store,
             workspace.catalog,
-            grid,
+            workspace.grid,
             series,
-            source_id=source,
-            description=DESCRIPTIONS[source],
-            access_scope="public",
+            source_id=source_id,
+            description=get_source(source_id).description,
+            access_scope=access_scope,
             assistant=CatalogAssistant() if use_ai else None,
         )
+        if descriptor is not None:
+            published.append(series)
+    return published
+
+
+def run(source_id: str, workspace: Workspace, request: ConnectorRequest, use_ai: bool = False) -> list[IngestOutcome]:
+    fetched = fetch_new(source_id, request, workspace)
+    for warning in fetched.warnings:
+        logger.warning(warning)
+    for error in fetched.errors:
+        logger.error("%s: %s", error.code, error.message)
+
+    outcomes = [
+        ingest_manifest(manifest, workspace.archive, workspace.store, workspace.grid, request.bbox)
+        for manifest in fetched.manifests
+    ]
+    publish_changed(outcomes, workspace, request.access_scope, use_ai)
     return outcomes
-
-
-def parse_bbox(value: str) -> BBox:
-    west, south, east, north = (float(part) for part in value.split(","))
-    return west, south, east, north
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch, normalize and append one source to the PostgreSQL tables.")
-    parser.add_argument("source", choices=sorted(DESCRIPTIONS))
-    parser.add_argument("--bbox", type=parse_bbox, help="west,south,east,north in WGS84; required for satellite sources")
-    parser.add_argument("--start", type=date.fromisoformat)
-    parser.add_argument("--end", type=date.fromisoformat)
-    parser.add_argument("--package", help="Movebank Data Repository item UUID; required for movebank")
-    parser.add_argument("--raw", type=Path, default=Path("data/raw"), help="local folder for downloaded files")
-    parser.add_argument("--ai-tags", action="store_true", help="label new dataset versions with Claude")
-    args = parser.parse_args()
-
-    if args.source == "movebank" and not args.package:
-        parser.error("movebank needs --package")
-    if args.source != "movebank" and not (args.bbox and args.start and args.end):
-        parser.error(f"{args.source} needs --bbox, --start and --end")
-
-    logging.basicConfig(level=logging.INFO)
-    with connect() as connection:
-        workspace = Workspace(args.raw, connection, default_grid())
-        outcomes = run(args.source, workspace, args.bbox, args.start, args.end, args.package, args.ai_tags)
-
-    for outcome in outcomes:
-        status = outcome.quarantine_reason or ("appended" if outcome.append.appended else "already present")
-        print(f"{outcome.manifest.artifact_id}: {status}")
-
-
-if __name__ == "__main__":
-    main()

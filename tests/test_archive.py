@@ -62,7 +62,8 @@ def test_unsafe_artifact_ids_are_rejected(tmp_path, artifact_id):
 
 
 def test_an_artifact_uri_cannot_point_outside_the_archive(tmp_path):
-    manifest = make_manifest("fixture", {"data": "../../../../etc/passwd"}, datetime(2024, 1, 1, tzinfo=UTC))
+    manifest = make_manifest("fixture", {}, datetime(2024, 1, 1, tzinfo=UTC))
+    manifest.extensions.assets["data"] = "../../../../etc/passwd"
 
     with pytest.raises((ValueError, FileNotFoundError)):
         LocalArtifactStore().open(manifest, "data")

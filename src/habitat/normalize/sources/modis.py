@@ -1,3 +1,4 @@
+from habitat.archive.store import ArtifactStore
 from habitat.contracts import BBox, RawManifest
 from habitat.grid import Grid
 from habitat.normalize.indices import modis_vegetation_index
@@ -11,7 +12,7 @@ UNITS = {"ndvi": "index", "evi": "index"}
 SOURCE_RESOLUTION_M = 231.656358
 
 
-def normalize_modis(manifest: RawManifest, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
+def normalize_modis(manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
     item = manifest.extensions
     missing = [name for name in REQUIRED_ASSETS if name not in item.assets]
     if missing:
@@ -24,7 +25,7 @@ def normalize_modis(manifest: RawManifest, grid: Grid, aoi: BBox | None = None) 
             "evi": modis_vegetation_index(block.bands["evi"], reliability),
         }
 
-    assets = {name: item.assets[name] for name in REQUIRED_ASSETS}
+    assets = {name: str(store.open(manifest, name)) for name in REQUIRED_ASSETS}
     blocks = iter_aligned_blocks(assets, reference="ndvi", aoi=aoi)
     stats = aggregate_blocks(grid, blocks, compute)
 

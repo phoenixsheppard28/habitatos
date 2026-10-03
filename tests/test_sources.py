@@ -1,4 +1,6 @@
+import gzip
 from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -6,6 +8,7 @@ from rasterio.transform import from_origin
 
 from conftest import make_manifest, write_raster
 from habitat.contracts import CELL_OBSERVATIONS_SCHEMA, ProductStatus, TimePrecision
+from habitat.archive.store import LocalArtifactStore
 from habitat.normalize.router import normalize
 from habitat.normalize.rows import QuarantineError
 
@@ -13,7 +16,7 @@ MODIS_SINUSOIDAL = "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +n
 
 
 def test_sentinel2_precomputes_three_indices_per_cell(sentinel2_scene, grid):
-    table = normalize(sentinel2_scene, grid).table
+    table = normalize(sentinel2_scene, LocalArtifactStore(), grid).table
     rows = table.to_pandas()
 
     assert table.schema.equals(CELL_OBSERVATIONS_SCHEMA)
@@ -28,7 +31,7 @@ def test_sentinel2_precomputes_three_indices_per_cell(sentinel2_scene, grid):
 
 
 def test_sentinel2_cloudy_cells_are_null_not_zero(sentinel2_scene, grid):
-    rows = normalize(sentinel2_scene, grid).table.to_pandas()
+    rows = normalize(sentinel2_scene, LocalArtifactStore(), grid).table.to_pandas()
 
     cloudy = rows[rows["value"].isna()]
     assert not cloudy.empty
@@ -40,20 +43,22 @@ def test_sentinel2_without_offset_metadata_is_quarantined(sentinel2_scene, grid)
     sentinel2_scene.extensions.properties = {}
 
     with pytest.raises(QuarantineError, match="BOA_ADD_OFFSET"):
-        normalize(sentinel2_scene, grid)
+        normalize(sentinel2_scene, LocalArtifactStore(), grid)
 
 
 def test_chirps_samples_the_pixel_under_each_cell_centre(tmp_path, grid):
     rainfall = np.arange(100, dtype=np.float32).reshape(10, 10)
     rainfall[0, 0] = -9999
-    path = write_raster(tmp_path / "chirps.tif", rainfall, "EPSG:4326", from_origin(16.0, -19.0, 0.05, 0.05), -9999)
+    tif = write_raster(tmp_path / "chirps.tif", rainfall, "EPSG:4326", from_origin(16.0, -19.0, 0.05, 0.05), -9999)
+    path = tmp_path / "chirps-v2.0.2024.03.05.tif.gz"
+    path.write_bytes(gzip.compress(Path(tif).read_bytes()))
     day = datetime(2024, 3, 5, tzinfo=UTC)
     manifest = make_manifest(
         "chirps", {"precipitation": path}, day, datetime(2024, 3, 6, tzinfo=UTC),
-        precision=TimePrecision.DAY, status=ProductStatus.PRELIMINARY, storage_format="geotiff",
+        precision=TimePrecision.DAY, status=ProductStatus.PRELIMINARY, storage_format="tif.gz",
     )
 
-    rows = normalize(manifest, grid, aoi=(16.0, -19.5, 16.5, -19.0)).table.to_pandas()
+    rows = normalize(manifest, LocalArtifactStore(), grid, aoi=(16.0, -19.5, 16.5, -19.0)).table.to_pandas()
 
     assert set(rows["variable"]) == {"rainfall_mm"}
     assert rows["value"].between(0, 99).all()
@@ -63,10 +68,10 @@ def test_chirps_samples_the_pixel_under_each_cell_centre(tmp_path, grid):
 
 
 def test_chirps_requires_an_area_of_interest(tmp_path, grid):
-    manifest = make_manifest("chirps", {"precipitation": "x"}, datetime(2024, 3, 5, tzinfo=UTC), storage_format="geotiff")
+    manifest = make_manifest("chirps", {"precipitation": "x"}, datetime(2024, 3, 5, tzinfo=UTC), storage_format="tif.gz")
 
     with pytest.raises(QuarantineError, match="area of interest"):
-        normalize(manifest, grid)
+        normalize(manifest, LocalArtifactStore(), grid)
 
 
 def test_modis_keeps_given_ndvi_and_evi(tmp_path, grid):
@@ -85,7 +90,7 @@ def test_modis_keeps_given_ndvi_and_evi(tmp_path, grid):
         precision=TimePrecision.COMPOSITE,
     )
 
-    rows = normalize(manifest, grid).table.to_pandas()
+    rows = normalize(manifest, LocalArtifactStore(), grid).table.to_pandas()
     reliable = rows[rows["value"].notna()]
 
     assert set(rows["variable"]) == {"ndvi", "evi"}
@@ -97,5 +102,5 @@ def test_modis_keeps_given_ndvi_and_evi(tmp_path, grid):
 def test_unknown_source_is_quarantined(grid):
     manifest = make_manifest("landsat", {}, datetime(2024, 3, 5, tzinfo=UTC))
 
-    with pytest.raises(QuarantineError, match="no normalizer"):
-        normalize(manifest, grid)
+    with pytest.raises(QuarantineError, match="unknown source_id"):
+        normalize(manifest, LocalArtifactStore(), grid)

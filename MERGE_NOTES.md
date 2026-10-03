@@ -19,3 +19,11 @@ This file records the results, deviations, and open items of the merge in `MERGE
 - `MemoryArtifactIndex` exists next to `PostgresArtifactIndex`. Unit tests and runs without a database use it.
 
 ## Open items
+- Phases 4 and 5 are one commit. The registry imports the connectors, and the connectors fix the storage formats that the registry checks. Neither phase builds alone.
+- Normalizers take the store: `normalizer(manifest, store, grid, aoi)`. They call `store.open(manifest, asset)`. The CHIRPS normalizer builds the `/vsigzip/` path.
+- CHIRPS storage format is `tif.gz`. Sentinel-2 and MODIS storage format is `geotiff` (clipped GeoTIFF, not COG).
+- A Sentinel-2 or MODIS source key holds the bbox, because the clipped file depends on it. The series dedup check (`ingested`) uses the item id and processing version only. Thus a second request with a different bbox for an ingested scene downloads nothing. Open item: decide if a larger AOI must extend an ingested scene.
+- `movebank_study` emits CSV only. The public preview JSON becomes a CSV with the direct-read column names. The preview has no event ids; the normalizer adapter makes a deterministic id (`synthetic:<hash>`).
+- Animal entities keep `source_id="movebank"` for both Movebank sources. Both sources use the same entity id `movebank:<study>:<animal>`, so a repository package and a study download describe the same animal.
+- `tests/test_fetch.py` is deleted. Its subject (`habitat.fetch.stac`) moved; its two `published_at` tests are in `tests/test_stac.py`.
+- Raw files from before the merge stay in the old layout `data/raw/<item>/<file>`. The new layout is `data/raw/<artifact_id>/<version>/<file>`. The archive index does not know the old files. Tests read them only.

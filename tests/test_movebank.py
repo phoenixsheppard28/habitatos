@@ -6,6 +6,7 @@ from conftest import make_manifest
 from habitat.catalog.publish import publish_series_version
 from habitat.catalog.store import PostgresCatalog
 from habitat.contracts import SearchFilters, TaxonRef
+from habitat.archive.store import LocalArtifactStore
 from habitat.normalize.router import normalize
 from habitat.normalize.rows import QuarantineError, series_id
 from habitat.storage.series import SeriesStore
@@ -34,7 +35,7 @@ def package(tmp_path):
     reference.write_text(REFERENCE_CSV)
 
     return make_manifest(
-        "movebank",
+        "movebank_repository",
         {"locations": str(locations), "reference": str(reference)},
         datetime(2011, 3, 1, 6, tzinfo=UTC),
         datetime(2011, 3, 1, 8, tzinfo=UTC),
@@ -47,7 +48,7 @@ def package(tmp_path):
 
 
 def test_fixes_become_animal_locations_with_namespaced_ids(package, grid):
-    batch = normalize(package, grid)
+    batch = normalize(package, LocalArtifactStore(), grid)
     rows = batch.table.to_pylist()
 
     assert batch.family == "animal_locations"
@@ -60,32 +61,35 @@ def test_fixes_become_animal_locations_with_namespaced_ids(package, grid):
 
 
 def test_reference_data_describes_each_animal(package, grid):
-    entities = {e.local_identifier: e for e in normalize(package, grid).entities}
+    entities = {e.local_identifier: e for e in normalize(package, LocalArtifactStore(), grid).entities}
 
     assert entities["Olope"].sex == "m"
     assert entities["Olope"].deploy_off == datetime(2011, 8, 11, 23, 59, tzinfo=UTC)
     assert entities["Naboisho"].taxon_name == "Connochaetes taurinus"
 
 
-def test_a_file_without_coordinates_is_quarantined(tmp_path, package, grid):
+def test_a_file_without_coordinates_is_quarantined(tmp_path, grid):
     broken = tmp_path / "broken.csv"
     broken.write_text("event-id,timestamp,individual-local-identifier\n1,2011-03-01 06:00:00,A\n")
-    package.extensions.assets["locations"] = str(broken)
+    package = make_manifest(
+        "movebank_repository", {"locations": str(broken)}, datetime(2011, 3, 1, tzinfo=UTC),
+        properties={"study_id": "1"}, storage_format="csv",
+    )
 
     with pytest.raises(QuarantineError, match="location-long"):
-        normalize(package, grid)
+        normalize(package, LocalArtifactStore(), grid)
 
 
 def test_tracking_rows_are_queryable_and_searchable_by_species(database, package, grid):
     store = SeriesStore(database, grid)
     catalog = PostgresCatalog(database)
-    batch = normalize(package, grid)
+    batch = normalize(package, LocalArtifactStore(), grid)
     for entity in batch.entities:
         entity.gbif_taxon_key = WILDEBEEST.gbif_key
 
     first = store.append_batch(series_id(package, grid), package, batch)
     again = store.append_batch(series_id(package, grid), package, batch)
-    published = publish_series_version(store, catalog, grid, first.series_id, "movebank", "wildebeest", "public")
+    published = publish_series_version(store, catalog, grid, first.series_id, "movebank_repository", "wildebeest", "public")
 
     assert first.appended and not again.appended
     locations = database.execute(

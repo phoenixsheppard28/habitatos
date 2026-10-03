@@ -1,13 +1,17 @@
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import numpy as np
 import pytest
 import rasterio
 from rasterio.transform import from_origin
 
 from habitat import config
+from habitat.archive.store import LocalArtifactStore
+from habitat.fetch import http
 from habitat.contracts import (
     Coverage,
     ProductStatus,
@@ -47,17 +51,21 @@ def make_manifest(
     status: ProductStatus = ProductStatus.FINAL,
     available_at: datetime | None = None,
     properties: dict | None = None,
-    storage_format: str = "cog",
+    storage_format: str = "geotiff",
 ) -> RawManifest:
+    """A manifest for an archived item. Asset values that are existing files are put into the local archive."""
     time_end = time_end or time_start
+    artifact_id = item_id.replace("/", "_")
+    files = {Path(path).name: Path(path) for path in assets.values() if Path(path).is_file()}
+    stored = LocalArtifactStore().put(artifact_id, "1", files, storage_format) if files else None
     return RawManifest(
-        artifact_id=item_id,
+        artifact_id=artifact_id,
         version="1",
         created_at=datetime(2026, 10, 3, tzinfo=UTC),
         access_scope="public",
         source=SourceRef(name=source_id),
-        storage=StorageRef(uri=f"artifact://{item_id}/1", format=storage_format),
-        checksum="sha256:test",
+        storage=stored.storage if stored else StorageRef(uri=f"artifact://{artifact_id}/1", format=storage_format),
+        checksum=stored.checksum if stored else "sha256:test",
         retrieved_at=datetime(2026, 10, 3, tzinfo=UTC),
         coverage=Coverage(start=time_start, end=time_end),
         rights=Rights(),
@@ -72,7 +80,7 @@ def make_manifest(
             available_at=available_at or time_end,
             processing_version=processing_version,
             product_status=status,
-            assets=assets,
+            assets={name: Path(path).name for name, path in assets.items()},
             properties=properties or {},
         ),
     )
@@ -84,6 +92,43 @@ def isolated_settings(tmp_path):
     config.reset()
     yield config.configure(data_dir=tmp_path / "data")
     config.reset()
+
+
+def refuse_network(request: httpx.Request) -> httpx.Response:
+    raise AssertionError(f"unit test tried a network call: {request.method} {request.url}")
+
+
+@pytest.fixture(autouse=True)
+def no_network(request, monkeypatch):
+    """Unit tests make no network calls. Tests with the `live` marker use the real network."""
+    if request.node.get_closest_marker("live") is None:
+        monkeypatch.setattr(http, "TRANSPORT", httpx.MockTransport(refuse_network))
+
+
+@pytest.fixture
+def mock_http(monkeypatch):
+    """Route every request of the fetch layer to `handler(request) -> httpx.Response`."""
+
+    def install(handler):
+        requests = []
+
+        def record(request):
+            requests.append(request)
+            return handler(request)
+
+        monkeypatch.setattr(http, "TRANSPORT", httpx.MockTransport(record))
+        return requests
+
+    return install
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("HABITAT_LIVE_TESTS") == "1":
+        return
+    skip = pytest.mark.skip(reason="live test; set HABITAT_LIVE_TESTS=1")
+    for item in items:
+        if item.get_closest_marker("live"):
+            item.add_marker(skip)
 
 
 @pytest.fixture
