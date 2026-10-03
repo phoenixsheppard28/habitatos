@@ -72,6 +72,7 @@ def inspect_zenodo(dataset_id: str) -> dict[str, Any]:
         "dataset_id": dataset_id,
         "title": meta.get("title"),
         "description": meta.get("description"),
+        "access_right": meta.get("access_right"),
         "files": files,
         "coverage": {"species": [], "bbox": None, "start": None, "end": None},
         "source": {
@@ -97,6 +98,8 @@ def check_zenodo_access(dataset_id: str) -> dict[str, Any]:
             "message": info.get("error", "Unknown Zenodo record."),
         }
     files = info.get("files") or []
+    if info.get("access_right") in ("closed", "restricted", "embargoed"):
+        return {"dataset_id": dataset_id, "status": "restricted", "message": "Record files are not openly accessible."}
     if not files:
         return {
             "dataset_id": dataset_id,
@@ -119,6 +122,8 @@ def download_zenodo(dataset_id: str, *, prefer_filename: str | None = None) -> R
     info = inspect_zenodo(dataset_id)
     if not info.get("found"):
         return {"status": "error", "code": "not_found", "message": "Zenodo record not found."}
+    if info.get("access_right") in ("closed", "restricted", "embargoed"):
+        return {"status": "error", "code": "restricted", "message": "Zenodo record files are not openly accessible."}
 
     files = info.get("files") or []
     chosen = None
@@ -127,6 +132,10 @@ def download_zenodo(dataset_id: str, *, prefer_filename: str | None = None) -> R
             if f.get("filename") == prefer_filename:
                 chosen = f
                 break
+        if chosen is None:
+            return {"status": "error", "code": "file_not_found", "message": "Requested file is not in this record."}
+        if not chosen.get("download_url") or (chosen.get("size") or 0) > MAX_DOWNLOAD_BYTES:
+            return {"status": "error", "code": "no_suitable_file", "message": "Requested file is unavailable or exceeds the size limit."}
     if chosen is None:
         # Prefer smallest CSV/JSON under size cap
         candidates = [

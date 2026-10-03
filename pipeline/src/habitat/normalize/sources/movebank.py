@@ -40,13 +40,31 @@ def normalize_movebank(manifest: RawManifest, grid: Grid, aoi: BBox | None = Non
     study_id = item.properties.get("study_id")
     if study_id is None:
         raise QuarantineError("the manifest has no Movebank study id; entity ids cannot be namespaced")
+    study_id = str(study_id)
+    if "locations" not in item.assets:
+        raise QuarantineError("the manifest has no Movebank locations asset")
 
-    fixes = pd.read_csv(item.assets["locations"], low_memory=False)
+    fixes = pd.read_csv(item.assets["locations"], low_memory=False, dtype={
+        "event-id": "string", "individual-local-identifier": "string", "tag-local-identifier": "string"})
     missing = [column for column in REQUIRED_COLUMNS if column not in fixes.columns]
     if missing:
         raise QuarantineError(f"Movebank file has no column(s) {missing}")
 
     fixes = fixes.dropna(subset=["location-long", "location-lat", "timestamp"])
+    if fixes[["event-id", "individual-local-identifier"]].isna().any().any():
+        raise QuarantineError("Movebank fixes have missing event or individual identifiers")
+    if fixes["event-id"].duplicated().any():
+        raise QuarantineError("Movebank fixes have duplicate event identifiers")
+    try:
+        fixes["location-long"] = pd.to_numeric(fixes["location-long"], errors="raise")
+        fixes["location-lat"] = pd.to_numeric(fixes["location-lat"], errors="raise")
+        fixes["timestamp"] = pd.to_datetime(fixes["timestamp"], utc=True, format="mixed", errors="raise")
+    except (ValueError, TypeError) as error:
+        raise QuarantineError("Movebank fixes contain invalid coordinates or timestamps") from error
+    if (fixes["timestamp"].isna().any()
+        or not fixes["location-long"].between(-180, 180).all()
+        or not fixes["location-lat"].between(-90, 90).all()):
+        raise QuarantineError("Movebank fixes contain invalid coordinates or timestamps")
     if aoi is not None:
         west, south, east, north = aoi
         fixes = fixes[fixes["location-long"].between(west, east) & fixes["location-lat"].between(south, north)]
@@ -77,6 +95,8 @@ def normalize_movebank(manifest: RawManifest, grid: Grid, aoi: BBox | None = Non
 def cell_ids_for_points(grid: Grid, longitudes: np.ndarray, latitudes: np.ndarray) -> np.ndarray:
     x, y = transformer("EPSG:4326", grid.crs).transform(longitudes, latitudes)
     rows, cols = grid.rows_cols_from_xy(np.asarray(x), np.asarray(y))
+    if ((rows < 0) | (rows >= grid.rows) | (cols < 0) | (cols >= grid.columns)).any():
+        raise QuarantineError("Movebank coordinates fall outside the supported grid")
     return grid.cell_ids(rows, cols)
 
 
@@ -109,14 +129,14 @@ def entities_from(fixes: pd.DataFrame, reference_path: str | None, study_id: str
             source_id="movebank",
             study_id=study_id,
             local_identifier=str(name),
-            taxon_name=taxa.get(name),
+            taxon_name=taxa.get(name) if pd.notna(taxa.get(name)) else None,
         )
         for name in fixes["individual-local-identifier"].unique()
     }
     if reference_path is None:
         return list(entities.values())
 
-    reference = pd.read_csv(reference_path)
+    reference = pd.read_csv(reference_path, dtype={"animal-id": "string"})
     for deployment in reference.to_dict("records"):
         name = str(deployment.get("animal-id"))
         if name not in entities:
@@ -142,4 +162,10 @@ def parse_time(value) -> pd.Timestamp | None:
     if not isinstance(value, str):
         return None
 
-    return pd.Timestamp(value, tz="UTC").to_pydatetime()
+    try:
+        timestamp = pd.Timestamp(value)
+        if pd.isna(timestamp):
+            return None
+        return (timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")).to_pydatetime()
+    except ValueError as error:
+        raise QuarantineError("Movebank reference data contains an invalid deployment timestamp") from error

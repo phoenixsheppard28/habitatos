@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 DATABASE_URL_VARIABLE = "HABITAT_DATABASE_URL"
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
+if not MIGRATIONS_DIR.is_dir():
+    MIGRATIONS_DIR = Path(__file__).resolve().parent / "resources" / "migrations"
 
 
 def database_url() -> str:

@@ -377,10 +377,12 @@ def download_movebank(dataset_id: str) -> RawManifest | dict[str, Any]:
             coverage.bbox = [min(x for x, y in points), min(y for x, y in points),
                              max(x for x, y in points), max(y for x, y in points)]
         # Public JSON timestamps are Unix milliseconds; CSV timestamps are UTC text.
-        times = [datetime.fromtimestamp(float(r["timestamp"]) / 1000, timezone.utc)
-                 if isinstance(r["timestamp"], (int, float)) else
-                 datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
-                 for r in rows]
+        def utc_timestamp(value):
+            if isinstance(value, (int, float)):
+                return datetime.fromtimestamp(float(value) / 1000, timezone.utc)
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+        times = [utc_timestamp(r["timestamp"]) for r in rows]
         coverage.start = min(times).isoformat()
         coverage.end = max(times).isoformat()
     except (ValueError, TypeError, OverflowError, OSError):

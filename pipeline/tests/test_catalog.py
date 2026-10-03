@@ -122,3 +122,16 @@ def test_region_layers_become_tags():
     )
 
     assert [t.value for t in tags if t.key == "country"] == ["NA"]
+
+
+@pytest.mark.parametrize('dates', [
+    {'start': datetime(2025, 1, 1, tzinfo=UTC)},
+    {'end': datetime(2010, 1, 1, tzinfo=UTC)},
+])
+def test_one_sided_dates_exclude_non_overlapping_datasets(catalog, dates):
+    assert search(catalog, **dates) == []
+
+
+def test_empty_optional_filters_are_unconstrained(catalog):
+    assert set(search(catalog, family=[], variables=[], species=[])) == {
+        'springbok-etosha', 'zebra-kenya', 'chirps-etosha'}

@@ -29,17 +29,19 @@ class CellAccumulator:
         grid_x, grid_y = transformer(block.crs, self.grid.crs).transform(x, y)
         rows, cols = self.grid.rows_cols_from_xy(np.asarray(grid_x), np.asarray(grid_y))
         flat = self.grid.flat_index(rows, cols)
+        inside = (rows >= 0) & (rows < self.grid.rows) & (cols >= 0) & (cols < self.grid.columns)
 
         for variable, values in variables.items():
             values = values.ravel()
-            valid = ~np.isnan(values)
-            if not valid.any():
+            if not inside.any():
                 continue
 
-            frame = pd.DataFrame({"flat": flat[valid], "value": values[valid]})
+            # Keep cells with no valid pixels so cloudy cells are represented as null observations.
+            frame = pd.DataFrame({"flat": flat[inside], "value": values[inside]})
+            frame.loc[~np.isfinite(frame["value"]), "value"] = np.nan
             frame["value_sq"] = frame["value"] ** 2
             partial = frame.groupby("flat").agg(
-                total=("value", "sum"), total_sq=("value_sq", "sum"), count=("value", "size")
+                total=("value", "sum"), total_sq=("value_sq", "sum"), count=("value", "count")
             )
             partial["variable"] = variable
             self.partials.append(partial.reset_index())

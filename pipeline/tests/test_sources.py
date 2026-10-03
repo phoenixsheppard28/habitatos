@@ -99,3 +99,27 @@ def test_unknown_source_is_quarantined(grid):
 
     with pytest.raises(QuarantineError, match="no normalizer"):
         normalize(manifest, grid)
+
+
+def test_fully_cloudy_scene_keeps_null_observations(sentinel2_scene, grid):
+    import rasterio
+    with rasterio.open(sentinel2_scene.extensions.assets['scl'], 'r+') as source:
+        source.write(np.full((source.height, source.width), 9, dtype=np.uint8), 1)
+    rows = normalize(sentinel2_scene, grid).table.to_pandas()
+    assert not rows.empty
+    assert rows['value'].isna().all()
+    assert rows['valid_fraction'].eq(0).all()
+    assert rows['pixel_count'].eq(0).all()
+    assert rows['quality_flag'].eq('low_valid_fraction').all()
+
+
+def test_aoi_outside_raster_returns_empty_batch(sentinel2_scene, grid):
+    assert normalize(sentinel2_scene, grid, aoi=(-80, 30, -79, 31)).table.num_rows == 0
+
+
+def test_assets_with_different_crs_are_quarantined(sentinel2_scene, grid):
+    import rasterio
+    with rasterio.open(sentinel2_scene.extensions.assets['green'], 'r+') as source:
+        source.crs = 'EPSG:4326'
+    with pytest.raises(QuarantineError, match='same known CRS'):
+        normalize(sentinel2_scene, grid)

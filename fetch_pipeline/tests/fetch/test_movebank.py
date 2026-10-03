@@ -70,3 +70,14 @@ def test_login_html_is_not_csv(isolated_data_dir, monkeypatch):
     with patch('fetch.connectors.movebank._download_authenticated_gps_csv', return_value=b'<html>login</html>'):
         result = download_movebank('movebank:2911040')
     assert result['status'] == 'error'
+
+
+def test_authenticated_timestamps_preserve_explicit_offset(isolated_data_dir, monkeypatch):
+    from datetime import datetime, timezone
+    from fetch.connectors import movebank
+    monkeypatch.setattr(movebank, '_credentials', lambda: ('test-user', 'test-password'))
+    monkeypatch.setattr(movebank, '_download_authenticated_gps_csv', lambda *args:
+        b'timestamp,location_long,location_lat\n2024-01-01T01:00:00+01:00,36,-1\n')
+    manifest = movebank.download_movebank('movebank:2911040')
+    assert datetime.fromisoformat(manifest.coverage.start) == datetime(2024, 1, 1, tzinfo=timezone.utc)
+    assert manifest.access_scope == 'movebank-account'

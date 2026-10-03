@@ -11,5 +11,6 @@ END
 $$;
 
 GRANT habitat_reader TO habitat_writer;
+CREATE SCHEMA IF NOT EXISTS extensions;
 GRANT USAGE ON SCHEMA public TO habitat_reader;
 GRANT USAGE ON SCHEMA extensions TO habitat_reader;

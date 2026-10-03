@@ -1,5 +1,6 @@
 """Conservative checks of declared bounds; not proof of dense observations."""
 from datetime import datetime, timezone
+import math
 from fetch.models import RawManifest, FetchRequest
 
 
@@ -10,7 +11,14 @@ def coverage_gaps(manifest: RawManifest, request: FetchRequest) -> list[str]:
     bbox = r.bbox or (q.region or {}).get('bbox')
     if bbox:
         actual = cov.bbox
-        if actual is None:
+        def valid_bounds(value):
+            return (isinstance(value, (list, tuple)) and len(value) == 4
+                    and all(isinstance(x, (int, float)) and math.isfinite(x) for x in value)
+                    and -180 <= value[0] <= value[2] <= 180
+                    and -90 <= value[1] <= value[3] <= 90)
+        if not valid_bounds(bbox):
+            gaps.append('requested geographic bounds could not be verified')
+        elif not valid_bounds(actual):
             gaps.append('geographic coverage unknown')
         elif not (actual[0] <= bbox[0] and actual[1] <= bbox[1] and actual[2] >= bbox[2] and actual[3] >= bbox[3]):
             gaps.append('file bounds do not cover the entire requested region')

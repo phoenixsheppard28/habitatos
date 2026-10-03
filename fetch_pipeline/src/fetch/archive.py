@@ -62,7 +62,8 @@ def artifact_uri(artifact_id: str, version: str) -> str:
 def resolve_artifact_path(manifest: RawManifest) -> Path:
     """Map artifact://id/version to on-disk layout."""
     parts = manifest.storage.uri.removeprefix("artifact://").split("/")
-    if len(parts) != 2:
+    if (not manifest.storage.uri.startswith("artifact://") or len(parts) != 2
+        or any(part in ("", ".", "..") for part in parts)):
         raise ValueError(f"Unsupported storage uri: {manifest.storage.uri}")
     artifact_id, version = parts
     return paths.RAW_ROOT / artifact_id / version

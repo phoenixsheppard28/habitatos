@@ -2,9 +2,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from uuid import uuid4
 
 import numpy as np
 import psycopg
+from psycopg import sql
 import pyarrow as pa
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -279,7 +281,19 @@ def upsert_entities(cursor: psycopg.Cursor, entities: list[AnimalEntity]) -> Non
 
 
 def copy_rows(cursor: psycopg.Cursor, family: str, series_id: str, key: str, table: pa.Table) -> None:
+    if family not in (CELL_OBSERVATIONS, ANIMAL_LOCATIONS):
+        raise ValueError(f"unknown row family {family!r}")
     columns = ["series_id", "batch_key", *table.column_names]
-    with cursor.copy(f"COPY {family} ({', '.join(columns)}) FROM STDIN") as copy:
+    target = sql.Identifier(family)
+    staging = sql.Identifier(f"habitat_ingest_{uuid4().hex}")
+    column_list = sql.SQL(', ').join(map(sql.Identifier, columns))
+    # COPY cannot target an RLS-protected table as habitat_writer. Stage the
+    # bulk transfer, then apply the destination's policies and constraints via INSERT.
+    cursor.execute(sql.SQL('CREATE TEMP TABLE {} ON COMMIT DROP AS SELECT {} FROM {} WITH NO DATA')
+                   .format(staging, column_list, target))
+    with cursor.copy(sql.SQL('COPY {} ({}) FROM STDIN').format(staging, column_list)) as copy:
         for row in zip(*(column.to_pylist() for column in table.columns)):
             copy.write_row((series_id, key, *row))
+    cursor.execute(sql.SQL('INSERT INTO {} ({}) SELECT {} FROM {}')
+                   .format(target, column_list, column_list, staging))
+    cursor.execute(sql.SQL('DROP TABLE {}').format(staging))

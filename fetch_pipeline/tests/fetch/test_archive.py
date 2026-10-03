@@ -45,3 +45,14 @@ def test_changed_content_new_version(isolated_data_dir) -> None:
     )
     assert m1.artifact_id != m2.artifact_id
     assert m1.checksum != m2.checksum
+
+
+def test_artifact_resolver_rejects_unsupported_or_escaping_uri(isolated_data_dir):
+    import pytest
+    from fetch.archive import resolve_artifact_path
+    from fetch.service import download_dataset
+    manifest = download_dataset('fixture-movement-001')
+    for uri in ('raw-123/1', 'artifact://../1', 'artifact://raw-123/..', 'artifact:///1'):
+        manifest.storage.uri = uri
+        with pytest.raises(ValueError):
+            resolve_artifact_path(manifest)

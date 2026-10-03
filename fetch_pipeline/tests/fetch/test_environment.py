@@ -90,3 +90,14 @@ def test_reject_html_payload(isolated_data_dir):
         result = env.fetch_environment(BBOX, '2025-01-01', '2025-01-01', sources=['chirps'])
     assert result['status'] == 'insufficient_data'
     assert not result['raw_artifacts']
+
+
+def test_invalid_payload_still_consumes_byte_budget(isolated_data_dir):
+    def transfer(url, path, **kwargs):
+        path.write_bytes(b'<html>')
+        return 6
+    with patch.object(env, 'download_to_path', side_effect=transfer) as network:
+        result = env.fetch_environment(BBOX, '2025-01-01', '2025-01-03', sources=['chirps'], max_bytes=6)
+    assert network.call_count == 1
+    assert result['downloaded_bytes'] == 6
+    assert sum(x.get('code') == 'byte_budget' for x in result['outcomes']) == 2

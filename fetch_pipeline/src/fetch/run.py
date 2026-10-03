@@ -106,8 +106,13 @@ async def run_with_agent(req: FetchRequest) -> FetchResponse:
         failure = FetchError(code="agent_failed", message=f"Agent failed ({type(exc).__name__}).", retryable=True)
     finally:
         current_receipts.reset(token)
-    artifacts = list(receipts.artifacts.values())
     warnings = list(dict.fromkeys(receipts.warnings))
+    artifacts = []
+    for artifact in receipts.artifacts.values():
+        if artifact.access_scope == req.access_scope:
+            artifacts.append(artifact)
+        else:
+            warnings.append(f"Skipped {artifact.artifact_id}: artifact access scope does not match request.")
     for artifact in artifacts:
         warnings.extend(coverage_gaps(artifact, req))
     found_kinds = {artifact.extensions.get("data_kind") for artifact in artifacts}
@@ -130,6 +135,7 @@ def save_run(request: dict, response: dict) -> str:
     """Persist request-scoped handoff; no scan of unrelated global archive entries."""
     directory = paths.DATA_ROOT / "runs" / uuid4().hex
     directory.mkdir(parents=True, exist_ok=True)
+    response = {**response, "extensions": {**response.get("extensions", {}), "run_directory": str(directory)}}
     (directory / "request.json").write_text(json.dumps(request, indent=2))
     (directory / "response.json").write_text(json.dumps(response, indent=2))
     artifacts = response.get("output", {}).get("raw_artifacts", response.get("raw_artifacts", []))

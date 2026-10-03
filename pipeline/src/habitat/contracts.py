@@ -9,6 +9,8 @@ import pyarrow as pa
 from pydantic import BaseModel, Field
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[2] / "contracts"
+if not CONTRACTS_DIR.is_dir():
+    CONTRACTS_DIR = Path(__file__).resolve().parent / "resources" / "contracts"
 
 BBox = tuple[float, float, float, float]
 

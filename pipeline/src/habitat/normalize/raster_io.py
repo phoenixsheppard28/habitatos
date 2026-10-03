@@ -6,10 +6,12 @@ import numpy as np
 import rasterio
 from affine import Affine
 from rasterio.enums import Resampling
+from rasterio.errors import WindowError
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, from_bounds
 
 from habitat.contracts import BBox
+from habitat.normalize.rows import QuarantineError
 
 
 @dataclass
@@ -33,9 +35,13 @@ def iter_aligned_blocks(
 
     Assets must share a CRS, as the bands of one Sentinel-2 or MODIS item do.
     """
+    if block_rows <= 0:
+        raise ValueError("block_rows must be positive")
     with ExitStack() as stack:
         sources = {name: stack.enter_context(rasterio.open(uri)) for name, uri in assets.items()}
         reference_source = sources[reference]
+        if reference_source.crs is None or any(source.crs != reference_source.crs for source in sources.values()):
+            raise QuarantineError("raster assets must have the same known CRS")
         full = reference_window(reference_source, aoi)
 
         for row_offset in range(int(full.row_off), int(full.row_off + full.height), block_rows):
@@ -72,7 +78,10 @@ def reference_window(source: rasterio.io.DatasetReader, aoi: BBox | None) -> Win
 
     aoi_in_source_crs = transform_bounds("EPSG:4326", source.crs, *aoi)
     clipped = from_bounds(*aoi_in_source_crs, transform=source.transform).round_offsets().round_lengths()
-    return clipped.intersection(full)
+    try:
+        return clipped.intersection(full)
+    except WindowError:
+        return Window(0, 0, 0, 0)
 
 
 def pixel_centres(transform: Affine, shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:

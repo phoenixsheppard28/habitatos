@@ -8,7 +8,7 @@ from pathlib import Path
 from fetch.archive import register_raw_artifact_from_path, save_manifest
 from fetch.models import Coverage, RawManifest, Rights, SourceRef
 
-FIXTURES_DIR = Path(__file__).resolve().parents[3] / "tests" / "fetch" / "fixtures"
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 @dataclass(frozen=True)

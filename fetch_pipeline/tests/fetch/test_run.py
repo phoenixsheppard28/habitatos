@@ -84,3 +84,43 @@ def test_coverage_mismatch_reported(isolated_data_dir):
     assert result.status == 'partial'
     assert any('requested' in warning for warning in result.warnings)
     assert result.output.raw_artifacts[0].coverage.start.startswith('2025')
+
+
+def test_saved_response_matches_returned_run_directory(isolated_data_dir):
+    import json
+    from pathlib import Path
+    req = FetchRequest(request_id='saved', query_id='q', input=FetchRequestInput(
+        query=QuerySpec(query_id='q', question='demo', task_type='discovery')))
+    response = run(req)
+    directory = Path(response.extensions['run_directory'])
+    saved = json.loads((directory / 'response.json').read_text())
+    assert saved == response.model_dump(mode='json')
+
+
+def test_malformed_region_bounds_do_not_crash_fetch(isolated_data_dir):
+    req = FetchRequest(request_id='bad-bounds', query_id='q', input=FetchRequestInput(
+        query=QuerySpec(query_id='q', question='demo', task_type='discovery', region={'bbox': [0, 1]})))
+    response = run(req)
+    assert response.status == 'partial'
+    assert any('geographic bounds could not be verified' in warning for warning in response.warnings)
+
+
+def test_agent_excludes_artifacts_outside_request_scope(isolated_data_dir):
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import patch
+    from fetch.service import download_dataset
+    from fetch.session import record
+    from fetch.run import run_with_agent
+    req = FetchRequest(request_id='scope', query_id='q', input=FetchRequestInput(
+        query=QuerySpec(query_id='q', question='download tracks', task_type='discovery')))
+    async def runner(*args, **kwargs):
+        artifact = download_dataset('fixture-movement-001')
+        artifact.access_scope = 'movebank-account'
+        record(artifact)
+        return SimpleNamespace(final_output='done')
+    with patch('fetch.run.build_fetch_agent'), patch('fetch.run.Runner.run', side_effect=runner):
+        response = asyncio.run(run_with_agent(req))
+    assert response.status == 'insufficient_data'
+    assert not response.output.raw_artifacts
+    assert any('access scope' in warning for warning in response.warnings)

@@ -97,7 +97,7 @@ def discover_stac(source, bbox, start, end, max_items, cloud_cover):
                 'coverage': {'bbox': item.get('bbox'),
                              'start': props.get('start_datetime') or props.get('datetime'),
                              'end': props.get('end_datetime') or props.get('datetime')},
-                'rights': {'license': metadata.get('license'), 'attribution': metadata.get('providers', [{}])[0].get('name')},
+                'rights': {'license': metadata.get('license'), 'attribution': (metadata.get('providers') or [{}])[0].get('name')},
                 'metadata': {'collection': collection, 'item_id': item['id'], 'asset_key': key,
                              'properties': props, 'asset': asset,
                              'asset_definition': metadata.get('item_assets', {}).get(key),
@@ -196,12 +196,13 @@ def fetch_environment(bbox: list[float], start: str, end: str, *,
                     emit({'dataset_id': key, 'status': 'downloading'})
                     size = download_to_path(url, file, max_bytes=budget,
                                             allowed_hosts=ASSET_HOSTS if source != 'chirps' else {'data.chc.ucsb.edu'})
+                    # Count payload bytes even when validation or registration fails.
+                    used += size
                     with file.open('rb') as stream:
                         magic = stream.read(4)
                     valid = magic[:2] == b'\x1f\x8b' if source == 'chirps' else magic in (b'II*\x00', b'MM\x00*', b'II+\x00', b'MM\x00+')
                     if not valid:
                         raise ValueError('Unexpected payload; expected gzip or TIFF')
-                    used += size
                     manifest = register_raw_artifact_from_path(
                         src_path=file, source=SourceRef(name=source, url=candidate['url'], study_id=key),
                         coverage=Coverage(**candidate['coverage']), rights=Rights(**candidate['rights']),

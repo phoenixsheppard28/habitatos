@@ -25,14 +25,16 @@ LOCATION_COLUMNS = {"timestamp", "location-long", "location-lat"}
 
 
 def metadata_value(item: dict, key: str) -> str | None:
-    values = item["metadata"].get(key)
+    values = item.get("metadata", {}).get(key)
     return values[0]["value"] if values else None
 
 
 def package_files(item: dict) -> list[dict]:
-    bundles = item["_embedded"]["bundles"]["_embedded"]["bundles"]
-    original = next(bundle for bundle in bundles if bundle["name"] == "ORIGINAL")
-    return original["_embedded"]["bitstreams"]["_embedded"]["bitstreams"]
+    bundles = item.get("_embedded", {}).get("bundles", {}).get("_embedded", {}).get("bundles", [])
+    original = next((bundle for bundle in bundles if bundle.get("name") == "ORIGINAL"), None)
+    if original is None:
+        return []
+    return original.get("_embedded", {}).get("bitstreams", {}).get("_embedded", {}).get("bitstreams", [])
 
 
 def fetch_data_package(
@@ -128,7 +130,9 @@ def package_manifest(
 
 def search_data_packages(query: str, client: httpx.Client | None = None, size: int = 20) -> list[dict]:
     """Published data packages that match a free-text query, such as a species name."""
-    client = client or httpx.Client(timeout=60)
+    if client is None:
+        with httpx.Client(timeout=60) as owned_client:
+            return search_data_packages(query, owned_client, size)
     response = client.get(
         SEARCH_API,
         params={"query": query, "dsoType": "ITEM", "size": size},

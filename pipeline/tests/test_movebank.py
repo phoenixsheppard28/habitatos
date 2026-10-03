@@ -98,3 +98,49 @@ def test_tracking_rows_are_queryable_and_searchable_by_species(database, package
     assert published.row_count == 4
     found = catalog.search_datasets(SearchFilters(access_scope=["public"], species=[WILDEBEEST]))
     assert [m.dataset.dataset_id for m in found] == [first.series_id]
+
+
+@pytest.mark.parametrize('column,value', [
+    ('event-id', ''), ('individual-local-identifier', ''),
+    ('location-long', 'invalid'), ('location-lat', '91'),
+    ('timestamp', 'invalid-date'),
+])
+def test_invalid_fixes_are_quarantined(package, grid, column, value):
+    import pandas as pd
+    path = package.extensions.assets['locations']
+    frame = pd.read_csv(path, dtype=str)
+    frame.loc[0, column] = value
+    frame.to_csv(path, index=False)
+    with pytest.raises(QuarantineError):
+        normalize(package, grid)
+
+
+def test_missing_taxon_and_numeric_identifiers(package, grid):
+    import pandas as pd
+    path = package.extensions.assets['locations']
+    frame = pd.read_csv(path, dtype=str).iloc[:1]
+    frame['individual-local-identifier'] = '001'
+    frame['tag-local-identifier'] = '002'
+    frame['event-id'] = '003'
+    frame['individual-taxon-canonical-name'] = None
+    frame.to_csv(path, index=False)
+    batch = normalize(package, grid)
+    row = batch.table.to_pylist()[0]
+    assert row['entity_id'].endswith(':001')
+    assert row['tag_id'] == '002' and row['source_record_id'] == '003'
+    assert batch.entities[0].taxon_name is None
+
+
+def test_tracking_ingestion_works_as_configured_writer(database, package, grid):
+    import psycopg
+    schema = database.execute('SELECT current_schema()').fetchone()[0]
+    database.execute(psycopg.sql.SQL('GRANT USAGE ON SCHEMA {} TO habitat_reader').format(psycopg.sql.Identifier(schema)))
+    try:
+        database.execute('SET ROLE habitat_writer')
+        store = SeriesStore(database, grid)
+        first = store.append_batch(series_id(package, grid), package, normalize(package, grid))
+        assert first.appended
+        assert database.execute('SELECT count(*) FROM current_animal_locations').fetchone()[0] == 4
+        assert database.execute('SELECT count(*) FROM animal_entities').fetchone()[0] == 2
+    finally:
+        database.execute('RESET ROLE')

@@ -1,0 +1,4 @@
+entity_id,observed_at,longitude,latitude
+antelope-1,2025-01-01T08:00:00Z,36.8219,-1.2921
+antelope-1,2025-01-02T08:00:00Z,36.8310,-1.2800
+antelope-2,2025-01-03T09:15:00Z,36.8400,-1.2750

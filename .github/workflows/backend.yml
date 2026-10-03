@@ -1,0 +1,54 @@
+name: Backend checks
+on:
+  push:
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12', '3.14']
+    services:
+      postgres:
+        image: postgis/postgis:16-3.5-alpine
+        env:
+          POSTGRES_PASSWORD: habitat-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      HABITAT_DATABASE_URL: postgresql://postgres:habitat-test-only@localhost:5432/habitat_audit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install backend and check tools
+        run: python -m pip install -e ./pipeline -e ./fetch_pipeline pytest pytest-cov ruff
+      - name: Apply every migration to a fresh database
+        run: |
+          python - <<'PY'
+          import psycopg
+          from habitat.db import database_url, migration_files
+          from psycopg.conninfo import make_conninfo
+          with psycopg.connect(make_conninfo(database_url(), dbname='postgres'), autocommit=True) as connection:
+              connection.execute('CREATE DATABASE habitat_audit TEMPLATE template0')
+          with psycopg.connect(database_url(), autocommit=True) as connection:
+              connection.execute('SET search_path = public, extensions')
+              for migration in migration_files():
+                  connection.execute(migration.read_text())
+          PY
+      - name: Static checks and dependency consistency
+        run: |
+          ruff check pipeline/src fetch_pipeline/src --select E9,F63,F7,F82
+          python -m pip check
+      - name: Unit, regression, and PostGIS integration tests
+        run: python -m pytest --cov=habitat --cov=fetch --cov-report=term-missing -q
+      - name: Test built packages outside the source tree
+        run: |
+          python -m pip wheel --no-deps --wheel-dir /tmp/habitatos-wheels ./pipeline ./fetch_pipeline
+          python scripts/check_backend_wheels.py /tmp/habitatos-wheels

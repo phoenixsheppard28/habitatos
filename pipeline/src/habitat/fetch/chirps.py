@@ -29,8 +29,11 @@ RIGHTS = Rights(
 
 def available_status(day: date, client: httpx.Client) -> ProductStatus | None:
     for status, template in ((ProductStatus.FINAL, FINAL_URL), (ProductStatus.PRELIMINARY, PRELIM_URL)):
-        if client.head(template.format(d=day)).status_code == 200:
+        response = client.head(template.format(d=day))
+        if response.status_code == 200:
             return status
+        if response.status_code != 404:
+            response.raise_for_status()
     return None
 
 

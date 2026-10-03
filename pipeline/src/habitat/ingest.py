@@ -1,10 +1,12 @@
 import argparse
 import logging
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import httpx
 import psycopg
 
 from habitat.catalog.ai import CatalogAssistant
@@ -81,7 +83,11 @@ def resolve_entity_taxa(batch: NormalizedBatch) -> None:
     names = {entity.taxon_name for entity in batch.entities if entity.taxon_name}
     keys = {}
     for name in names:
-        resolution = resolve_taxon(name)
+        try:
+            resolution = resolve_taxon(name)
+        except httpx.HTTPError as error:
+            logger.warning("taxon resolution unavailable for %s (%s)", name, type(error).__name__)
+            continue
         if resolution.status == "resolved":
             keys[name] = resolution.taxa[0].gbif_key
 
@@ -110,6 +116,7 @@ def fetch_manifests(
     package: str | None = None,
 ) -> list[RawManifest]:
     """Download only the items that the series does not hold yet."""
+    validate_inputs(source, bbox, start, end, package)
     if source == "movebank":
         return movebank.fetch_data_package(package, archive, already_ingested)
 
@@ -143,31 +150,55 @@ def run(
     package: str | None = None,
     use_ai: bool = False,
 ) -> list[IngestOutcome]:
+    validate_inputs(source, bbox, start, end, package)
     store = workspace.store
     grid = workspace.grid
 
     already_ingested = already_ingested_in(store, series_id_for(source, PRODUCTS[source], grid))
-    manifests = fetch_manifests(source, bbox, start, end, workspace.archive, already_ingested, package)
+    with workspace.archive as archive:
+        manifests = fetch_manifests(source, bbox, start, end, archive, already_ingested, package)
     outcomes = [ingest_manifest(manifest, store, grid, bbox) for manifest in manifests]
 
-    appended = [o for o in outcomes if o.append and o.append.appended]
-    for series in sorted({o.append.series_id for o in appended}):
-        publish_series_version(
-            store,
-            workspace.catalog,
-            grid,
-            series,
-            source_id=source,
-            description=DESCRIPTIONS[source],
-            access_scope="public",
-            assistant=CatalogAssistant() if use_ai else None,
-        )
+    # Retry catalog publication after a previous run committed its rows but failed to publish.
+    publish_series_version(
+        store,
+        workspace.catalog,
+        grid,
+        series_id_for(source, PRODUCTS[source], grid),
+        source_id=source,
+        description=DESCRIPTIONS[source],
+        access_scope="public",
+        assistant=CatalogAssistant() if use_ai else None,
+    )
     return outcomes
 
 
 def parse_bbox(value: str) -> BBox:
-    west, south, east, north = (float(part) for part in value.split(","))
-    return west, south, east, north
+    bbox = tuple(float(part) for part in value.split(","))
+    validate_bbox(bbox)
+    return bbox
+
+
+def validate_bbox(bbox: BBox) -> None:
+    if len(bbox) != 4 or not all(math.isfinite(value) for value in bbox):
+        raise ValueError("bbox must contain four finite WGS84 coordinates")
+    west, south, east, north = bbox
+    if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
+        raise ValueError("bbox must be west,south,east,north within WGS84 bounds")
+
+
+def validate_inputs(source, bbox, start, end, package) -> None:
+    if source not in PRODUCTS:
+        raise ValueError(f"unknown source {source!r}")
+    if bbox is not None:
+        validate_bbox(bbox)
+    if start is not None and end is not None and start > end:
+        raise ValueError("start must be on or before end")
+    if source == "movebank":
+        if not package:
+            raise ValueError("movebank needs a package")
+    elif bbox is None or start is None or end is None:
+        raise ValueError(f"{source} needs bbox, start and end")
 
 
 def main() -> None:
@@ -181,10 +212,10 @@ def main() -> None:
     parser.add_argument("--ai-tags", action="store_true", help="label new dataset versions with Claude")
     args = parser.parse_args()
 
-    if args.source == "movebank" and not args.package:
-        parser.error("movebank needs --package")
-    if args.source != "movebank" and not (args.bbox and args.start and args.end):
-        parser.error(f"{args.source} needs --bbox, --start and --end")
+    try:
+        validate_inputs(args.source, args.bbox, args.start, args.end, args.package)
+    except ValueError as error:
+        parser.error(str(error))
 
     logging.basicConfig(level=logging.INFO)
     with connect() as connection:

@@ -20,18 +20,18 @@ class MemoryCatalog:
         if any((r.dataset_id, r.version) == key for r in self.records):
             raise ValueError(f"dataset version {key} already exists; published versions are immutable")
 
-        self.records.append(descriptor)
+        self.records.append(descriptor.model_copy(deep=True))
 
     def latest(self, dataset_id: str) -> DatasetVersion | None:
         versions = [r for r in self.records if r.dataset_id == dataset_id]
-        return max(versions, key=lambda r: r.version) if versions else None
+        return max(versions, key=lambda r: r.version).model_copy(deep=True) if versions else None
 
     def search_datasets(self, filters: SearchFilters) -> list[DatasetMatch]:
         latest: dict[str, DatasetVersion] = {}
         for record in self.records:
             if record.dataset_id not in latest or record.version > latest[record.dataset_id].version:
                 latest[record.dataset_id] = record
-        return rank_matches(latest.values(), filters)
+        return rank_matches((record.model_copy(deep=True) for record in latest.values()), filters)
 
 
 class PostgresCatalog:
@@ -94,14 +94,14 @@ class PostgresCatalog:
               AND (%(species)s::bigint[] IS NULL OR species_keys && %(species)s::bigint[])
               AND (%(region)s::text IS NULL OR footprint IS NULL
                    OR ST_Intersects(footprint, ST_GeomFromText(%(region)s, 4326)))
-              AND (%(start)s::timestamptz IS NULL OR %(end)s::timestamptz IS NULL OR time_range IS NULL
+              AND ((%(start)s::timestamptz IS NULL AND %(end)s::timestamptz IS NULL) OR time_range IS NULL
                    OR time_range && tstzrange(%(start)s, %(end)s, '[]'))
             """,
             {
                 "scopes": filters.access_scope,
                 "status": filters.status,
-                "families": filters.family,
-                "variables": filters.variables,
+                "families": filters.family or None,
+                "variables": filters.variables or None,
                 "species": [taxon.gbif_key for taxon in filters.species] if filters.species else None,
                 "region": filters.region_wkt,
                 "start": filters.start,
@@ -172,11 +172,16 @@ def spatial_share(dataset: DatasetVersion, filters: SearchFilters) -> float | No
 
 
 def temporal_share(dataset: DatasetVersion, filters: SearchFilters) -> float | None:
-    if filters.start is None or filters.end is None:
+    if filters.start is None and filters.end is None:
         return 1.0
 
     if dataset.coverage.start is None or dataset.coverage.end is None:
         return None
+
+    if filters.end is None:
+        return float(dataset.coverage.end >= filters.start)
+    if filters.start is None:
+        return float(dataset.coverage.start <= filters.end)
 
     overlap = min(dataset.coverage.end, filters.end) - max(dataset.coverage.start, filters.start)
     requested = filters.end - filters.start
