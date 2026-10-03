@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "habitatos"
+version = "0.1.0"
+description = "Habitat Watch analysis, forecasting, and query coordination"
+requires-python = ">=3.12"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "pyarrow>=15",
+  "pydantic>=2.6",
+  "scikit-learn>=1.4",
+  "shapely>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["analysis", "workflow", "contracts"]
+
+[tool.setuptools.package-dir]
+"analysis" = "src/analysis"
+"workflow" = "src/workflow"
+"contracts" = "contracts"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
