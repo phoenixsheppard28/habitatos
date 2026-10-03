@@ -1,0 +1,1073 @@
+[
+  {
+    "name": "site_month",
+    "query": {
+      "query_id": "q-site",
+      "question": "Compare monthly canopy cover with site management costs",
+      "task_type": "historical",
+      "access_scope": "public",
+      "time_range": {
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-02-28T23:59:59Z"
+      },
+      "region": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              3,
+              0
+            ],
+            [
+              3,
+              3
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    "datasets": [
+      {
+        "dataset_id": "habitat",
+        "version": "1",
+        "access_scope": "public",
+        "status": "ready",
+        "family": "habitat",
+        "description": "habitat safe fixture measurements",
+        "row_grain": "one site observation",
+        "columns": [
+          {
+            "name": "site_id",
+            "type": "string",
+            "description": "Source-scoped site identifier",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamp",
+            "description": "UTC observation time",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          },
+          {
+            "name": "canopy",
+            "type": "number",
+            "description": "Canopy cover percentage",
+            "unit": "percent",
+            "role": null,
+            "nullable": true
+          }
+        ],
+        "storage": {
+          "uri": "fixture://habitat",
+          "format": "json"
+        },
+        "mapping_version": "1",
+        "validation_report_ref": "fixture-validation",
+        "coverage": {
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-02-28T23:59:59Z",
+          "bbox": [
+            0,
+            0,
+            2,
+            2
+          ]
+        },
+        "metadata": {
+          "labels": {
+            "topic": "habitat"
+          }
+        }
+      },
+      {
+        "dataset_id": "management",
+        "version": "1",
+        "access_scope": "public",
+        "status": "ready",
+        "family": "management",
+        "description": "management safe fixture measurements",
+        "row_grain": "one management activity",
+        "columns": [
+          {
+            "name": "site_id",
+            "type": "string",
+            "description": "Source-scoped site identifier",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamp",
+            "description": "UTC observation time",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          },
+          {
+            "name": "cost",
+            "type": "number",
+            "description": "Management activity cost",
+            "unit": "USD",
+            "role": null,
+            "nullable": true
+          }
+        ],
+        "storage": {
+          "uri": "fixture://management",
+          "format": "json"
+        },
+        "mapping_version": "1",
+        "validation_report_ref": "fixture-validation",
+        "coverage": {
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-02-28T23:59:59Z",
+          "bbox": [
+            0,
+            0,
+            2,
+            2
+          ]
+        },
+        "metadata": {
+          "tags": [
+            "activity"
+          ]
+        }
+      },
+      {
+        "dataset_id": "water",
+        "version": "1",
+        "access_scope": "public",
+        "status": "ready",
+        "family": "water",
+        "description": "water safe fixture measurements",
+        "row_grain": "one water observation",
+        "columns": [
+          {
+            "name": "site_id",
+            "type": "string",
+            "description": "Source-scoped site identifier",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamp",
+            "description": "UTC observation time",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          },
+          {
+            "name": "water_level",
+            "type": "number",
+            "description": "Observed water level",
+            "unit": "m",
+            "role": null,
+            "nullable": true
+          }
+        ],
+        "storage": {
+          "uri": "fixture://water",
+          "format": "json"
+        },
+        "mapping_version": "1",
+        "validation_report_ref": "fixture-validation",
+        "coverage": {
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-02-28T23:59:59Z",
+          "bbox": [
+            0,
+            0,
+            2,
+            2
+          ]
+        },
+        "metadata": {}
+      }
+    ],
+    "requirements": [
+      {
+        "requirement_id": "habitat",
+        "description": "Canopy observations",
+        "semantic_text": "Canopy observations",
+        "filters": {
+          "tags": "habitat"
+        }
+      },
+      {
+        "requirement_id": "activity",
+        "description": "Management costs",
+        "semantic_text": "Management costs",
+        "filters": {
+          "tags": "activity"
+        }
+      }
+    ],
+    "recipe": {
+      "recipe_id": "recipe-site",
+      "version": "1",
+      "query_ref": "q-site",
+      "access_scope": "public",
+      "inputs": {
+        "habitat": {
+          "dataset_id": "habitat",
+          "version": "1"
+        },
+        "activities": {
+          "dataset_id": "management",
+          "version": "1"
+        }
+      },
+      "steps": [
+        {
+          "id": "habitat_month",
+          "operation": "time_bucket",
+          "input": "habitat",
+          "column": "observed_at",
+          "output": "month",
+          "period": "month"
+        },
+        {
+          "id": "canopy",
+          "operation": "aggregate",
+          "input": "habitat_month",
+          "group_by": [
+            "site_id",
+            "month"
+          ],
+          "aggregations": [
+            {
+              "column": "canopy",
+              "method": "mean",
+              "output": "mean_canopy"
+            }
+          ]
+        },
+        {
+          "id": "activity_month",
+          "operation": "time_bucket",
+          "input": "activities",
+          "column": "observed_at",
+          "output": "month",
+          "period": "month"
+        },
+        {
+          "id": "costs",
+          "operation": "aggregate",
+          "input": "activity_month",
+          "group_by": [
+            "site_id",
+            "month"
+          ],
+          "aggregations": [
+            {
+              "column": "cost",
+              "method": "sum",
+              "output": "total_cost"
+            }
+          ]
+        },
+        {
+          "id": "combined",
+          "operation": "join",
+          "left": "canopy",
+          "right": "costs",
+          "keys": {
+            "site_id": "site_id",
+            "month": "month"
+          },
+          "type": "left",
+          "cardinality": "one_to_one",
+          "right_columns": {
+            "total_cost": "total_cost"
+          }
+        }
+      ],
+      "output": {
+        "step": "combined",
+        "row_grain": "one site per UTC month",
+        "keys": [
+          "site_id",
+          "month"
+        ],
+        "description": "Monthly sampled canopy aligned with recorded activity costs",
+        "intended_use": "Fixture historical comparison",
+        "columns": [
+          {
+            "name": "site_id",
+            "type": "string",
+            "description": "Source-scoped site identifier",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "month",
+            "type": "timestamp",
+            "description": "UTC month of observations",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          },
+          {
+            "name": "mean_canopy",
+            "type": "number",
+            "description": "Mean sampled canopy cover",
+            "unit": "percent",
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "total_cost",
+            "type": "number",
+            "description": "Sum of recorded management costs",
+            "unit": "USD",
+            "role": null,
+            "nullable": true
+          }
+        ],
+        "time_column": "month"
+      }
+    },
+    "rows": {
+      "habitat": [
+        {
+          "site_id": "site-1",
+          "observed_at": "2026-01-05T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          },
+          "canopy": 20
+        },
+        {
+          "site_id": "site-1",
+          "observed_at": "2026-01-20T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          },
+          "canopy": 40
+        },
+        {
+          "site_id": "site-1",
+          "observed_at": "2026-02-05T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          },
+          "canopy": 50
+        }
+      ],
+      "management": [
+        {
+          "site_id": "site-1",
+          "observed_at": "2026-01-10T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          },
+          "cost": 100
+        },
+        {
+          "site_id": "site-1",
+          "observed_at": "2026-01-15T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          },
+          "cost": 50
+        }
+      ],
+      "water": [
+        {
+          "site_id": "site-1",
+          "observed_at": "2026-01-10T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          },
+          "water_level": 2
+        }
+      ]
+    },
+    "search": {
+      "habitat": {
+        "metadata": [
+          "habitat"
+        ],
+        "semantic": [
+          "habitat",
+          "water"
+        ]
+      },
+      "activity": {
+        "metadata": [
+          "management"
+        ],
+        "semantic": [
+          "management",
+          "water"
+        ]
+      }
+    },
+    "labels": {
+      "habitat": 3,
+      "management": 3,
+      "water": 1
+    },
+    "expected": [
+      {
+        "site_id": "site-1",
+        "month": "2026-01-01T00:00:00+00:00",
+        "mean_canopy": 30.0,
+        "total_cost": 150.0
+      },
+      {
+        "site_id": "site-1",
+        "month": "2026-02-01T00:00:00+00:00",
+        "mean_canopy": 50.0,
+        "total_cost": null
+      }
+    ]
+  },
+  {
+    "name": "animal_observation",
+    "query": {
+      "query_id": "q-animal",
+      "question": "Find preceding rainfall at tracked animal observation locations",
+      "task_type": "historical",
+      "access_scope": "public",
+      "time_range": {
+        "start": "2026-01-03T00:00:00Z",
+        "end": "2026-01-04T00:00:00Z"
+      },
+      "region": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              3,
+              0
+            ],
+            [
+              3,
+              3
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    "datasets": [
+      {
+        "dataset_id": "tracking",
+        "version": "1",
+        "access_scope": "public",
+        "status": "ready",
+        "family": "tracking",
+        "description": "tracking safe fixture measurements",
+        "row_grain": "one animal observation",
+        "columns": [
+          {
+            "name": "entity_id",
+            "type": "string",
+            "description": "Source/study-scoped animal identifier",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamp",
+            "description": "UTC observation time",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          }
+        ],
+        "storage": {
+          "uri": "fixture://tracking",
+          "format": "json"
+        },
+        "mapping_version": "1",
+        "validation_report_ref": "fixture-validation",
+        "coverage": {
+          "start": "2026-01-03T00:00:00Z",
+          "end": "2026-01-04T00:00:00Z",
+          "bbox": [
+            0,
+            0,
+            2,
+            2
+          ]
+        },
+        "metadata": {}
+      },
+      {
+        "dataset_id": "cells",
+        "version": "1",
+        "access_scope": "public",
+        "status": "ready",
+        "family": "cells",
+        "description": "cells safe fixture measurements",
+        "row_grain": "one spatial cell",
+        "columns": [
+          {
+            "name": "cell_id",
+            "type": "string",
+            "description": "Stable spatial cell ID",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamp",
+            "description": "UTC observation time",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          }
+        ],
+        "storage": {
+          "uri": "fixture://cells",
+          "format": "json"
+        },
+        "mapping_version": "1",
+        "validation_report_ref": "fixture-validation",
+        "coverage": {
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-01-04T00:00:00Z",
+          "bbox": [
+            0,
+            0,
+            2,
+            2
+          ]
+        },
+        "metadata": {}
+      },
+      {
+        "dataset_id": "rainfall",
+        "version": "1",
+        "access_scope": "public",
+        "status": "ready",
+        "family": "rainfall",
+        "description": "rainfall safe fixture measurements",
+        "row_grain": "one spatial cell per interval",
+        "columns": [
+          {
+            "name": "cell_id",
+            "type": "string",
+            "description": "Stable spatial cell ID",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          },
+          {
+            "name": "interval_start",
+            "type": "timestamp",
+            "description": "Rainfall interval start",
+            "unit": null,
+            "role": "interval_start",
+            "nullable": true
+          },
+          {
+            "name": "interval_end",
+            "type": "timestamp",
+            "description": "Rainfall interval end",
+            "unit": null,
+            "role": "interval_end",
+            "nullable": true
+          },
+          {
+            "name": "rainfall_mm",
+            "type": "number",
+            "description": "Interval accumulated rainfall",
+            "unit": "mm",
+            "role": null,
+            "nullable": true
+          }
+        ],
+        "storage": {
+          "uri": "fixture://rainfall",
+          "format": "json"
+        },
+        "mapping_version": "1",
+        "validation_report_ref": "fixture-validation",
+        "coverage": {
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-01-04T00:00:00Z",
+          "bbox": [
+            0,
+            0,
+            2,
+            2
+          ]
+        },
+        "metadata": {}
+      }
+    ],
+    "requirements": [
+      {
+        "requirement_id": "tracking",
+        "description": "Tracked animal observations",
+        "semantic_text": "Tracked animal observations",
+        "filters": {
+          "tags": "tracking"
+        }
+      },
+      {
+        "requirement_id": "cells",
+        "description": "Rainfall cell geometries",
+        "semantic_text": "Rainfall cell geometries",
+        "filters": {
+          "tags": "cells"
+        }
+      },
+      {
+        "requirement_id": "rainfall",
+        "description": "Rainfall measurements",
+        "semantic_text": "Rainfall measurements",
+        "filters": {
+          "tags": "rainfall"
+        },
+        "lookback_seconds": 172800
+      }
+    ],
+    "recipe": {
+      "recipe_id": "recipe-animal",
+      "version": "1",
+      "query_ref": "q-animal",
+      "access_scope": "public",
+      "inputs": {
+        "tracking": {
+          "dataset_id": "tracking",
+          "version": "1"
+        },
+        "cell_shapes": {
+          "dataset_id": "cells",
+          "version": "1"
+        },
+        "rain": {
+          "dataset_id": "rainfall",
+          "version": "1"
+        }
+      },
+      "steps": [
+        {
+          "id": "cells",
+          "operation": "spatial_join",
+          "left": "tracking",
+          "right": "cell_shapes",
+          "left_geometry": "geometry",
+          "right_geometry": "geometry",
+          "right_tie_break": "cell_id",
+          "right_columns": {
+            "cell_id": "cell_id"
+          }
+        },
+        {
+          "id": "features",
+          "operation": "window_aggregate",
+          "left": "cells",
+          "right": "rain",
+          "keys": {
+            "cell_id": "cell_id"
+          },
+          "left_time": "observed_at",
+          "right_start": "interval_start",
+          "right_end": "interval_end",
+          "value_column": "rainfall_mm",
+          "output": "preceding_rainfall_mm",
+          "window_seconds": 172800,
+          "minimum_coverage": 1,
+          "right_columns": {}
+        }
+      ],
+      "output": {
+        "step": "features",
+        "row_grain": "one animal observation",
+        "keys": [
+          "entity_id",
+          "observed_at"
+        ],
+        "description": "Rainfall at the observation point; not exposure along an animal route",
+        "intended_use": "Fixture historical comparison",
+        "columns": [
+          {
+            "name": "entity_id",
+            "type": "string",
+            "description": "Source/study-scoped animal identifier",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "observed_at",
+            "type": "timestamp",
+            "description": "UTC observation time",
+            "unit": null,
+            "role": "event_time",
+            "nullable": true
+          },
+          {
+            "name": "geometry",
+            "type": "geometry",
+            "description": "WGS84 observation geometry",
+            "unit": null,
+            "role": "geometry",
+            "nullable": true
+          },
+          {
+            "name": "cell_id",
+            "type": "string",
+            "description": "Selected rainfall cell",
+            "unit": null,
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "preceding_rainfall_mm",
+            "type": "number",
+            "description": "Accumulated rainfall in complete preceding two-day window",
+            "unit": "mm",
+            "role": null,
+            "nullable": true
+          },
+          {
+            "name": "preceding_rainfall_mm_coverage",
+            "type": "number",
+            "description": "Fraction of two-day window with observations",
+            "unit": null,
+            "role": null,
+            "nullable": false
+          }
+        ],
+        "time_column": "observed_at"
+      }
+    },
+    "rows": {
+      "tracking": [
+        {
+          "entity_id": "study-a:1",
+          "observed_at": "2026-01-03T00:00:00Z",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              1,
+              1
+            ]
+          }
+        }
+      ],
+      "cells": [
+        {
+          "cell_id": "a",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "observed_at": "2026-01-01T00:00:00Z"
+        },
+        {
+          "cell_id": "b",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "observed_at": "2026-01-01T00:00:00Z"
+        }
+      ],
+      "rainfall": [
+        {
+          "cell_id": "a",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "interval_start": "2026-01-01T00:00:00Z",
+          "interval_end": "2026-01-02T00:00:00Z",
+          "rainfall_mm": 0
+        },
+        {
+          "cell_id": "a",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "interval_start": "2026-01-02T00:00:00Z",
+          "interval_end": "2026-01-03T00:00:00Z",
+          "rainfall_mm": 5
+        },
+        {
+          "cell_id": "a",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "interval_start": "2026-01-03T00:00:00Z",
+          "interval_end": "2026-01-04T00:00:00Z",
+          "rainfall_mm": 100
+        }
+      ]
+    },
+    "search": {
+      "tracking": {
+        "metadata": [
+          "tracking"
+        ],
+        "semantic": [
+          "tracking"
+        ]
+      },
+      "cells": {
+        "metadata": [
+          "cells"
+        ],
+        "semantic": [
+          "cells"
+        ]
+      },
+      "rainfall": {
+        "metadata": [],
+        "semantic": [
+          "rainfall"
+        ]
+      }
+    },
+    "labels": {
+      "tracking": 3,
+      "cells": 3,
+      "rainfall": 3
+    },
+    "expected": [
+      {
+        "entity_id": "study-a:1",
+        "observed_at": "2026-01-03T00:00:00+00:00",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            1,
+            1
+          ]
+        },
+        "cell_id": "a",
+        "preceding_rainfall_mm": 5.0,
+        "preceding_rainfall_mm_coverage": 1.0
+      }
+    ]
+  }
+]

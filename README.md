@@ -2,7 +2,7 @@
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 
-**Status:** Product specification and contributor handoff; implementation has not started. Paths, interfaces, and tools below are proposed contracts to implement, not existing functionality.
+**Status:** Product specification and contributor handoff, with an initial [Recipe implementation](src/recipe/README.md). Other lanes and shared integrations remain proposed contracts; see the Recipe guide for implemented capabilities and limits.
 
 ## The product
 
