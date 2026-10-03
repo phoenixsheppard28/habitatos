@@ -405,3 +405,30 @@ All paths are in `pipeline/`.
 | `examples/athi_kaputiei.py` | Real example: tracking, rainfall and vegetation for one area |
 | `examples/queries.sql` | Join examples for the Recipe lane |
 | `DESIGN.md` | Design reasons and per-source processing steps |
+
+## 9. Next step: combine the two Movebank connectors
+
+There are two Movebank connectors:
+
+| Connector | Where | Access | Content |
+| --- | --- | --- | --- |
+| Movebank Data Repository | This branch: `pipeline/src/habitat/fetch/movebank.py` | Public. No account. | Published data packages with a DOI, a license and a citation |
+| Movebank REST API | Another branch. It is not pushed yet. | Movebank account. Some studies also need the owner's permission or a license acceptance. | All studies that the account can download, including new data |
+
+Combine the two connectors into one `movebank` source. Use these rules:
+
+1. Both connectors write the same `RawManifest` shape with `source_id = "movebank"` and `storage.format = "csv"`.
+   The existing normalizer (`movebank-csv-v1`) then reads both. Do not write a second normalizer.
+2. Both connectors put the Movebank study id in `properties.study_id`.
+   The Data Repository gives it in `mdr.study.id`. Thus `entity_id = movebank:<study_id>:<local name>` is the same for an animal from either connector.
+3. Use the Data Repository first when it has the study. It gives a stable DOI, a license and a citation.
+   Use the API for studies that are not in the repository and for data after the publication date.
+4. A fix from both connectors has the same `source_record_id` (the Movebank `event-id`).
+   `current_animal_locations` keeps one row per `entity_id`, `observed_at` and `sensor_type`. Confirm this rule after the merge.
+5. Decide the series layout before the merge. Today `series_id` is `movebank--<product>--ease2-global-1km`.
+   Two products (`movebank-data-repository` and an API product) give two series in `animal_locations`.
+6. Keep the API credentials in `.env`, for example `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`. Do not write them to `raw_manifest`.
+7. Record the license terms that the API returns in `RawManifest.rights`, as the repository connector does.
+
+The repository connector finds the location file by its columns (`timestamp`, `location-long`, `location-lat`), not by its file name.
+Use the same check for API downloads.

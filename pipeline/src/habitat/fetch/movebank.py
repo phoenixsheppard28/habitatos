@@ -18,14 +18,10 @@ from habitat.fetch.archive import RawArchive
 DATA_REPOSITORY_API = "https://datarepository.movebank.org/server/api/core"
 SEARCH_API = "https://datarepository.movebank.org/server/api/discover/search/objects"
 PRODUCT = "movebank-data-repository"
-LOCATION_FILE_SUFFIXES = (
-    "-gps.csv",
-    "-argos.csv",
-    "-radio-transmitter.csv",
-    "-solar-geolocator.csv",
-    "-sigfox-geolocation.csv",
-)
 REFERENCE_FILE_SUFFIX = "-reference-data.csv"
+# Accessory files hold sensor data such as acceleration, not locations.
+NOT_LOCATION_SUFFIXES = (REFERENCE_FILE_SUFFIX, "-accessory.csv")
+LOCATION_COLUMNS = {"timestamp", "location-long", "location-lat"}
 
 
 def metadata_value(item: dict, key: str) -> str | None:
@@ -53,18 +49,23 @@ def fetch_data_package(
 
     files = package_files(item)
     reference = next((f for f in files if f["name"].endswith(REFERENCE_FILE_SUFFIX)), None)
-    locations = [f for f in files if f["name"].endswith(LOCATION_FILE_SUFFIXES)]
+    # File names vary between packages, so a CSV counts as a location file when its header has the location columns.
+    candidates = [f for f in files if f["name"].endswith(".csv") and not f["name"].endswith(NOT_LOCATION_SUFFIXES)]
     handle = item["handle"]
     study_id = metadata_value(item, "mdr.study.id") or handle
 
     manifests = []
-    for location_file in locations:
+    for location_file in candidates:
         source_item_id = f"{handle}/{location_file['name']}"
         processing_version = f"md5:{location_file['checkSum']['value']}"
         if already_ingested(source_item_id, processing_version, "final"):
             continue
 
-        assets = {"locations": download(archive, handle, location_file)}
+        locations_path = download(archive, handle, location_file)
+        if not LOCATION_COLUMNS <= set(pd.read_csv(locations_path, nrows=0).columns):
+            continue
+
+        assets = {"locations": locations_path}
         if reference is not None:
             assets["reference"] = download(archive, handle, reference)
         manifests.append(
