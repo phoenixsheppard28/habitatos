@@ -2,7 +2,7 @@
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 
-**Status:** The Fetch MVP is implemented in [`fetch_pipeline/`](fetch_pipeline/). See [`FETCH_INTEGRATION.md`](FETCH_INTEGRATION.md) for its current inputs, outputs, and ingestion handoff. The other lanes and broader product architecture below remain proposed contracts.
+**Status:** The Fetch and Normalize lanes are implemented as one Python package, `habitat`, in [`src/habitat/`](src/habitat/). See [`PIPELINE.md`](PIPELINE.md) for the data flow, [`SOURCES.md`](SOURCES.md) for each source, and [`INTEGRATIONS.md`](INTEGRATIONS.md) for the tables and the request/response handoff. The other lanes and broader product architecture below remain proposed contracts.
 
 ## The product
 
@@ -73,8 +73,8 @@ Claim one lane by replacing `Unclaimed` with your name and branch. Each contribu
 
 | Lane | Owner | Owned paths | Deliverables |
 | --- | --- | --- | --- |
-| 1. Fetch | venyo (`fetch/venyo`) | `fetch_pipeline/src/fetch/`, `fetch_pipeline/tests/fetch/` | Catalog search, source connectors, raw archive writer, manifests, fetch-cache behavior |
-| 2. Normalize | Unclaimed | `src/normalize/`, `src/storage/`, `contracts/`, `migrations/`, `tests/normalize/` | Shared contract definitions, staging/canonical persistence, reusable mappings, validation and quarantine |
+| 1. Fetch | venyo (`fetch/venyo`) | `src/habitat/fetch/`, `src/habitat/archive/`, `tests/` | Catalog search, source connectors, raw archive writer, manifests, fetch-cache behavior |
+| 2. Normalize | Unclaimed | `src/habitat/normalize/`, `src/habitat/storage/`, `src/habitat/catalog/`, `contracts/`, `migrations/`, `tests/` | Shared contract definitions, staging/canonical persistence, reusable mappings, validation and quarantine |
 | 3. Recipe | Unclaimed | `src/recipe/`, `tests/recipe/` | Dataset selection, typed recipe generation, join validation, deterministic execution, feature-cache behavior |
 | 4. Analysis | Unclaimed | `src/analysis/`, `src/workflow/`, `tests/analysis/`, `tests/integration/` | Query parsing, durable coordinator, statistical/model execution, evaluation, evidence reports, end-to-end demo |
 
