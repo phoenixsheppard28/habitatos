@@ -73,7 +73,7 @@ Claim one lane by replacing `Unclaimed` with your name and branch. Each contribu
 
 | Lane | Owner | Owned paths | Deliverables |
 | --- | --- | --- | --- |
-| 1. Fetch | Unclaimed | `src/fetch/`, `tests/fetch/` | Catalog search, source connectors, raw archive writer, manifests, fetch-cache behavior |
+| 1. Fetch | venyo (`fetch/venyo`) | `src/fetch/`, `tests/fetch/` | Catalog search, source connectors, raw archive writer, manifests, fetch-cache behavior |
 | 2. Normalize | Unclaimed | `src/normalize/`, `src/storage/`, `contracts/`, `migrations/`, `tests/normalize/` | Shared contract definitions, staging/canonical persistence, reusable mappings, validation and quarantine |
 | 3. Recipe | Unclaimed | `src/recipe/`, `tests/recipe/` | Dataset selection, typed recipe generation, join validation, deterministic execution, feature-cache behavior |
 | 4. Analysis | Unclaimed | `src/analysis/`, `src/workflow/`, `tests/analysis/`, `tests/integration/` | Query parsing, durable coordinator, statistical/model execution, evaluation, evidence reports, end-to-end demo |
