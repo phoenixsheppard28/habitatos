@@ -20,11 +20,7 @@ current_archive: ContextVar[Archive | None] = ContextVar("fetch_archive", defaul
 
 def archive() -> Archive:
     """The archive of the current request. Outside a request, a local archive with an in-memory index."""
-    found = current_archive.get()
-    if found is None:
-        found = Archive()
-        current_archive.set(found)
-    return found
+    return current_archive.get() or Archive()
 
 
 def record(result: RawManifest | dict[str, Any]) -> None:

@@ -34,9 +34,9 @@ def test_a_failed_source_does_not_stop_the_others(monkeypatch):
     assert any("modis_mod13q1" in warning for warning in result["warnings"])
 
 
-def test_old_source_names_are_rejected():
+def test_unknown_source_names_are_rejected():
     with pytest.raises(ValueError):
-        service.fetch_environment(BBOX, "2025-01-01", "2025-01-01", sources=["modis"])
+        service.fetch_environment(BBOX, "2025-01-01", "2025-01-01", sources=["landsat"])
 
 
 def test_invalid_area_is_rejected_before_network(mock_http):
