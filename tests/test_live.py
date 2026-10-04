@@ -74,3 +74,23 @@ def test_live_agent_path(workspace):
     print(f"[agent] summary: {result.fetch.extensions.get('agent_summary')}")
     assert result.status in ("ok", "partial")
     assert result.fetch.output.raw_artifacts
+
+
+DEGRADATION_BBOX = (36.85, -1.55, 36.95, -1.45)
+
+
+@pytest.mark.parametrize("source_id, start, end, prefix", [
+    ("landsat_c2_l2", date(2011, 1, 1), date(2011, 1, 31), "L"),
+    ("esa_cci_lc", date(2012, 6, 1), date(2012, 6, 1), "ESACCI-LC-L4-LCCS-Map-300m-P1Y-2012"),
+    ("io_lulc_annual", date(2020, 6, 1), date(2020, 6, 1), "37M-2020"),
+    ("modis_mcd64a1", date(2012, 12, 1), date(2012, 12, 31), "MCD64A1."),
+])
+def test_live_habitat_degradation_source(workspace, source_id, start, end, prefix):
+    started = time.monotonic()
+
+    result = run(build_request(source_id, DEGRADATION_BBOX, start, end, None, None), False, workspace)
+
+    report(source_id, result, started)
+    assert result.status in ("ok", "partial")
+    assert all(a.artifact_id.startswith(prefix) for a in result.fetch.output.raw_artifacts)
+    assert {o.status for o in result.outcomes} == {"appended"}

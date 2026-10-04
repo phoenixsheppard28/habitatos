@@ -27,6 +27,8 @@ Rules:
 - Evaluate satellite/environment context for every ecological request. Use fetch_environment
   for sentinel2, modis_mod13q1 (Terra), and chirps when a bounding box and dates are resolved.
   If either is missing, ask for them; never invent geography, dates, or animal tracks.
+- For habitat degradation (land cover, fire, 30 m vegetation), name landsat_c2_l2, esa_cci_lc,
+  io_lulc_annual or modis_mcd64a1 in the fetch_environment sources.
 - Public Movebank previews are samples, not full movement datasets. Credentials do
   not guarantee study permission. Report restricted access and license requirements.
 - Without credentials Movebank search covers a tiny built-in demo index, not all studies.

@@ -8,12 +8,20 @@ from habitat.fetch import session
 from habitat.fetch.catalog import REPOSITORY_PREFIX, search_catalog
 from habitat.fetch.connectors import ConnectorRequest, ConnectorResult, validate_area_and_dates
 from habitat.fetch.connectors import chirps, stac
+from habitat.fetch.connectors import burned_area, landcover, landsat
 from habitat.fetch.connectors.fixture import check_fixture_access, get_catalog_entry, inspect_fixture
 from habitat.fetch.connectors.movebank_study import check_movebank_access, inspect_movebank
 from habitat.fetch.connectors.zenodo import check_zenodo_access, inspect_zenodo
 from habitat.sources import get_source
 
 ENVIRONMENT_SOURCES = ("sentinel2", "modis_mod13q1", "chirps")
+# Habitat degradation sources: fetched only when the caller names them.
+DEGRADATION_SEARCHES = {
+    "landsat_c2_l2": landsat.search_landsat,
+    "esa_cci_lc": landcover.search_esa_cci_lc,
+    "io_lulc_annual": landcover.search_io_lulc,
+    "modis_mcd64a1": burned_area.search_mcd64a1,
+}
 
 
 def resolve_dataset(dataset_id: str) -> tuple[str, str] | None:
@@ -103,9 +111,10 @@ def fetch_environment(
 ) -> dict[str, Any]:
     """Bounded Sentinel-2, MODIS Terra and CHIRPS retrieval for one area and an inclusive date range."""
     sources = list(dict.fromkeys(sources or ENVIRONMENT_SOURCES))
-    unknown = set(sources) - set(ENVIRONMENT_SOURCES)
+    known = (*ENVIRONMENT_SOURCES, *DEGRADATION_SEARCHES)
+    unknown = set(sources) - set(known)
     if unknown:
-        raise ValueError(f"sources must be some of {', '.join(ENVIRONMENT_SOURCES)}; got {sorted(unknown)}")
+        raise ValueError(f"sources must be some of {', '.join(known)}; got {sorted(unknown)}")
 
     request = ConnectorRequest(
         bbox=tuple(bbox), start=date.fromisoformat(start), end=date.fromisoformat(end),
@@ -144,6 +153,8 @@ def discover_environment(request: ConnectorRequest, sources: list[str]) -> dict[
             if source_id == "chirps":
                 days = min((request.end - request.start).days + 1, request.max_days)
                 found += [{"source_id": "chirps", "item": chirps.item_id(request.start + timedelta(d))} for d in range(days)]
+            elif source_id in DEGRADATION_SEARCHES:
+                found += [{"source_id": source_id, "item": i.id} for i in DEGRADATION_SEARCHES[source_id](request.bbox, start, end)]
             elif source_id == "sentinel2":
                 found += [{"source_id": source_id, "item": i.id} for i in stac.search_sentinel2(request.bbox, start, end)]
             else:

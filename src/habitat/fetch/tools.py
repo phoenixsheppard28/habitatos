@@ -73,6 +73,10 @@ def fetch_environment(
     resolved region and dates: never guess them. Default bounds: 1 scene/product,
     3 rainfall days, 2 GiB total, 512 MiB/file. Rasters are clipped to the bbox.
     Discovery alone downloads no data.
+    Habitat degradation sources, only when named: landsat_c2_l2 (30 m surface reflectance and
+    vegetation, 1982 to now), esa_cci_lc (land_cover, 1992-2020), io_lulc_annual (land_cover,
+    2017-2023), modis_mcd64a1 (fire_observations, monthly burned area). One land cover item is
+    one year and tile, so ask for max_items per year. Landsat gives about 2 scenes per month.
     """
     try:
         result = service.fetch_environment(
