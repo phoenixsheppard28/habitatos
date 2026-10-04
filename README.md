@@ -2,7 +2,7 @@
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 
-**Status:** The Fetch and Normalize lanes are implemented as one Python package, `habitat`, in [`src/habitat/`](src/habitat/). See [`PIPELINE.md`](PIPELINE.md) for the data flow, [`SOURCES.md`](SOURCES.md) for each source, and [`INTEGRATIONS.md`](INTEGRATIONS.md) for the tables and the request/response handoff. The other lanes and broader product architecture below remain proposed contracts.
+**Status:** The Fetch and Normalize lanes are implemented as one Python package, `habitat`, in [`src/habitat/`](src/habitat/). See [`PIPELINE.md`](PIPELINE.md) for the data flow, [`SOURCES.md`](SOURCES.md) for each source, and [`INTEGRATIONS.md`](INTEGRATIONS.md) for the tables and the request/response handoff. The Recipe lane is in [`src/recipe/`](src/recipe/README.md). [`RECIPE_INTEGRATION.md`](RECIPE_INTEGRATION.md) tells how the normalized tables become Recipe inputs. The Analysis lane and the coordinator remain proposed contracts.
 
 ## The product
 

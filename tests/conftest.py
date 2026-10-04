@@ -1,4 +1,6 @@
+import json
 import os
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -185,3 +187,9 @@ def database():
     finally:
         connection.execute(f"DROP SCHEMA {schema} CASCADE")
         connection.close()
+
+
+@pytest.fixture
+def scenarios():
+    """The Recipe lane fixture scenarios, a fresh copy per test."""
+    return deepcopy(json.loads((Path(__file__).parent / "recipe" / "fixtures" / "scenarios.json").read_text()))
