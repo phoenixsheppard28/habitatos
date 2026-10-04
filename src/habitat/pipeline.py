@@ -18,6 +18,7 @@ from habitat.contracts import (
     TimeRange,
 )
 from habitat.db import connect
+from habitat.derive.water import derive_after_ingest
 from habitat.fetch import run as fetch
 from habitat.grid import default_grid
 from habitat.ingest import Workspace, ingest_manifest, publish_changed
@@ -79,6 +80,13 @@ def ingest_and_publish(
         outcomes.append(outcome)
         if ingest is not None:
             ingests.append(ingest)
+
+    for derived in derive_after_ingest(request, ingests, workspace):
+        item = derived.manifest.extensions
+        status = "appended" if derived.append.appended else "already_present"
+        outcomes.append(ArtifactOutcome(derived.manifest.artifact_id, derived.manifest.version, item.source_id,
+                                        status, series_id=derived.append.series_id))
+        ingests.append(derived)
 
     published = publish_changed(ingests, workspace, request.access_scope, use_ai)
     return PipelineResult(response, outcomes, published)

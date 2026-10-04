@@ -35,6 +35,9 @@ from habitat.fetch.connectors.jrc_gsw_monthly import PRODUCT as JRC_MONTHLY_PROD
 from habitat.fetch.connectors.jrc_gsw_monthly import STORAGE_FORMAT as JRC_MONTHLY_FORMAT
 from habitat.fetch.connectors.jrc_gsw_monthly import fetch_jrc_gsw_monthly
 from habitat.normalize.sources.jrc_gsw_monthly import normalize_jrc_gsw_monthly
+from habitat.fetch.connectors.water_derived import PRODUCT as WATER_DERIVED_PRODUCT
+from habitat.fetch.connectors.water_derived import STORAGE_FORMAT as WATER_DERIVED_FORMAT
+from habitat.fetch.connectors.water_derived import fetch_water_derived
 
 Normalizer = Callable[[RawManifest, ArtifactStore, Grid, BBox | None], NormalizedBatch]
 
@@ -114,6 +117,13 @@ SOURCES: dict[str, Source] = {
             "JRC Global Surface Water monthly history: surface water fraction and distance to water per 1 km cell",
             frozenset({"water_observations"}),
             fetch_jrc_gsw_monthly, normalize_jrc_gsw_monthly, JRC_MONTHLY_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "water_derived", WATER_DERIVED_PRODUCT,
+            "Monthly distance to water, to permanent, natural and artificial water, and water point density "
+            "per 1 km cell, derived from water features and JRC monthly water",
+            frozenset({"water_observations"}),
+            fetch_water_derived, None, WATER_DERIVED_FORMAT, needs_area_and_dates=True,
         ),
     ]
 }
