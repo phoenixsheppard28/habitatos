@@ -3,19 +3,22 @@ from dataclasses import dataclass, field
 import pandas as pd
 import pyarrow as pa
 
-from habitat.contracts import CELL_OBSERVATIONS_SCHEMA, AnimalEntity, ProductStatus, RawManifest
+from habitat.contracts import CELL_OBSERVATIONS_SCHEMA, ProductStatus, RawManifest
 from habitat.grid import Grid
 
 CELL_OBSERVATIONS = "cell_observations"
 ANIMAL_LOCATIONS = "animal_locations"
+ANIMAL_ENTITIES = "animal_entities"
 
 
 @dataclass
 class NormalizedBatch:
+    """Rows of one family. `references` maps a reference table name to rows that the family rows point to."""
+
     table: pa.Table
     mapping_version: str
     family: str = CELL_OBSERVATIONS
-    entities: list[AnimalEntity] = field(default_factory=list)
+    references: dict[str, pa.Table] = field(default_factory=dict)
 
 
 class QuarantineError(ValueError):

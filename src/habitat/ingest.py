@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 
 import psycopg
+import pyarrow as pa
 
 from habitat.archive import Archive, ChecksumMismatch
 from habitat.archive.index import PostgresArtifactIndex
@@ -57,21 +58,36 @@ def ingest_manifest(
         logger.warning("quarantined %s: %s", manifest.artifact_id, error)
         return IngestOutcome(manifest, None, str(error))
 
-    resolve_entity_taxa(batch)
+    resolve_batch_taxa(batch)
     return IngestOutcome(manifest, store.append_batch(series_id(manifest, grid), manifest, batch))
 
 
-def resolve_entity_taxa(batch: NormalizedBatch) -> None:
-    """Attach GBIF keys to scientific names, so catalog search by species works. Unresolved names stay null."""
-    names = {entity.taxon_name for entity in batch.entities if entity.taxon_name}
-    keys = {}
-    for name in names:
+def resolve_batch_taxa(batch: NormalizedBatch) -> None:
+    """Attach GBIF keys to scientific names, so catalog search by species works. Unresolved names stay null.
+
+    This applies to the family rows and to each reference table that has `taxon_name` and `gbif_taxon_key`.
+    """
+    batch.table = with_resolved_taxa(batch.table)
+    batch.references = {name: with_resolved_taxa(table) for name, table in batch.references.items()}
+
+
+def with_resolved_taxa(table: pa.Table) -> pa.Table:
+    if not {"taxon_name", "gbif_taxon_key"} <= set(table.column_names):
+        return table
+
+    names = table.column("taxon_name").to_pylist()
+    keys = table.column("gbif_taxon_key").to_pylist()
+    unresolved_names = {name for name, key in zip(names, keys) if name and key is None}
+    resolved_keys = {}
+    for name in unresolved_names:
         resolution = resolve_taxon(name)
         if resolution.status == "resolved":
-            keys[name] = resolution.taxa[0].gbif_key
+            resolved_keys[name] = resolution.taxa[0].gbif_key
 
-    for entity in batch.entities:
-        entity.gbif_taxon_key = keys.get(entity.taxon_name)
+    filled = [resolved_keys.get(name) if key is None else key for name, key in zip(names, keys)]
+    index = table.schema.get_field_index("gbif_taxon_key")
+    key_field = table.schema.field(index)
+    return table.set_column(index, key_field, pa.array(filled, key_field.type))
 
 
 def publish_changed(

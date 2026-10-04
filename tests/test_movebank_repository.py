@@ -9,6 +9,7 @@ from habitat.contracts import RawManifest
 from habitat.fetch.connectors import ConnectorRequest
 from habitat.fetch.connectors.movebank_repository import fetch_movebank_repository
 from habitat.normalize.router import normalize
+from habitat.normalize.rows import ANIMAL_ENTITIES
 from habitat.sources import SOURCES
 
 REQUEST = ConnectorRequest(item=movebank_package.PACKAGE_UUID)
@@ -27,7 +28,8 @@ def test_package_becomes_one_artifact_with_locations_and_reference(mock_http, gr
     assert manifest.extensions.properties["study_id"] == "208413731"
     batch = normalize(manifest, archive.store, grid)
     assert batch.table.num_rows == 4
-    assert {e.local_identifier: e.sex for e in batch.entities} == {"Naboisho": "f", "Olope": "m"}
+    entities = batch.references[ANIMAL_ENTITIES].to_pylist()
+    assert {e["local_identifier"]: e["sex"] for e in entities} == {"Naboisho": "f", "Olope": "m"}
 
 
 def test_a_newer_package_takes_date_license_and_citation_from_its_other_fields(mock_http):

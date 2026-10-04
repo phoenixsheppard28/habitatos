@@ -3,12 +3,15 @@ from datetime import UTC, datetime
 import pytest
 
 from conftest import make_manifest
+from habitat import ingest
 from habitat.catalog.publish import publish_series_version
 from habitat.catalog.store import PostgresCatalog
+from habitat.catalog.taxa import TaxonResolution
 from habitat.contracts import SearchFilters, TaxonRef
 from habitat.archive.store import LocalArtifactStore
 from habitat.normalize.router import normalize
-from habitat.normalize.rows import QuarantineError, series_id
+from habitat.ingest import resolve_batch_taxa
+from habitat.normalize.rows import ANIMAL_ENTITIES, QuarantineError, series_id
 from habitat.storage.series import SeriesStore
 
 GPS_CSV = """event-id,visible,timestamp,location-long,location-lat,gps:dop,sensor-type,individual-taxon-canonical-name,tag-local-identifier,individual-local-identifier,study-name
@@ -61,11 +64,13 @@ def test_fixes_become_animal_locations_with_namespaced_ids(package, grid):
 
 
 def test_reference_data_describes_each_animal(package, grid):
-    entities = {e.local_identifier: e for e in normalize(package, LocalArtifactStore(), grid).entities}
+    batch = normalize(package, LocalArtifactStore(), grid)
+    entities = {e["local_identifier"]: e for e in batch.references[ANIMAL_ENTITIES].to_pylist()}
 
-    assert entities["Olope"].sex == "m"
-    assert entities["Olope"].deploy_off == datetime(2011, 8, 11, 23, 59, tzinfo=UTC)
-    assert entities["Naboisho"].taxon_name == "Connochaetes taurinus"
+    assert entities["Olope"]["sex"] == "m"
+    assert entities["Olope"]["deploy_off"] == datetime(2011, 8, 11, 23, 59, tzinfo=UTC)
+    assert entities["Naboisho"]["taxon_name"] == "Connochaetes taurinus"
+    assert entities["Naboisho"]["gbif_taxon_key"] is None
 
 
 def test_a_file_without_coordinates_is_quarantined(tmp_path, grid):
@@ -80,12 +85,12 @@ def test_a_file_without_coordinates_is_quarantined(tmp_path, grid):
         normalize(package, LocalArtifactStore(), grid)
 
 
-def test_tracking_rows_are_queryable_and_searchable_by_species(database, package, grid):
+def test_tracking_rows_are_queryable_and_searchable_by_species(database, package, grid, monkeypatch):
     store = SeriesStore(database, grid)
     catalog = PostgresCatalog(database)
+    monkeypatch.setattr(ingest, "resolve_taxon", lambda name: TaxonResolution(name, "resolved", taxa=[WILDEBEEST]))
     batch = normalize(package, LocalArtifactStore(), grid)
-    for entity in batch.entities:
-        entity.gbif_taxon_key = WILDEBEEST.gbif_key
+    resolve_batch_taxa(batch)
 
     first = store.append_batch(series_id(package, grid), package, batch)
     again = store.append_batch(series_id(package, grid), package, batch)

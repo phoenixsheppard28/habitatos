@@ -277,6 +277,24 @@ ANIMAL_LOCATIONS_SCHEMA = pa.schema(
 )
 
 
+ANIMAL_ENTITIES_SCHEMA = pa.schema(
+    [
+        pa.field("entity_id", pa.string(), nullable=False),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("study_id", pa.string(), nullable=False),
+        pa.field("local_identifier", pa.string(), nullable=False),
+        pa.field("taxon_name", pa.string(), nullable=True),
+        pa.field("gbif_taxon_key", pa.int64(), nullable=True),
+        pa.field("sex", pa.string(), nullable=True),
+        pa.field("life_stage", pa.string(), nullable=True),
+        pa.field("deploy_on", UTC_TIMESTAMP, nullable=True),
+        pa.field("deploy_off", UTC_TIMESTAMP, nullable=True),
+        pa.field("study_site", pa.string(), nullable=True),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
+
 class AnimalEntity(BaseModel):
     entity_id: str
     source_id: str
