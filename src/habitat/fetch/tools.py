@@ -5,6 +5,7 @@ import json
 from anthropic import beta_tool
 
 from habitat.fetch import service, session
+from habitat.fetch import water
 
 
 @beta_tool
@@ -85,6 +86,32 @@ def fetch_environment(
         return json.dumps(failure)
 
 
+@beta_tool
+def fetch_water(
+    bbox: list[float],
+    start: str,
+    end: str,
+    sources: list[str] | None = None,
+    buffer_km: float = 20,
+    max_items: int = 12,
+    discover_only: bool = False,
+) -> str:
+    """Fetch water features, water points and monthly surface water for a WGS84 bbox and inclusive
+    YYYY-MM-DD dates. Sources: osm_overpass (rivers, lakes, dams, wells, taps), wpdx (human water
+    points with status), jrc_gsw_monthly (30 m monthly water). The bbox grows by buffer_km so that
+    distances near the edge are correct. Requires a resolved region and dates: never guess them.
+    OSM history starts 2012-09-12; JRC monthly ends 2021-12. max_items bounds the JRC month tiles
+    (default 12). Discovery alone downloads no data.
+    """
+    try:
+        return json.dumps(water.fetch_water(bbox, start, end, sources=sources, buffer_km=buffer_km,
+                                             max_items=max_items, discover_only=discover_only))
+    except ValueError as error:
+        failure = {"status": "error", "message": str(error)}
+        session.record(failure)
+        return json.dumps(failure)
+
+
 FETCH_AGENT_TOOLS = [
     list_downloaded_files,
     search_catalog,
@@ -92,4 +119,5 @@ FETCH_AGENT_TOOLS = [
     check_access,
     download_dataset,
     fetch_environment,
+    fetch_water,
 ]

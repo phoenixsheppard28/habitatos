@@ -14,6 +14,10 @@ For the package layout and the data flow, see `MERGE_PLAN.md`.
 | `movebank_study` | `movebank:<study_id>` | study id | 1 CSV | `animal_locations` |
 | `zenodo` | `zenodo:<record_id>` | record id | 1 file | quarantined (no mapping) |
 | `fixture` | `fixture-movement-001`, `fixture-rainfall-001` | fixture id | 1 CSV | quarantined (synthetic) |
+| `osm_overpass` | none (use `fetch_water`) | bbox, dates | 1 Overpass JSON response per bbox and snapshot | `site_features` |
+| `wpdx` | none (use `fetch_water`) | bbox, dates | 1 JSON array of WPdx+ rows per bbox | `site_features` |
+| `jrc_gsw_monthly` | none (use `fetch_water`) | bbox, dates | 1 clipped GeoTIFF per month and 10° tile | `cell_observations` |
+| `water_derived` | none (derived after a water fetch) | bbox, dates | 1 JSON list of input batches per bbox and month | `cell_observations` |
 
 General limits:
 
@@ -84,6 +88,49 @@ General limits:
 - Synthetic antelope tracks and rainfall cells in `tests/fixtures/`.
 - Use them only for demos and tests. The pipeline quarantines them and never publishes them.
 
+## osm_overpass
+
+- Provider: OpenStreetMap, through the Overpass API at `https://overpass-api.de/api/interpreter`. No login.
+- One POST request per bbox and snapshot. The query asks for rivers, streams, canals, lakes, ponds, reservoirs, wetlands, springs, dams, weirs, wells, taps and water points.
+- The snapshot is the end of the last requested day. When the last day is today or later, the query asks for the current state.
+- OSM history starts 2012-09-12. An earlier end date gives the oldest snapshot and a warning.
+- The archive keeps the JSON response as received. An HTML overload page or a `remark` with a runtime error gives a retryable error, not an empty result.
+- `available_at` of the item is `osm3s.timestamp_osm_base`. Each row has the `timestamp` of its element version.
+- `processing_version` is the snapshot time, or `timestamp_osm_base` for the current state.
+- A past snapshot is cached by its source key. A current query always asks the server.
+- License: ODbL-1.0, "© OpenStreetMap contributors".
+- Limits: the OSM date is a mapping date, not a construction date. The public server is often busy.
+
+## wpdx
+
+- Provider: Water Point Data Exchange, dataset WPdx+ (`eqje-vguj`), through the Socrata API. No login. The connector sends no app token.
+- The request filters on the bbox and drops rows without coordinates. It reads pages of 50,000 rows.
+- The archive keeps all rows as one JSON array.
+- `processing_version` and `available_at` are the latest `updated` value of the rows. Each row has its own `updated`.
+- The dates of the request do not filter the rows. `report_date` gives the time of each row.
+- License: CC-BY-4.0.
+- Limits: WPdx records human water supply. It does not record wildlife troughs or pans.
+
+## jrc_gsw_monthly
+
+- Provider: EC Joint Research Centre, Global Surface Water monthly history v1.4, 30 m. No login.
+- One file per month and 10° tile. The connector reads only the bbox window with HTTP range requests.
+- Pixel values: 0 no data, 1 not water, 2 water. Another value or a CRS other than EPSG:4326 goes to quarantine.
+- The months are 1984-03 to 2021-12. Later months give a warning and no request.
+- `max_items` limits the number of month tiles. `fetch_water` uses 12.
+- `available_at` is the `Last-Modified` time of the file. `processing_version` is `1.4@<Last-Modified>`.
+- Variables: `surface_water_fraction` (water pixels ÷ observed pixels) and `distance_to_surface_water_m` (cell centre to the nearest water pixel).
+- License: CC-BY-4.0. Cite Pekel et al. 2016, Nature 540, 418–422.
+
+## water_derived
+
+- No provider. The pipeline computes these values after it appends `osm_overpass`, `wpdx` or `jrc_gsw_monthly` rows.
+- Run it alone with `uv run python -m habitat.derive.water --bbox W,S,E,N --start YYYY-MM-DD --end YYYY-MM-DD`.
+- Variables per cell and month: `distance_to_water_m`, `distance_to_permanent_water_m`, `distance_to_natural_water_m`, `distance_to_artificial_water_m` and `water_point_density`.
+- The step reads features in the bbox plus 20 km. A value beyond 20 km is null.
+- Unchanged inputs give the same batch key. Changed inputs make a new batch that supersedes the old one.
+- The rights are those of the inputs. With OSM input the license is ODbL-1.0.
+
 ## Provider references
 
 - [Movebank API](https://github.com/movebank/movebank-api-doc/blob/master/movebank-api.md)
@@ -94,3 +141,6 @@ General limits:
 - [CHIRPS download directory](https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/tifs/p05/)
 - [CHIRPS product documentation](https://chc.ucsb.edu/data/chirps)
 - [Zenodo REST API](https://developers.zenodo.org/)
+- [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API)
+- [WPdx+ dataset](https://data.waterpointdata.org/dataset/Water-Point-Data-Exchange-Plus-WPdx-/eqje-vguj)
+- [JRC Global Surface Water downloads](https://global-surface-water.appspot.com/download)

@@ -4,6 +4,8 @@ from habitat.config import PROJECT_ROOT
 from habitat.sources import SOURCES
 
 EXPECTED = {"sentinel2", "modis_mod13q1", "chirps", "movebank_repository", "movebank_study", "zenodo", "fixture"}
+EXPECTED |= {"osm_overpass", "wpdx", "jrc_gsw_monthly", "water_derived"}
+DERIVED = {"water_derived"}
 
 
 def test_every_source_id_has_a_connector():
@@ -12,8 +14,8 @@ def test_every_source_id_has_a_connector():
     assert all(source.source_id == key for key, source in SOURCES.items())
 
 
-def test_sources_without_mapping_are_only_zenodo_and_fixture():
-    assert {key for key, source in SOURCES.items() if source.normalizer is None} == {"zenodo", "fixture"}
+def test_sources_without_mapping_are_only_zenodo_fixture_and_derived_sources():
+    assert {key for key, source in SOURCES.items() if source.normalizer is None} == {"zenodo", "fixture"} | DERIVED
 
 
 def test_every_source_with_a_normalizer_has_a_storage_format():
