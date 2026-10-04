@@ -74,3 +74,39 @@ def test_live_agent_path(workspace):
     print(f"[agent] summary: {result.fetch.extensions.get('agent_summary')}")
     assert result.status in ("ok", "partial")
     assert result.fetch.output.raw_artifacts
+
+
+NAIROBI_BBOX = (36.85, -1.45, 36.90, -1.40)
+
+
+def test_live_osm_overpass_current_snapshot(workspace):
+    started = time.monotonic()
+    today = date.today()
+
+    result = run(build_request("osm_overpass", NAIROBI_BBOX, today, today, None, None), False, workspace)
+
+    report("osm_overpass", result, started)
+    assert result.status in ("ok", "partial")
+    assert [o.status for o in result.outcomes if o.source_id == "osm_overpass"] == ["appended"]
+
+
+def test_live_jrc_gsw_monthly_tile_exists():
+    from habitat.fetch import http
+    from habitat.fetch.connectors import jrc_gsw_monthly
+
+    url = jrc_gsw_monthly.tile_url(date(2011, 3, 1), (320000, 840000))
+    with http.client() as client:
+        response = client.head(url)
+
+    assert response.status_code == 200
+    assert response.headers["last-modified"]
+
+
+def test_live_wpdx_one_row():
+    from habitat.fetch import http
+    from habitat.fetch.connectors import wpdx
+
+    [row] = http.get_json(wpdx.ENDPOINT, params={"$where": wpdx.bbox_filter((36.6, -1.9, 37.3, -1.2)), "$limit": 1})
+
+    assert {"row_id", "wpdx_id", "lat_deg", "lon_deg", "report_date", "updated", "status_clean",
+            "water_source_clean"} <= set(row)
