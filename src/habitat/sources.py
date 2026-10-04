@@ -31,6 +31,10 @@ from habitat.fetch.connectors.wpdx import PRODUCT as WPDX_PRODUCT
 from habitat.fetch.connectors.wpdx import STORAGE_FORMAT as WPDX_FORMAT
 from habitat.fetch.connectors.wpdx import fetch_wpdx
 from habitat.normalize.sources.wpdx import normalize_wpdx
+from habitat.fetch.connectors.jrc_gsw_monthly import PRODUCT as JRC_MONTHLY_PRODUCT
+from habitat.fetch.connectors.jrc_gsw_monthly import STORAGE_FORMAT as JRC_MONTHLY_FORMAT
+from habitat.fetch.connectors.jrc_gsw_monthly import fetch_jrc_gsw_monthly
+from habitat.normalize.sources.jrc_gsw_monthly import normalize_jrc_gsw_monthly
 
 Normalizer = Callable[[RawManifest, ArtifactStore, Grid, BBox | None], NormalizedBatch]
 
@@ -104,6 +108,12 @@ SOURCES: dict[str, Source] = {
             "Water Point Data Exchange (WPdx+) human water points with type, status and report date",
             frozenset({"water_points"}),
             fetch_wpdx, normalize_wpdx, WPDX_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "jrc_gsw_monthly", JRC_MONTHLY_PRODUCT,
+            "JRC Global Surface Water monthly history: surface water fraction and distance to water per 1 km cell",
+            frozenset({"water_observations"}),
+            fetch_jrc_gsw_monthly, normalize_jrc_gsw_monthly, JRC_MONTHLY_FORMAT, needs_area_and_dates=True,
         ),
     ]
 }
