@@ -1,0 +1,119 @@
+{
+ "type": "Feature",
+ "stac_version": "1.0.0",
+ "stac_extensions": [
+  "https://stac-extensions.github.io/projection/v1.0.0/schema.json",
+  "https://stac-extensions.github.io/raster/v1.0.0/schema.json"
+ ],
+ "id": "MCD64A1.A2012336.h21v09.061.2021309010507",
+ "collection": "modis-64A1-061",
+ "geometry": {
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     30.3449669,
+     -10.0030363
+    ],
+    [
+     29.8878503,
+     -3.85e-05
+    ],
+    [
+     40.011892,
+     0.0034202
+    ],
+    [
+     40.6239581,
+     -9.9998919
+    ],
+    [
+     30.3449669,
+     -10.0030363
+    ]
+   ]
+  ]
+ },
+ "bbox": [
+  29.88785027,
+  -10.00303626,
+  40.62395809,
+  0.00342024
+ ],
+ "properties": {
+  "created": "2021-11-05T05:05:07Z",
+  "updated": "2021-11-05T06:14:15.850000Z",
+  "datetime": null,
+  "platform": "terra,aqua",
+  "proj:epsg": null,
+  "proj:wkt2": "PROJCS[\"unnamed\",GEOGCS[\"Unknown datum based upon the custom spheroid\",DATUM[\"Not specified (based on custom spheroid)\",SPHEROID[\"Custom spheroid\",6371007.181,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Sinusoidal\"],PARAMETER[\"longitude_of_center\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"Meter\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "proj:shape": [
+   2400,
+   2400
+  ],
+  "end_datetime": "2012-12-31T23:59:59Z",
+  "modis:tile-id": "51021009",
+  "proj:geometry": {
+   "type": "Polygon",
+   "coordinates": [
+    [
+     [
+      4447802.078678,
+      -1111950.519672
+     ],
+     [
+      4447802.078678,
+      -5e-06
+     ],
+     [
+      3335851.559011,
+      -5e-06
+     ],
+     [
+      3335851.559011,
+      -1111950.519672
+     ],
+     [
+      4447802.078678,
+      -1111950.519672
+     ]
+    ]
+   ]
+  },
+  "proj:transform": [
+   463.3127165279165,
+   0.0,
+   3335851.559011,
+   0.0,
+   -463.3127165279167,
+   -5e-06
+  ],
+  "start_datetime": "2012-12-01T00:00:00Z",
+  "modis:vertical-tile": 9,
+  "modis:horizontal-tile": 21
+ },
+ "links": [
+  {
+   "rel": "self",
+   "type": "application/geo+json",
+   "href": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/modis-64A1-061/items/MCD64A1.A2012336.h21v09.061.2021309010507"
+  }
+ ],
+ "assets": {
+  "Burn_Date": {
+   "href": "https://modiseuwest.blob.core.windows.net/modis-061-cogs/MCD64A1/21/09/2012336/MCD64A1.A2012336.h21v09.061.2021309010507_Burn_Date.tif",
+   "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+   "roles": [
+    "data"
+   ],
+   "title": "Burn day of year",
+   "raster:bands": [
+    {
+     "unit": "Day",
+     "data_type": "int16",
+     "spatial_resolution": 500
+    }
+   ]
+  }
+ }
+}

@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "rasterio>=1.4",
     "scikit-learn>=1.4",
+    "scipy>=1.11",
     "shapely>=2.0,<3",
 ]
 

@@ -45,6 +45,9 @@ ASSET_HOSTS = {
     "sentinel2l2a02.blob.core.windows.net",
     "sentinel2l2a03.blob.core.windows.net",
     "modiseuwest.blob.core.windows.net",
+    "landsateuwest.blob.core.windows.net",
+    "landcoverdata.blob.core.windows.net",
+    "ai4edataeuwest.blob.core.windows.net",
 }
 
 SENTINEL2_RIGHTS = Rights(

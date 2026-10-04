@@ -26,10 +26,16 @@ VEGETATION = "vegetation_observations"
 DAILY_MOVEMENT = "animal_daily_movement"
 DAILY_MOVEMENT_SUFFIX = "--daily-movement"
 VEGETATION_INDICES = frozenset({"ndvi", "evi", "mndwi", "ndmi"})
+HABITAT_INDICATORS = "habitat_indicators"
+HABITAT_INDICATOR_SOURCES = frozenset({
+    "landsat_c2_l2", "esa_cci_lc", "io_lulc_annual", "modis_mcd64a1", "vegetation_annual_derived",
+    "vegetation_trend_derived",
+})
 POSTGIS_SCHEMA = "extensions"
 
 SEARCH_FILTERS = {
-    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION])}, or a list of them",
+    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION, HABITAT_INDICATORS])}, "
+              "or a list of them",
     "variables": f"list of measured variables: rainfall_mm or {sorted(VEGETATION_INDICES)}; any one matches",
     "source_id": "source id or list of them, for example chirps, sentinel2, modis_mod13q1, movebank",
     "tags": "object of catalog tag key to value; every pair must match, for example {\"biome\": \"savanna\"}",
@@ -114,6 +120,36 @@ FAMILIES = {
         ],
         native_geometry_columns=frozenset({"geometry"}),
     ),
+    HABITAT_INDICATORS: RecipeFamily(
+        name=HABITAT_INDICATORS,
+        view="recipe_habitat_indicators",
+        row_grain="one row per 1 km cell, indicator and interval",
+        columns=[
+            *identity_columns(),
+            *cell_columns(),
+            Column(name="interval_start", type="timestamp", nullable=False, role="interval_start",
+                   description="Start of the scene, map year, month or analysis window, UTC"),
+            Column(name="interval_end", type="timestamp", nullable=False, role="interval_end",
+                   description="End of the scene, map year, month or analysis window, UTC"),
+            Column(name="source_id", type="string", nullable=False,
+                   description="Source, for example landsat_c2_l2, esa_cci_lc or vegetation_trend_derived"),
+            Column(name="indicator", type="string", nullable=False,
+                   description="Variable name, for example landcover_fraction_tree, burned_fraction or restrend_slope"),
+            Column(name="value", type="number", role="measurement",
+                   description="Value of the indicator in the cell, in the unit of the row"),
+            Column(name="std", type="number", description="Cell standard deviation, when the value is a pixel mean"),
+            Column(name="unit", type="string", nullable=False,
+                   description="Unit of the value, for example index, fraction, mm or index/year"),
+            Column(name="stat", type="string", nullable=False,
+                   description="mean, fraction, sum, percentile, ratio or trend"),
+            Column(name="product_status", type="string", nullable=False,
+                   description="final, or preliminary when an input is preliminary"),
+            Column(name="pixel_count", type="integer", nullable=False,
+                   description="Valid source pixels, composites or years behind the value"),
+            *quality_columns(),
+        ],
+        native_geometry_columns=frozenset({"geometry"}),
+    ),
     ANIMAL_LOCATIONS: RecipeFamily(
         name=ANIMAL_LOCATIONS,
         view="recipe_animal_locations",
@@ -178,6 +214,9 @@ def recipe_family(dataset: HabitatDataset) -> str | None:
     variables = set(dataset.variables)
     if dataset.family != "cell_observations" or not variables:
         return None
+
+    if dataset.source_id in HABITAT_INDICATOR_SOURCES:
+        return HABITAT_INDICATORS
 
     if variables == {"rainfall_mm"}:
         return RAINFALL

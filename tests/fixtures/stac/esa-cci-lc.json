@@ -1,0 +1,109 @@
+{
+ "type": "Feature",
+ "stac_version": "1.0.0",
+ "stac_extensions": [
+  "https://stac-extensions.github.io/projection/v1.0.0/schema.json",
+  "https://stac-extensions.github.io/classification/v1.1.0/schema.json",
+  "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
+ ],
+ "id": "ESACCI-LC-L4-LCCS-Map-300m-P1Y-2012-v2.0.7cds-S45E000",
+ "collection": "esa-cci-lc",
+ "geometry": {
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     45,
+     -45.00000000000001
+    ],
+    [
+     45,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     -45.00000000000001
+    ],
+    [
+     45,
+     -45.00000000000001
+    ]
+   ]
+  ]
+ },
+ "bbox": [
+  0.0,
+  -45.00000000000001,
+  45.0,
+  0.0
+ ],
+ "properties": {
+  "title": "ESA CCI Land Cover Map for Year 2012, Tile S45E000",
+  "created": "2023-01-11T23:50:49.905710Z",
+  "datetime": null,
+  "proj:epsg": 4326,
+  "proj:shape": [
+   16200,
+   16200
+  ],
+  "end_datetime": "2012-12-31T23:59:59Z",
+  "proj:transform": [
+   0.002777777777777778,
+   0.0,
+   0.0,
+   0.0,
+   -0.0027777777777777783,
+   0.0
+  ],
+  "start_datetime": "2012-01-01T00:00:00Z",
+  "esa_cci_lc:tile": "S45E000",
+  "esa_cci_lc:version": "v2.0.7cds"
+ },
+ "links": [
+  {
+   "rel": "self",
+   "type": "application/geo+json",
+   "href": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/esa-cci-lc/items/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2012-v2.0.7cds-S45E000"
+  }
+ ],
+ "assets": {
+  "lccs_class": {
+   "href": "https://landcoverdata.blob.core.windows.net/esa-cci-lc/cog/v2.0.7cds/S45E000/2012/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2012-v2.0.7cds-S45E000-lccs_class.tif",
+   "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+   "roles": [
+    "data"
+   ],
+   "title": "Land Cover Class Defined in the Land Cover Classification System",
+   "description": "Land cover class per pixel, defined using the Land Cover Classification System developed by the United Nations Food and Agriculture Organization.",
+   "raster:bands": [
+    {
+     "nodata": 0,
+     "sampling": "area",
+     "data_type": "uint8",
+     "spatial_resolution": 300
+    }
+   ]
+  },
+  "processed_flag": {
+   "href": "https://landcoverdata.blob.core.windows.net/esa-cci-lc/cog/v2.0.7cds/S45E000/2012/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2012-v2.0.7cds-S45E000-processed_flag.tif",
+   "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+   "roles": [
+    "quality"
+   ],
+   "title": "Land Cover Map Processed Area Flag",
+   "description": "Flag to mark areas that could not be classified.",
+   "raster:bands": [
+    {
+     "nodata": 255,
+     "sampling": "area",
+     "data_type": "uint8",
+     "spatial_resolution": 300
+    }
+   ]
+  }
+ }
+}
