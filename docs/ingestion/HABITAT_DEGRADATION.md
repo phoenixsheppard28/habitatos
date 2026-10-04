@@ -1,6 +1,6 @@
 # Habitat degradation
 
-Status: proposal.
+Status: implemented (P1). Section 11 lists what is implemented and what is deferred.
 
 This document describes how the pipeline measures habitat degradation per 1 km cell.
 It follows the shared rules in [README.md](README.md).
@@ -279,7 +279,7 @@ Method references:
 - `ingest_batches.raw_manifest` keeps the manifest. Analysis reads the input versions from there.
 - Recompute when an input series gets a new version, or when `mapping_version` changes.
 - A new run with the same window supersedes the old batch, as for raw sources.
-- The current views rank rows by the UTC day of `time_start`. Two windows with the same start then compete. Add `time_end` to the partition key in a new migration (see section 10).
+- Migration 010 adds the interval length to the partition key of the current views. Two windows with the same start and different ends are then both current.
 
 ## 6. Normalizer design
 
@@ -360,7 +360,7 @@ Tool changes:
 ## 8. Tests
 
 - `tests/test_indices.py`: Landsat scale and offset; QA_PIXEL mask for each bit; `bare_soil_index` on known values.
-- `tests/test_indices.py`: class fraction arrays for each mapping table; nodata gives NaN, not 0.
+- `tests/test_zonal.py`: class fraction arrays; nodata gives NaN, not 0. `class_fractions` is in `zonal.py`.
 - `tests/test_landcover.py`: a 3 × 3 cell fixture with known classes gives the expected fractions. An unknown code raises `QuarantineError`.
 - `tests/test_stac.py`: `describe_landsat`, `describe_esa_cci_lc`, `describe_io_lulc`, `describe_mcd64a1` on recorded STAC item JSON.
 - `tests/test_stac.py`: a Landsat item without `created` raises `QuarantineError`.
@@ -384,14 +384,14 @@ Tool changes:
 - The ESA CCI licence on PC is "proprietary". Confirm that `reuse_allowed = true` is correct before publication.
 - The IO LULC items have no `created` date. Confirm the dataset publication date.
 - `cell_observations` has no `attributes` column and no `source_record_id`. The provenance of derived values is in `ingest_batches.raw_manifest`. Confirm that this is sufficient for Analysis.
-- `published_at` in `stac.py` uses the retrieval time when a STAC item has no date. README.md forbids this. The new sources must quarantine such items.
+- `published_at` in `stac.py` never uses the retrieval time. The connector skips an item without a publication date.
 
 ## 10. Build steps
 
 1. Do the shared code changes in [README.md](README.md). This topic needs only `SourceItem.kind = "derived"` in addition.
 2. Add migration `010_current_rows_time_end.sql`. Add `time_end` to the partition key of `current_cell_observations` and `recipe_cell_observations`.
 3. Add `landsat_c2_l2`: asset map, `describe_landsat`, QA mask in `indices.py`, normalizer, registry entry, tests.
-4. Add `iter_warped_blocks` to `raster_io.py` and the class fraction helper to `indices.py`.
+4. Add `iter_warped_blocks` to `raster_io.py` and the class fraction helper `class_fractions` to `zonal.py`. The foundation did this step.
 5. Add `esa_cci_lc` and `io_lulc_annual` with the mapping tables. Add tests.
 6. Add `modis_mcd64a1`. Add tests.
 7. Add the derived step in `src/habitat/derive/vegetation.py`: annual summaries first, then trends, RUE and RESTREND.
@@ -399,6 +399,47 @@ Tool changes:
 9. Add a section for each new source to `SOURCES.md`.
 10. Run the live test for 2010–2013 over Athi-Kaputiei. Compare the Landsat NDVI with MODIS NDVI per cell.
 11. Add the P2 sources: `esa_worldcover`, `modis_mod17a3hgf`, `ghm`, and the line densities from `site_features`.
+
+## 11. Implementation status
+
+### Implemented (P1)
+
+| Part | Files |
+| --- | --- |
+| `landsat_c2_l2` | `src/habitat/fetch/connectors/landsat.py`, `src/habitat/normalize/sources/landsat.py` |
+| `esa_cci_lc`, `io_lulc_annual` | `src/habitat/fetch/connectors/landcover.py`, `src/habitat/normalize/sources/landcover.py` |
+| `modis_mcd64a1` | `src/habitat/fetch/connectors/burned_area.py`, `src/habitat/normalize/sources/burned_area.py` |
+| `vegetation_annual_derived`, `vegetation_trend_derived` | `src/habitat/derive/vegetation.py`, `trends.py`, `run.py`, `registry.py` |
+| Agent tool `derive_habitat_indicators`, new sources in `fetch_environment` | `src/habitat/fetch/tools.py`, `src/habitat/fetch/service.py` |
+| Recipe view `recipe_habitat_indicators`, family `habitat_indicators` | `migrations/015_habitat_degradation.sql`, `src/habitat/recipe_inputs.py` |
+
+The P1 raw variables are `ndvi`, `ndmi`, `bare_soil_index`, `landcover_fraction_<class>` and `burned_fraction`.
+The P1 derived variables are the annual summaries, `rain_annual_mm`, the NDVI trend, the RUE variables and the RESTREND variables.
+
+### Differences from the design
+
+- The IO LULC items have no `created` date. `available_at` is the creation time of the file in the Planetary Computer storage. The connector reads the `x-ms-creation-time` header, else `Last-Modified`. CHIRPS uses `Last-Modified` in the same way.
+- The IO LULC search returns the tiles of UTM zones 1 and 60 for every bbox. The connector keeps only the tiles of the UTM zones of the bbox.
+- The ESA CCI connector fetches `lccs_class` and `processed_flag` only. The MCD64A1 connector fetches `Burn_Date` only. The normalizers do not use the other assets.
+- The fetch agent gets the new sources only when it names them. The default sources of `fetch_environment` do not change.
+- `cell_observations` keeps one row per cell and variable in each batch. Thus `vegetation_annual_derived` writes one batch for each year. `vegetation_trend_derived` writes one batch for each window.
+- `source_item_id` of a derived batch also contains the bbox: `<method>:<start>:<end>:<bbox key>:<processing_version>`.
+- A new run supersedes only the earlier runs of the same method, period and bbox. Two runs with overlapping bboxes can give two current values for one cell.
+- `rain_annual_mm` is null when one day of the year is missing. A partial sum is too low.
+- The `short_series` rule also applies to `rue_mean`.
+- `cross_version_inputs` compares the collection part of `processing_version`, for example `061`. The MODIS production time is different in each composite.
+- `stat` is `trend` for the p-values and for `ndvi_rain_r2`.
+- RESTREND needs 3 or more baseline years with NDVI and rain. With fewer years, or with constant rain, all RESTREND values are null with the flag `weak_rain_relation`.
+- The Recipe lane reads the indicators from the new family `habitat_indicators`. A row has the variable name, the unit and the statistic.
+
+### Deferred
+
+- The P2 sources: `esa_worldcover`, `modis_mod17a3hgf` and `ghm`.
+- The P2 derived values: `productivity_state_change`, `landcover_change_derived` and the road and fence densities.
+- The P3 sources.
+- A Landsat trend and the cross-sensor correction for Landsat platforms. The pipeline stores Landsat values per scene only.
+- Build step 10: the comparison of Landsat NDVI with MODIS NDVI over Athi-Kaputiei for 2010–2013.
+- A historical mode that ignores the `available_at` cutoff. The Recipe lane owns this change.
 
 ## References
 
