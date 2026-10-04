@@ -1,5 +1,7 @@
 # Habitat Watch
 
+The new standards-based map workspace lives in [`web/`](web/README.md). It uses React, TypeScript, Vite, OpenLayers, GeoServer, GeoWebCache, and PostGIS. The original static [`preview/`](preview/README.md) remains in place during migration.
+
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 
 **Status:** The Fetch and Normalize lanes are implemented as one Python package, `habitat`, in [`src/habitat/`](src/habitat/). See [`MERGE_PLAN.md`](MERGE_PLAN.md) for the package layout and the data flow, [`SOURCES.md`](SOURCES.md) for each source, and [`migrations/`](migrations/) for the tables. The Recipe lane is in [`src/recipe/`](src/recipe/README.md). [`RECIPE_INTEGRATION.md`](RECIPE_INTEGRATION.md) tells how the normalized tables become Recipe inputs. The Analysis lane is in [`src/analysis/`](src/analysis/) ([`DIEGO.md`](DIEGO.md)), and the coordinator is in [`src/workflow/`](src/workflow/). [`ANALYSIS_INTEGRATION.md`](ANALYSIS_INTEGRATION.md) tells how one query flows from Fetch to Analysis.

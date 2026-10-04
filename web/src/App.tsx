@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import Map from 'ol/Map';
+import OlMap from 'ol/Map';
 import View from 'ol/View';
 import GeoJSON from 'ol/format/GeoJSON';
 import type VectorLayer from 'ol/layer/Vector';
@@ -19,7 +19,7 @@ interface Exchange { question?: string; answer: string; actions?: string[] }
 
 const icons: Record<string, string> = { layers: '◫', map: '⌘', extent: '⌗', assistant: '◌', add: '+', export: '⇩' };
 
-function parseCsv(text: string): FeatureCollection {
+export function parseCsv(text: string): FeatureCollection {
   const rows: string[][] = [];
   let row: string[] = [], cell = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
@@ -68,8 +68,8 @@ function DownloadButton({ onClick }: { onClick: () => void }) {
 
 export function App() {
   const mapElement = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<Map>();
-  const adapters = useRef(new Map<string, LayerAdapter>());
+  const mapRef = useRef<OlMap | undefined>(undefined);
+  const adapters = useRef(new globalThis.Map<string, LayerAdapter>());
   const [layers, setLayers] = useState<LayerState[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [panelOpen, setPanelOpen] = useState(true);
@@ -87,7 +87,7 @@ export function App() {
   }]);
   const fileInput = useRef<HTMLInputElement>(null);
   const assistant = useRef<HTMLElement>(null);
-  const drag = useRef<{ x: number; y: number }>();
+  const drag = useRef<{ x: number; y: number } | undefined>(undefined);
 
   const selectedDate = `2025-${String(month + 1).padStart(2, '0')}-15T23:59:59Z`;
   const showToast = useCallback((message: string) => {
@@ -96,12 +96,15 @@ export function App() {
   }, []);
 
   const reportLayerError = useCallback((id: string, message: string) => {
-    setLayers((current) => current.map((layer) => layer.id === id ? { ...layer, error: message } : layer));
+    setLayers((current) => {
+      if (current.find((layer) => layer.id === id)?.error === message) return current;
+      return current.map((layer) => layer.id === id ? { ...layer, error: message } : layer);
+    });
   }, []);
 
   useEffect(() => {
     if (!mapElement.current) return;
-    const map = new Map({
+    const map = new OlMap({
       target: mapElement.current,
       layers: [],
       controls: defaultControls({ attribution: true }).extend([new ScaleLine({ units: 'metric' })]),
@@ -210,7 +213,7 @@ export function App() {
       if (file.size > 5 * 1024 * 1024) throw new Error('Choose a file smaller than 5 MB.');
       const text = await file.text();
       const data = file.name.toLowerCase().endsWith('.csv') ? parseCsv(text) : normalizeGeoJson(JSON.parse(text));
-      const count = data.type === 'FeatureCollection' ? data.features.length : 1;
+      const count = data.type === 'FeatureCollection' ? (data as FeatureCollection).features.length : 1;
       if (count > 10_000) throw new Error('Choose a file with no more than 10,000 features.');
       const id = `local-${crypto.randomUUID()}`;
       const definition: LayerDefinition = {
@@ -274,8 +277,8 @@ export function App() {
         <div className="layer-list">{orderedLayers.map((layer, index) => <article className="layer-row" key={layer.id}>
           <div className="layer-main"><input type="checkbox" checked={layer.visible} onChange={(event) => updateLayer(layer.id, { visible: event.target.checked })} aria-label={`Show ${layer.title}`} /><div><strong>{layer.title}</strong><small>{layer.description}</small><span className="layer-kind">{layer.sourceType.toUpperCase()} {layer.sample && '· SAMPLE'}</span></div></div>
           {layer.error && <p className="layer-error" role="alert">{layer.error}</p>}
-          <label className="opacity"><span>Opacity</span><input type="range" min="0" max="1" step="0.05" value={layer.opacity} onChange={(event) => updateLayer(layer.id, { opacity: Number(event.target.value) })} /></label>
-          <div className="layer-actions"><button onClick={() => zoomTo(layer)}>Zoom</button><button disabled={index === 0} onClick={() => moveLayer(layer.id, 1)}>Up</button><button disabled={index === orderedLayers.length - 1} onClick={() => moveLayer(layer.id, -1)}>Down</button>{layer.actions.includes('remove') && <button onClick={() => removeLayer(layer.id)}>Remove</button>}</div>
+          <label className="opacity"><span>Opacity</span><input aria-label={`${layer.title} opacity`} type="range" min="0" max="1" step="0.05" value={layer.opacity} onChange={(event) => updateLayer(layer.id, { opacity: Number(event.target.value) })} /></label>
+          <div className="layer-actions"><button onClick={() => zoomTo(layer)}>Zoom</button><button aria-label={`Move ${layer.title} up`} disabled={index === 0} onClick={() => moveLayer(layer.id, 1)}>Up</button><button aria-label={`Move ${layer.title} down`} disabled={index === orderedLayers.length - 1} onClick={() => moveLayer(layer.id, -1)}>Down</button>{layer.actions.includes('remove') && <button onClick={() => removeLayer(layer.id)}>Remove</button>}</div>
         </article>)}</div>
         <button className="plain-button add-data" onClick={() => fileInput.current?.click()}>+ Add your data</button>
         <div className="layer-footer"><strong>Public, read-only services</strong><p>GeoServer administration stays outside the browser. Local imports are temporary.</p></div>
