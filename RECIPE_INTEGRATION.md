@@ -44,6 +44,8 @@ Three parts connect the lanes:
 | `cell_observations` with only `rainfall_mm` | `rainfall_observations` | `recipe_rainfall_observations` |
 | `cell_observations` with only `ndvi`, `evi`, `mndwi`, `ndmi` | `vegetation_observations` | `recipe_vegetation_observations` |
 | `animal_locations` | `animal_locations` | `recipe_animal_locations` |
+| `cell_observations` with only water variables (`surface_water_fraction`, `distance_to_*_m`, `water_point_density`) | `water_observations` | `recipe_water_observations` (migration 011) |
+| `site_features` | `site_features` | `recipe_site_features` (migration 011) |
 | Other variables, for example `elevation_m` | none | The adapter does not show the dataset to Recipe |
 
 Each view has the minimum columns of the v1 contract in `README.md`. Each view also has `access_scope`, `available_at` and quality columns.
@@ -109,6 +111,11 @@ Two facts are important for a recipe author:
 
 - CHIRPS `available_at` is the `Last-Modified` time of the file. For old days, that time is years after the rainfall. Do not set `right_available_at` in a historical recipe. Use `right_available_at` only for a point-in-time (forecast) recipe.
 - A MODIS composite has `observed_at` at the start of its 16-day period. `observed_until` is the end of the period.
+- A water row covers one calendar month. `interval_start` is the first day. `interval_end` is the first day of the next month.
+- A water distance is null beyond the 20 km search radius. Its `quality_flag` is then `beyond_search_radius`.
+- `recipe_site_features` gives one row per feature version. `valid_until` is the start of the next version of the same feature, else 9999-12-31.
+- A point feature has `cell_id`. A line or an area has only `geometry`. Join a line or an area to cells by overlap.
+- JRC `available_at` is 2016 or later. A strict point-in-time cutoff for 2010 to 2013 removes all JRC data and the derived values that use it.
 
 ## 4. Verification
 

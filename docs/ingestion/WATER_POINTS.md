@@ -1,6 +1,8 @@
 # Water points
 
-Status: proposal.
+Status: implemented (P1).
+
+Section 11 lists what is implemented and what is deferred.
 
 This document defines the `site_features` family and the per-cell water variables that the pipeline derives from it.
 All rules in [README.md](README.md) apply. This document gives only the rules that are specific to water.
@@ -100,6 +102,13 @@ out meta geom;
 | `waterway=dam`, `man_made=dam` | `dam` | `dam` | `artificial` | `unknown` |
 | `man_made=water_well` | `water_point` | `borehole` when `pump` is set, else `well` | `artificial` | `unknown` |
 | `man_made=water_tap`, `amenity=drinking_water`, `amenity=water_point` | `water_point` | `tap` | `artificial` | `permanent` |
+| `natural=water` without `water` | `lake` | `water` | `unknown` | from `intermittent` / `seasonal` |
+| `natural=water` + `water=river`, `stream` | `river` | value of `water` | `natural` | from `intermittent` / `seasonal` |
+| `natural=water` + `water=canal` | `river` | `canal` | `artificial` | `unknown` |
+| `natural=water` + `water=oxbow`, `lagoon` | `lake` | value of `water` | `natural` | from `intermittent` / `seasonal` |
+| `natural=water` + `water=basin` | `reservoir` | `basin` | `artificial` | `unknown` |
+| `waterway=weir` | `dam` | `weir` | `artificial` | `unknown` |
+| `man_made=reservoir_covered` | `water_point` | `reservoir_covered` | `artificial` | `unknown` |
 
 - `intermittent=yes` or `seasonal=yes` gives `seasonal`. `intermittent=no` gives `permanent`.
 - `operational_status`, `disused:*` and `abandoned:*` give `status`. No tag gives `unknown`.
@@ -141,7 +150,7 @@ The normalizer writes these `cell_observations` variables. They have `source_id 
 - The `IS NOT NULL` filter keeps rows without coordinates out of the archive. See section 6.
 - An app token is optional. Without a token, Socrata throttles requests (not verified).
 - Kenya has 39,959 rows in WPdx-Basic. The bbox 36.6–37.3°E, 1.2–1.9°S has 367 rows with reports from 2011-01-01 to 2021-02-15.
-- The archive keeps the JSON pages as one CSV file.
+- The archive keeps all rows as one JSON array.
 - `source_key`: `wpdx:eqje-vguj:<bbox key>:<max updated>`.
 - `source_item_id`: `eqje-vguj:<bbox key>`.
 - `available_at`: the item value is the maximum `updated`. Each row has its own `updated`.
@@ -214,7 +223,7 @@ The normalizer writes these `cell_observations` variables. They have `source_id 
 
 ### site_features table
 
-Migration `010_site_features.sql`:
+Migration `011_site_features.sql`:
 
 ```sql
 CREATE TABLE site_features (
@@ -460,7 +469,7 @@ Live tests in `tests/test_live.py`:
 ## 10. Build steps
 
 1. Do the four shared code changes in [README.md](README.md).
-2. Add migration `010_site_features.sql` with the table, the grants and `recipe_site_features`.
+2. Add migration `011_site_features.sql` with the table, the grants and `recipe_site_features`.
 3. Add `SITE_FEATURES_SCHEMA` and `SITE_FEATURES`. Add the summary function for `site_features`.
 4. Write the `jrc_gsw_monthly` connector and normalizer. Test with the fixture.
 5. Write the `osm_overpass` connector and normalizer. Test with the fixture.
@@ -470,3 +479,56 @@ Live tests in `tests/test_live.py`:
 9. Add the live tests. Run them for the Athi-Kaputiei bbox, 2010-01-01 to 2013-12-31.
 10. Add the new variables to `recipe_inputs.py`, `RECIPE_INTEGRATION.md` and `SOURCES.md`.
 11. Add the P2 sources `jrc_gsw`, `hydrorivers`, `gires` and `hydrolakes`.
+
+## 11. Implementation (P1)
+
+### Implemented
+
+| Part | Files |
+| --- | --- |
+| `site_features` table, `recipe_site_features` and `recipe_water_observations` | `migrations/011_site_features.sql` |
+| Schema, family constant and summary | `SITE_FEATURES_SCHEMA` in `contracts.py`, `SITE_FEATURES` in `rows.py`, `summarize_site_features` in `series.py` |
+| Shared row builder for features | `src/habitat/normalize/site_features.py` |
+| `osm_overpass` | `fetch/connectors/osm_overpass.py`, `normalize/sources/osm_water.py` |
+| `wpdx` | `fetch/connectors/wpdx.py`, `normalize/sources/wpdx.py` |
+| `jrc_gsw_monthly` | `fetch/connectors/jrc_gsw_monthly.py`, `normalize/sources/jrc_gsw_monthly.py` |
+| `water_derived` | `src/habitat/derive/water.py`, `fetch/connectors/water_derived.py` |
+| Agent tool `fetch_water` | `src/habitat/fetch/water.py`, `fetch/tools.py` |
+| Recipe families `site_features` and `water_observations` | `src/habitat/recipe_inputs.py` |
+
+The pipeline runs the derive step after it appends rows of a water source. The step uses the bbox and the dates of the request.
+Without them, it uses the fetched bbox and the fetched JRC months. `uv run python -m habitat.derive.water` runs the step alone.
+
+### Changes to the design
+
+- The migration number is 011. Migration 010 is the foundation.
+- The OSM tag table has more rows. A live Overpass response for Athi-Kaputiei had `natural=water` without `water`, `water=river` and `waterway=weir`. The query also asks for `man_made=reservoir_covered`.
+- OSM `status`: `operational_status=operational` gives `functional`. `closed`, `broken` or a `disused:*` key gives `non_functional`. An `abandoned:*` key gives `abandoned`.
+- The `status_unknown` flag applies only to `feature_class = water_point`. A river has no functional status.
+- A row with more than one reason gets the first flag in this order: `feature_id_missing`, `geometry_repaired`, `location_imprecise`, `permanence_unknown`, `status_unknown`.
+- The WPdx archive is one JSON array, not a CSV file. JSON keeps the source types.
+- `copy_rows` in `series.py` writes the WKB of a `geometry` column as hex text. PostGIS rejects WKB in the COPY form of `bytea`.
+- `distance_to_surface_water_m` is null when the tile shows no water. The flag is then `no_water_observed`.
+- All distances use a local azimuthal equidistant projection. EASE-Grid 2.0 is equal-area and changes east-west distances by about 15 % near the equator.
+- The catalog coverage of a `site_features` version ends at the latest `time_start` or `available_at`, not at 9999-12-31.
+- The catalog footprint of a `site_features` version comes from the cells of point features only.
+- `properties.inputs` of a derived batch has one entry per input batch and variable. Each entry also gives the batch key.
+- The derive step has no stale list. It recomputes each requested month. The processing version changes only when the inputs change.
+- A feature batch is an input when its requested bbox overlaps the search area, also when it has no feature there. A cell then gets `beyond_search_radius` and not "no data".
+- Without a feature source, the step writes only `distance_to_water_m`. A zero density would then be a guess.
+- `edge_effect` applies when the edge of the fetched area is nearer than the value, or nearer than 5 km for the density.
+- `valid_fraction` is the mean observed share of the JRC cells within 20 km. A cell without a JRC row counts as 0.
+- The step merges two points of the same `feature_type` from two series when they are 50 m or less apart. The first `source_id` in alphabetical order stays.
+- A documented start year is valid from 1 January of that year. The step reads `install_year`, `start_date` and `construction_date`.
+- `fetch_water` also has `max_items` (default 12). It limits the JRC month tiles.
+- Sentinel-2 `mndwi > 0` gives the water state of a cell that has no JRC value, in any month. The threshold is not verified.
+
+### Deferred
+
+- P2 sources: `jrc_gsw`, `hydrorivers`, `gires`, `hydrolakes`. P3 sources: `osm_geofabrik`, `glwd_v2`, `gdw_dams`, `sentinel1_rtc`, `landsat_c2_l2`.
+- Permanent water from JRC pixels (water in 90 % of the observed months). `distance_to_permanent_water_m` uses permanent features only.
+- JRC v1.5 monthly files for 2022 to 2024.
+- The end of a feature that a newer OSM snapshot no longer has. The old batch stays live, so the feature stays current.
+- The status of a WPdx point before its first report. The step uses the status of the report, also for an earlier month.
+- A WPdx app token. Socrata throttles requests without a token (not verified).
+- The open questions of section 9.
