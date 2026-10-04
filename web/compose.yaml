@@ -1,0 +1,53 @@
+name: habitat-watch-map
+
+services:
+  postgis:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_DB: habitat
+      POSTGRES_USER: habitat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - habitat-postgis:/var/lib/postgresql/data
+      - ./geoserver/init.sql:/docker-entrypoint-initdb.d/10-habitat-samples.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U habitat -d habitat"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  geoserver:
+    image: kartoza/geoserver:2.28.4--v2026.06.06
+    depends_on:
+      postgis:
+        condition: service_healthy
+    environment:
+      GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER}
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD}
+      CORS_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      SAMPLE_DATA: "false"
+    ports:
+      - "8080:8080"
+    volumes:
+      - habitat-geoserver:/opt/geoserver/data_dir
+    restart: unless-stopped
+
+  geoserver-init:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      geoserver:
+        condition: service_started
+    environment:
+      GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER}
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./geoserver/bootstrap:/bootstrap:ro
+    entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
+    restart: "no"
+
+volumes:
+  habitat-postgis:
+  habitat-geoserver:
