@@ -74,3 +74,40 @@ def test_live_agent_path(workspace):
     print(f"[agent] summary: {result.fetch.extensions.get('agent_summary')}")
     assert result.status in ("ok", "partial")
     assert result.fetch.output.raw_artifacts
+
+
+def test_live_wqp_one_site_one_month(workspace):
+    started = time.monotonic()
+    little_falls = (-77.135, 38.94, -77.12, 38.955)
+
+    result = run(build_request("wqp", little_falls, date(2023, 6, 1), date(2023, 6, 30), None, None), False, workspace)
+
+    report("wqp", result, started)
+    assert result.status in ("ok", "partial")
+    assert [o.status for o in result.outcomes] == ["appended"]
+    assert workspace.connection.execute("SELECT count(*) FROM site_observations").fetchone()[0] > 0
+
+
+def test_live_gemstat_archive_and_extract(workspace):
+    started = time.monotonic()
+    uruguay = (-58.5, -35.0, -53.0, -30.0)
+
+    result = run(build_request("gemstat", uruguay, date(2015, 1, 1), date(2015, 12, 31), None, None), False, workspace)
+
+    report("gemstat", result, started)
+    assert result.status in ("ok", "partial")
+    assert [o.status for o in result.outcomes] == ["appended"]
+
+
+def test_live_cgls_lake_water_quality(workspace):
+    started = time.monotonic()
+    lake_naivasha = (36.25, -0.9, 36.45, -0.7)
+
+    result = run(build_request("cgls_lwq", lake_naivasha, date(2011, 1, 1), date(2011, 1, 10), None, None), False,
+                 workspace)
+
+    report("cgls_lwq", result, started)
+    assert result.status in ("ok", "partial")
+    assert "appended" in [o.status for o in result.outcomes]
+    variables = workspace.connection.execute("SELECT DISTINCT variable FROM cell_observations").fetchall()
+    assert {"water_turbidity", "trophic_state_index"} <= {variable for (variable,) in variables}

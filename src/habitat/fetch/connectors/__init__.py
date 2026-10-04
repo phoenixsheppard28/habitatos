@@ -10,7 +10,8 @@ from habitat.contracts import BBox, FetchError, RawManifest
 
 @dataclass(frozen=True)
 class ConnectorRequest:
-    """One retrieval from one source. `item` names one dataset: a package, study, record or fixture id."""
+    """One retrieval from one source. `item` names one dataset: a package, study, record or fixture id.
+    `parameters` limits a water-quality station source to these vocabulary parameters; empty means all."""
 
     bbox: BBox | None = None
     start: date | None = None
@@ -22,6 +23,7 @@ class ConnectorRequest:
     max_bytes: int = 2 * 1024**3
     max_file_bytes: int = 512 * 1024**2
     cloud_cover: float = 80.0
+    parameters: tuple[str, ...] = ()
 
 
 @dataclass

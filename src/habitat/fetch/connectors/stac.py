@@ -45,6 +45,7 @@ ASSET_HOSTS = {
     "sentinel2l2a02.blob.core.windows.net",
     "sentinel2l2a03.blob.core.windows.net",
     "modiseuwest.blob.core.windows.net",
+    "deafrica-input-datasets.s3.af-south-1.amazonaws.com",
 }
 
 SENTINEL2_RIGHTS = Rights(
