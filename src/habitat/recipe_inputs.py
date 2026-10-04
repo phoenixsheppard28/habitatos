@@ -19,7 +19,7 @@ from shapely.geometry import shape
 from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.contracts import DatasetVersion as HabitatDataset
 from habitat.contracts import SearchFilters, Tag
-from habitat.normalize.rows import ANIMAL_LOCATIONS
+from habitat.normalize.rows import ANIMAL_LOCATIONS, POINT_EVENTS
 
 RAINFALL = "rainfall_observations"
 VEGETATION = "vegetation_observations"
@@ -29,7 +29,7 @@ VEGETATION_INDICES = frozenset({"ndvi", "evi", "mndwi", "ndmi"})
 POSTGIS_SCHEMA = "extensions"
 
 SEARCH_FILTERS = {
-    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION])}, or a list of them",
+    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION, POINT_EVENTS])}, or a list of them",
     "variables": f"list of measured variables: rainfall_mm or {sorted(VEGETATION_INDICES)}; any one matches",
     "source_id": "source id or list of them, for example chirps, sentinel2, modis_mod13q1, movebank",
     "tags": "object of catalog tag key to value; every pair must match, for example {\"biome\": \"savanna\"}",
@@ -167,6 +167,56 @@ FAMILIES = {
                    description="When the source published the fixes of the row"),
         ],
     ),
+    POINT_EVENTS: RecipeFamily(
+        name=POINT_EVENTS,
+        view="recipe_point_events",
+        row_grain="one row per event (source and source record)",
+        columns=[
+            *identity_columns(),
+            Column(name="source_id", type="string", nullable=False,
+                   description="Source of the event, for example gbif_occurrence or firms_modis"),
+            Column(name="origin_record_id", type="string",
+                   description="Id of the original observation, for example inaturalist:<id>; drop duplicates on it "
+                               "when you combine two event datasets"),
+            Column(name="event_type", type="string", nullable=False,
+                   description="species_occurrence, camera_trap_detection, active_fire, wildlife_mortality, "
+                               "disease_outbreak or human_wildlife_conflict"),
+            Column(name="occurrence_status", type="string", nullable=False,
+                   description="present, or absent for a recorded absence"),
+            Column(name="sampling_design", type="string", nullable=False,
+                   description="presence_only: a missing row is not an absence; systematic: a missing row is no "
+                               "detection; effort_known: the source records the effort"),
+            Column(name="species", type="string", role="species",
+                   description="Scientific name of the taxon, null for a fire"),
+            Column(name="gbif_taxon_key", type="integer", description="GBIF backbone key of the taxon"),
+            Column(name="time_start", type="timestamp", nullable=False, role="event_time",
+                   description="Event time, or start of the event interval, UTC"),
+            Column(name="time_end", type="timestamp", nullable=False,
+                   description="End of the event interval, exclusive, UTC; equal to time_start for an instant"),
+            Column(name="time_precision", type="string", nullable=False,
+                   description="instant, day (a local or UTC date) or composite (a month, a year or an interval)"),
+            Column(name="longitude", type="number", nullable=False, unit="degree", role="longitude",
+                   description="WGS84 longitude of the event"),
+            Column(name="latitude", type="number", nullable=False, unit="degree", role="latitude",
+                   description="WGS84 latitude of the event"),
+            Column(name="cell_id", type="string", role="cell_id",
+                   description="EASE-Grid 2.0 global 1 km cell that contains the event"),
+            Column(name="coordinate_uncertainty_m", type="number", unit="m",
+                   description="Location uncertainty given by the source"),
+            Column(name="individual_count", type="integer", description="Individuals in the record"),
+            Column(name="value", type="number",
+                   description="Measured value of the event, in the unit of the unit column, for example the fire "
+                               "radiative power in MW"),
+            Column(name="unit", type="string", description="Unit of value"),
+            Column(name="basis", type="string", nullable=False,
+                   description="How the event was observed, for example HUMAN_OBSERVATION or satellite_detection"),
+            Column(name="license", type="string", description="License of the record, an SPDX id"),
+            Column(name="available_at", type="timestamp", nullable=False, role="available_at",
+                   description="When the source published the event; use it for point-in-time joins"),
+            Column(name="quality_flag", type="string", nullable=False,
+                   description="ok, or the first reason the event is suspect"),
+        ],
+    ),
 }
 
 
@@ -174,6 +224,9 @@ def recipe_family(dataset: HabitatDataset) -> str | None:
     """The Recipe family of a catalog dataset. None when the dataset has no Recipe view (for example elevation)."""
     if dataset.family == ANIMAL_LOCATIONS:
         return ANIMAL_LOCATIONS
+
+    if dataset.family == POINT_EVENTS:
+        return POINT_EVENTS
 
     variables = set(dataset.variables)
     if dataset.family != "cell_observations" or not variables:

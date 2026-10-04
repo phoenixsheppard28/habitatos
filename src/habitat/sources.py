@@ -9,6 +9,13 @@ from habitat.fetch.connectors.chirps import STORAGE_FORMAT as CHIRPS_FORMAT
 from habitat.fetch.connectors.chirps import fetch_chirps
 from habitat.fetch.connectors.fixture import PRODUCT as FIXTURE_PRODUCT
 from habitat.fetch.connectors.fixture import fetch_fixture
+from habitat.fetch.connectors.firms import MODIS as FIRMS_MODIS
+from habitat.fetch.connectors.firms import STORAGE_FORMAT as FIRMS_FORMAT
+from habitat.fetch.connectors.firms import VIIRS_SNPP as FIRMS_VIIRS
+from habitat.fetch.connectors.firms import fetch_firms_modis, fetch_firms_viirs
+from habitat.fetch.connectors.gbif_occurrence import PRODUCT as GBIF_OCCURRENCE_PRODUCT
+from habitat.fetch.connectors.gbif_occurrence import STORAGE_FORMAT as GBIF_OCCURRENCE_FORMAT
+from habitat.fetch.connectors.gbif_occurrence import fetch_gbif_occurrence
 from habitat.fetch.connectors.movebank_repository import PRODUCT as REPOSITORY_PRODUCT
 from habitat.fetch.connectors.movebank_repository import fetch_movebank_repository
 from habitat.fetch.connectors.movebank_study import PRODUCT as STUDY_PRODUCT
@@ -20,6 +27,8 @@ from habitat.fetch.connectors.zenodo import fetch_zenodo
 from habitat.grid import Grid
 from habitat.normalize.rows import NormalizedBatch
 from habitat.normalize.sources.chirps import normalize_chirps
+from habitat.normalize.sources.firms import normalize_firms
+from habitat.normalize.sources.gbif_occurrence import normalize_gbif_occurrence
 from habitat.normalize.sources.modis import normalize_modis
 from habitat.normalize.sources.movebank import normalize_movebank, normalize_movebank_study
 from habitat.normalize.sources.sentinel2 import normalize_sentinel2
@@ -84,6 +93,24 @@ SOURCES: dict[str, Source] = {
             "Synthetic demo data for development and tests; never published",
             frozenset({"animal_locations", "rainfall_observations"}),
             fetch_fixture, None, "csv", needs_item=True,
+        ),
+        Source(
+            "firms_modis", FIRMS_MODIS.product,
+            "NASA FIRMS MODIS Terra and Aqua active fire detections (standard product), one row per fire pixel",
+            frozenset({"fire_events"}),
+            fetch_firms_modis, normalize_firms, FIRMS_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "firms_viirs", FIRMS_VIIRS.product,
+            "NASA FIRMS VIIRS S-NPP 375 m active fire detections (standard product), one row per fire pixel",
+            frozenset({"fire_events"}),
+            fetch_firms_viirs, normalize_firms, FIRMS_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "gbif_occurrence", GBIF_OCCURRENCE_PRODUCT,
+            "GBIF species occurrence records (includes iNaturalist and eBird); presence-only, one row per record",
+            frozenset({"species_occurrences", "wildlife_mortality_events"}),
+            fetch_gbif_occurrence, normalize_gbif_occurrence, GBIF_OCCURRENCE_FORMAT, needs_area_and_dates=True,
         ),
     ]
 }

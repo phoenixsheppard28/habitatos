@@ -4,7 +4,7 @@ import json
 
 from anthropic import beta_tool
 
-from habitat.fetch import service, session
+from habitat.fetch import events, service, session
 
 
 @beta_tool
@@ -85,6 +85,33 @@ def fetch_environment(
         return json.dumps(failure)
 
 
+@beta_tool
+def fetch_events(
+    bbox: list[float],
+    start: str,
+    end: str,
+    event_types: list[str],
+    species: list[str] | None = None,
+    max_records: int = 1000,
+    max_days: int = 31,
+) -> str:
+    """Fetch point events for a WGS84 bbox and inclusive YYYY-MM-DD dates.
+
+    Event types: species_occurrence (GBIF, includes iNaturalist and eBird), wildlife_mortality
+    (GBIF Global Roadkill Data), active_fire (NASA FIRMS standard product, MODIS and VIIRS,
+    yearly country files; the current year has no file). Species records are presence-only:
+    a missing record is not an absence. Species names are resolved first; an unresolved name
+    returns candidates and fetches nothing. Never guess the region or dates. Default bounds:
+    1,000 GBIF records per search, 31 fire days. A larger GBIF result is a bounded sample.
+    """
+    try:
+        return json.dumps(events.fetch_events(bbox, start, end, event_types, species, max_records, max_days))
+    except ValueError as error:
+        failure = {"status": "error", "message": str(error)}
+        session.record(failure)
+        return json.dumps(failure)
+
+
 FETCH_AGENT_TOOLS = [
     list_downloaded_files,
     search_catalog,
@@ -92,4 +119,5 @@ FETCH_AGENT_TOOLS = [
     check_access,
     download_dataset,
     fetch_environment,
+    fetch_events,
 ]

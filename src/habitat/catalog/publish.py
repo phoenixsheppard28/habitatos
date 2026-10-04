@@ -10,7 +10,7 @@ from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.catalog.tags import deterministic_tags, merge_tags
 from habitat.contracts import Coverage, DatasetVersion, StorageRef, TagOrigin, TaxonRef
 from habitat.grid import Grid
-from habitat.normalize.rows import ANIMAL_LOCATIONS
+from habitat.normalize.rows import ANIMAL_LOCATIONS, POINT_EVENTS
 from habitat.storage.series import SeriesStore
 
 SAMPLE_ROW_COUNT = 20
@@ -18,6 +18,7 @@ SAMPLE_ROW_COUNT = 20
 ROW_GRAIN = {
     "cell_observations": "one row per cell, variable and acquisition",
     ANIMAL_LOCATIONS: "one row per animal fix",
+    POINT_EVENTS: "one row per event",
 }
 
 

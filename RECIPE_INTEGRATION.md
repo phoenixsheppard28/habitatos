@@ -44,10 +44,15 @@ Three parts connect the lanes:
 | `cell_observations` with only `rainfall_mm` | `rainfall_observations` | `recipe_rainfall_observations` |
 | `cell_observations` with only `ndvi`, `evi`, `mndwi`, `ndmi` | `vegetation_observations` | `recipe_vegetation_observations` |
 | `animal_locations` | `animal_locations` | `recipe_animal_locations` |
+| `point_events` | `point_events` | `recipe_point_events` (migration 012) |
 | Other variables, for example `elevation_m` | none | The adapter does not show the dataset to Recipe |
 
 Each view has the minimum columns of the v1 contract in `README.md`. Each view also has `access_scope`, `available_at` and quality columns.
 The `cell_id` column is in all three families. A recipe can join an animal fix to the rainfall or vegetation of its cell with no spatial join.
+
+`recipe_point_events` also has `cell_id`. Its `sampling_design` column tells what a missing row means.
+A missing `presence_only` row, for example a GBIF record, is not an absence.
+Drop duplicates on `origin_record_id` when a recipe combines two event datasets. See `docs/ingestion/EVENTS.md`.
 
 ### 2.2 Versions
 
