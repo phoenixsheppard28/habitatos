@@ -1,7 +1,7 @@
 const pptxgen = require("pptxgenjs");
 const { applyTheme } = require("./apply_theme.cjs");
 
-const OUT = process.argv[2] || "Habitat_Watch.pptx";
+const OUT = process.argv[2] || "Dora.pptx";
 
 const INK = "202723";
 const FOREST = "294D3C";
@@ -16,7 +16,7 @@ const BODY = "Arial";
 const NB = " ";
 
 const THEME = {
-  name: "Habitat Watch Field",
+  name: "Dora Field",
   headFontFace: HEAD,
   bodyFontFace: BODY,
   colors: {
@@ -28,8 +28,8 @@ const THEME = {
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE";
-pres.title = "Habitat Watch";
-pres.author = "Habitat Watch";
+pres.title = "Dora";
+pres.author = "Dora";
 pres.theme = { headFontFace: HEAD, bodyFontFace: BODY };
 
 const W = 13.333;
@@ -143,7 +143,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
 
   text(slide, `Sublette, Wyoming${NB}·${NB}Spring 2019`, { x: M, y: 1.05, w: 5.8, h: 0.35, fontSize: 16, bold: true, color: FOREST, charSpacing: 1 });
   text(slide, "How does movement change as a landscape greens?", { x: M, y: 1.55, w: 6.2, h: 3.0, fontFace: HEAD, fontSize: 46, color: INK, lineSpacingMultiple: 0.95 });
-  text(slide, "Habitat Watch", { x: M, y: 4.6, w: 5.8, h: 0.45, fontSize: 26, bold: true, color: FOREST });
+  text(slide, "Dora", { x: M, y: 4.6, w: 5.8, h: 0.45, fontSize: 26, bold: true, color: FOREST });
   text(slide, "A connected workflow for ecological research", { x: M, y: 5.1, w: 6.2, h: 0.8, fontSize: 20, color: GRAY });
 
   drawWyomingMap(slide, { x: 7.35, y: 1.25, w: 5.35 });
@@ -154,7 +154,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
     "Open with the question, not the product. In spring, snow melts and vegetation greens from low to high elevation. Many mule deer in western Wyoming move between winter and summer ranges at the same time. " +
     "A researcher who wants to compare that movement with greenness needs at least two kinds of evidence: GPS tracking records for individual animals, and satellite measurements of vegetation. " +
     "These come from different providers, in different formats, at different scales and on different schedules. " +
-    "Habitat Watch is the workspace that connects those forms of evidence into one research workflow. " +
+    "Dora is the workspace that connects those forms of evidence into one research workflow. " +
     "The map shows Wyoming and the bounding box that our example query uses around Sublette County. Pinedale marks the county seat. It is a reference map only. It shows no animal locations.\n\n" +
     "Timing: about 45 seconds."
   );
@@ -213,7 +213,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
 // Slide 3
 {
   const slide = pres.addSlide({ masterName: "Content", sectionTitle: "Main story" });
-  slide.addText("Habitat Watch connects the research workflow", { placeholder: "title", align: "left" });
+  slide.addText("Dora connects the research workflow", { placeholder: "title", align: "left" });
 
   const stages = [
     { name: "Question", output: "Species, region and period" },
@@ -239,7 +239,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
        { x: M, y: 5.75, w: 9.5, h: 0.75, fontSize: 18, color: GRAY });
 
   slide.addNotes(
-    "Habitat Watch connects these steps into one workflow that starts from the research question: a species, a region and a period. " +
+    "Dora connects these steps into one workflow that starts from the research question: a species, a region and a period. " +
     "Fetch finds and retrieves permitted records. It keeps the original files and the source metadata, so we can always go back to what the provider published. " +
     "Normalize converts each supported source into consistent observation tables. It keeps time semantics, units, identifiers, quality fields and the reference to the source record. " +
     "Recipe is a saved preparation plan. It selects suitable datasets and states every spatial match, temporal match, aggregation and measurement window. It is saved with the versions of its inputs. " +
@@ -445,7 +445,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
   slide.addNotes(
     "Reproducibility is the second value. " +
     "In the first analysis, the recipe pins the exact source versions it uses, records every preparation step, and produces a prepared dataset stored as a Parquet artifact with a checksum. The result references all of them. " +
-    "Later, new observations arrive, for example another spring of tracking records or newer satellite composites. If the request is compatible, Habitat Watch reuses the saved recipe and any prepared artifacts that are still valid. " +
+    "Later, new observations arrive, for example another spring of tracking records or newer satellite composites. If the request is compatible, Dora reuses the saved recipe and any prepared artifacts that are still valid. " +
     "When inputs change, the cache is invalidated and the affected steps run again. If the preparation itself must change, that creates a new recipe version. The first result and its inputs remain identifiable. " +
     "We describe provenance at three levels: the dataset version, the recipe, and the artifact. We do not claim lineage back to every individual source record inside an aggregated value. " +
     "Repeated seasonal analysis is a platform use case. We do not yet claim automatic scheduling or alerts.\n\n" +
@@ -518,7 +518,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
     "The second, habitat change across seasons or years, uses sources we already connect: MODIS and Sentinel-2 vegetation, water and moisture indicators, and CHIRPS rainfall. The connectors exist; we have not shown a complete habitat-change analysis. " +
     "The third, restoration monitoring with field plots and management records, is the expansion path. Field collection, camera traps, sensors, population counts and water-quality sources are future source families. " +
     "The intended users are conservation groups, researchers and land managers who want answers without assembling geospatial datasets themselves. " +
-    "Habitat Watch does not replace repositories like Movebank or providers like NASA and the Climate Hazards Center. It builds a connected workflow on top of the repositories and tools researchers already use. " +
+    "Dora does not replace repositories like Movebank or providers like NASA and the Climate Hazards Center. Dora connects the repositories and tools that researchers already use. " +
     "The glyphs are schematic illustrations, not data.\n\n" +
     "Timing: about 50 seconds."
   );
@@ -543,7 +543,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
   text(slide, "Wyoming · study region", { x: 9.3, y: 5.55, w: 3.4, h: 0.3, fontSize: 14, color: GRAY });
 
   slide.addNotes(
-    "To close: three values. Habitat Watch connects relevant evidence from different sources. It preserves reproducible preparation and analysis. And it supports comparisons across locations and time periods, so a study can grow into a continuous record instead of a one-off result. " +
+    "Dora provides three values. Dora connects relevant evidence from different sources. Dora preserves reproducible preparation and analysis. Dora supports comparisons across locations and time periods. A study can become a continuous record. " +
     "The next practical step is specific. We want to validate a complete historical workflow, starting with this mule-deer and vegetation question, together with researchers who know the system. That means a full run from fetch to analysis, checked results, and honest limitations. " +
     "After that, the direction is to extend from public datasets to field observations and recurring monitoring. " +
     "Leave this slide up for discussion. Useful questions to invite: which datasets would you want connected first, and what would you need to see before trusting a prepared dataset?\n\n" +
@@ -658,7 +658,7 @@ function drawWyomingMap(slide, frame, { labels = true, graticule = true } = {}) 
 
   text(slide, "These sources informed the communication approach. The palette, typography and field-research style are project choices.", { x: M, y: 6.55, w: 9, h: 0.4, fontSize: 12, color: GRAY });
 
-  slide.addNotes("Design references only. They do not support any claim about Habitat Watch.");
+  slide.addNotes("Design references only. They do not support any claim about Dora.");
 }
 
 (async () => {

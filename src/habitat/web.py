@@ -185,6 +185,14 @@ class Handler(SimpleHTTPRequestHandler):
     def chat_api(self):
         from habitat.web_assistant import answer
 
+        request = self.chat_request()
+        if "application/x-ndjson" in self.headers.get("Accept", ""):
+            self.stream_chat(request)
+            return None
+
+        return answer(request)
+
+    def chat_request(self):
         length = int(self.headers.get("Content-Length", "0"))
         if not 0 < length <= 256_000:
             raise ValueError("The request body must contain at most 256 KB.")
@@ -192,11 +200,40 @@ class Handler(SimpleHTTPRequestHandler):
         if request.messages[-1].role != "user":
             raise ValueError("The last message must contain a user question.")
 
-        return answer(request)
+        return request
+
+    def stream_chat(self, request):
+        from habitat.web_assistant import answer
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+
+        def send(event):
+            self.wfile.write((json.dumps(event, default=str, allow_nan=False) + "\n").encode())
+            self.wfile.flush()
+
+        try:
+            response = answer(request, on_progress=lambda event: send({"type": "progress", **event}))
+            send({"type": "result", "response": response})
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception:
+            logger.exception("Streaming assistant request failed")
+            try:
+                send({"type": "error", "error": "The backend failed. Check the server logs and connection settings."})
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def handle_api(self, operation):
         try:
-            self.json_response(200, operation())
+            response = operation()
+            if response is not None:
+                self.json_response(200, response)
         except LookupError as error:
             self.json_response(404, {"error": str(error)})
         except (ValueError, ValidationError):
@@ -207,14 +244,14 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Serve the Habitat Watch API and built workspace.")
+    parser = argparse.ArgumentParser(description="Serve the Dora API and built workspace.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     handler = partial(Handler, directory=str(PROJECT_ROOT / "web" / "dist"))
     server = ThreadingHTTPServer((args.host, args.port), handler)
-    logger.info("Habitat Watch API: http://%s:%s", args.host, args.port)
+    logger.info("Dora API: http://%s:%s", args.host, args.port)
 
     try:
         server.serve_forever()

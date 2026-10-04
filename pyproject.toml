@@ -1,7 +1,7 @@
 [project]
-name = "habitat"
+name = "dora"
 version = "0.1.0"
-description = "Habitat Watch: fetch, archive, normalize, catalog, search, recipe feature preparation, analysis and query coordination"
+description = "Dora: fetch, archive, normalize, catalog, search, recipe feature preparation, analysis and query coordination"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -22,11 +22,13 @@ dependencies = [
 ]
 
 [project.scripts]
+dora = "habitat.pipeline:main"
+dora-web = "habitat.web:main"
 habitat = "habitat.pipeline:main"
 habitat-web = "habitat.web:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "watchfiles>=1.1,<2"]
 
 [build-system]
 requires = ["hatchling"]

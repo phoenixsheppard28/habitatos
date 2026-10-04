@@ -276,21 +276,11 @@ class HabitatRecipeCatalog:
         self.bindings: dict[tuple[str, str], TableBinding] = {}
 
     def search_metadata(self, filters: dict, *, query: QuerySpec, limit: int) -> SearchPage:
-        unsupported = sorted(set(filters) - SEARCH_FILTERS.keys())
-        if unsupported:
-            raise RecipeError("UNSUPPORTED_FILTER", f"unsupported search filters {unsupported}; "
-                              f"supported: {sorted(SEARCH_FILTERS)}")
+        self.validate_filters(filters)
 
         families = as_list(filters.get("family"))
-        unknown = sorted(set(families) - FAMILIES.keys())
-        if unknown:
-            raise RecipeError("UNSUPPORTED_FILTER", f"unknown families {unknown}; known: {sorted(FAMILIES)}")
-
         source_ids = set(as_list(filters.get("source_id")))
         tags = filters.get("tags") or {}
-        if not isinstance(tags, dict):
-            raise RecipeError("UNSUPPORTED_FILTER", "tags must be an object of key to value")
-
         search = self.filters(query)
         search.variables = as_list(filters.get("variables")) or None
         search.tags_all = [Tag(key=key, value=str(value)) for key, value in tags.items()] or None
@@ -301,6 +291,28 @@ class HabitatRecipeCatalog:
         ]
 
         return SearchPage(datasets[:limit], truncated=len(datasets) > limit)
+
+    @staticmethod
+    def validate_filters(filters: dict):
+        unsupported = sorted(set(filters) - SEARCH_FILTERS.keys())
+        if unsupported:
+            raise RecipeError("UNSUPPORTED_FILTER", f"unsupported search filters {unsupported}; "
+                              f"supported: {sorted(SEARCH_FILTERS)}")
+
+        for key in ("family", "source_id", "variables"):
+            value = filters.get(key)
+            if value is not None and not (isinstance(value, str) and value
+                                         or isinstance(value, list) and all(isinstance(item, str) and item for item in value)):
+                raise RecipeError("UNSUPPORTED_FILTER", f"{key} must be a string or a list of strings")
+
+        families = as_list(filters.get("family"))
+        unknown = sorted(set(families) - FAMILIES.keys())
+        if unknown:
+            raise RecipeError("UNSUPPORTED_FILTER", f"unknown families {unknown}; known: {sorted(FAMILIES)}")
+
+        tags = filters.get("tags", {})
+        if tags is not None and (not isinstance(tags, dict) or any(not isinstance(value, (str, int, float, bool)) for value in tags.values())):
+            raise RecipeError("UNSUPPORTED_FILTER", "tags must be an object with scalar values")
 
     def search_semantic(self, text: str, *, query: QuerySpec, limit: int) -> SearchPage:
         """Lexical stand-in: the catalog has no embedding index. Scores are the share of query words found."""

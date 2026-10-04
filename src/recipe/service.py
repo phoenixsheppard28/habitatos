@@ -9,6 +9,7 @@ from .artifacts import cache_key
 from .catalog import Candidate, discover, eligibility
 from .errors import RecipeError
 from .models import DatasetVersion, QuerySpec
+from .progress import notify, stage
 from .validation import validate_recipe
 
 
@@ -56,7 +57,8 @@ class RecipeService:
                     ds = DatasetVersion.model_validate(record["dataset"])
                     candidates.append(Candidate(ds, record["retrievals"], {r.requirement_id for r in requirements}))
             else:
-                candidates, warnings = discover(self.catalog, query, requirements, self.candidate_limit)
+                with stage("catalog.discovery", "Find eligible datasets"):
+                    candidates, warnings = discover(self.catalog, query, requirements, self.candidate_limit)
                 response["warnings"].extend(warnings)
 
             def assess_candidates(items):
@@ -140,6 +142,7 @@ class RecipeService:
                     if exc.code not in {"INVALID_RECIPE", "INVALID_PLAN", "UNSUPPORTED_OPERATION"}:
                         raise
                     feedback.append(str(exc))
+                    notify("planning.repair", "Repair the preparation recipe", attempt=len(feedback), reason=str(exc))
             else:
                 raise RecipeError("INVALID_RECIPE", "planner exhausted bounded validation attempts: " + "; ".join(feedback))
             # Recheck current authorization before cache lookup and execution.
@@ -158,7 +161,8 @@ class RecipeService:
                 report["candidate_assessments"] = records
                 report["warnings"] = response["warnings"]
                 report["planner_validation_feedback"] = feedback
-                saved = self.store.publish(key, recipe, rows, report)
+                with stage("preparation.publish", "Save the prepared table"):
+                    saved = self.store.publish(key, recipe, rows, report)
             response["status"] = "partial" if optional_missing else "ok"
             response["output"] = {"recipe": recipe.model_dump(mode="json"), "feature_artifact": saved["artifact"]}
             response["extensions"]["recipe_context"] = {

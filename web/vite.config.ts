@@ -5,10 +5,15 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     port: 5173,
+    watch: {
+      usePolling: process.env.HABITAT_WATCH_POLLING === 'true',
+    },
     proxy: {
       '/api': {
         target:
-          loadEnv(mode, process.cwd(), 'HABITAT_').HABITAT_API_TARGET ?? 'http://127.0.0.1:8080',
+          process.env.HABITAT_API_TARGET ??
+          loadEnv(mode, process.cwd(), 'HABITAT_').HABITAT_API_TARGET ??
+          'http://127.0.0.1:8080',
         changeOrigin: true,
       },
       '/geoserver': {

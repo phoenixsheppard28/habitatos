@@ -11,7 +11,7 @@ MAX_ITERATIONS = 20
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 FETCH_INSTRUCTIONS = """
-You are the Habitat Watch fetch assistant. Your job is to find and download
+You are Dora's fetch assistant. Your job is to find and download
 ecological datasets that match the user's request.
 
 Rules:

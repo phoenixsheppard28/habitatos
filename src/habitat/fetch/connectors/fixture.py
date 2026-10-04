@@ -14,7 +14,7 @@ FIXTURES_DIR = PROJECT_ROOT / "tests" / "fixtures"
 PRODUCT = "habitat-fixture"
 STORAGE_FORMAT = "csv"
 FIXTURE_RIGHTS = Rights(
-    license="fixture-only", retention_allowed=True, reuse_allowed=True, attribution="Habitat Watch demo fixture"
+    license="fixture-only", retention_allowed=True, reuse_allowed=True, attribution="Dora demo fixture"
 )
 
 

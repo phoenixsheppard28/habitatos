@@ -1,3 +1,4 @@
+import json
 import threading
 from contextlib import contextmanager
 from functools import partial
@@ -103,3 +104,50 @@ def test_retrieval_rejects_fixtures_and_unbounded_environment_requests():
         RetrievalContext.model_validate({**base, "source_id": "chirps", "end": "2026-01-01"})
     with pytest.raises(ValueError, match="start date"):
         QueryContext.model_validate({**base, "end": "2023-01-01"})
+
+
+def test_chat_progress_arrives_before_the_answer(api, monkeypatch):
+    release = threading.Event()
+
+    def answer(request, on_progress):
+        on_progress({"stage": "preparation", "message": "Prepare the table", "status": "running"})
+        assert release.wait(5), "the client did not receive progress before completion"
+        return {"answer": "Prepared.", "updated": False}
+
+    monkeypatch.setattr("habitat.web_assistant.answer", answer)
+    try:
+        with httpx.stream("POST", f"{api}/api/chat", headers={"Accept": "application/x-ndjson"},
+                          json={"messages": [{"role": "user", "content": "Prepare movement"}]}) as response:
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("application/x-ndjson")
+            lines = response.iter_lines()
+            first = json.loads(next(lines))
+            assert first["type"] == "progress"
+            assert first["stage"] == "preparation"
+            release.set()
+            result = json.loads(next(lines))
+            assert result == {"type": "result", "response": {"answer": "Prepared.", "updated": False}}
+    finally:
+        release.set()
+
+
+def test_streaming_errors_use_a_stream_event(api, monkeypatch):
+    def unavailable(request, on_progress):
+        on_progress({"stage": "catalog", "message": "Read the catalog"})
+        raise RuntimeError("private connection details")
+
+    monkeypatch.setattr("habitat.web_assistant.answer", unavailable)
+    response = httpx.post(f"{api}/api/chat", headers={"Accept": "application/x-ndjson"},
+                          json={"messages": [{"role": "user", "content": "Movement?"}]})
+    events = [json.loads(line) for line in response.text.splitlines()]
+
+    assert [event["type"] for event in events] == ["progress", "error"]
+    assert "private" not in response.text
+
+
+def test_invalid_streaming_chat_returns_json_before_starting_the_stream(api):
+    response = httpx.post(f"{api}/api/chat", headers={"Accept": "application/x-ndjson"},
+                          json={"messages": [{"role": "system", "content": "invalid"}]})
+
+    assert response.status_code == 400
+    assert response.headers["content-type"].startswith("application/json")

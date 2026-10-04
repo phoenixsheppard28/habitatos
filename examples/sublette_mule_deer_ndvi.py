@@ -48,7 +48,7 @@ MODIS_LOOKBACK_DAYS = 2 * COMPOSITE_DAYS
 RUN_DIR = settings().data_dir / "runs" / "sublette-mule-deer-ndvi"
 
 PLANNER_SYSTEM = (
-    "You are the Recipe planner of Habitat Watch. Always answer with one call to the `answer` tool. "
+    "You are the Recipe planner of Dora. Always answer with one call to the `answer` tool. "
     "Use only the dataset versions and operations in the context. The answer must satisfy the JSON schema exactly. "
     "In `select.columns` and `right_columns`, each key is the new output name and each value is the source column. "
     "The Analysis lane needs one row per animal and UTC day with a daily_displacement column, "

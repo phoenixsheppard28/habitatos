@@ -73,7 +73,7 @@ export class WorkspaceViews {
     element('object-title').textContent = viewTitles[state.view];
     element('object-category').textContent = ['overview', 'sources'].includes(state.view)
       ? 'Analysis'
-      : 'Visualizations';
+      : 'Workspace';
     element('object-description').textContent =
       state.selected?.description ?? 'Select a dataset from the public catalog.';
     element('dataset-version').textContent = state.snapshot
@@ -95,10 +95,7 @@ export class WorkspaceViews {
     if (state.status === 'empty') {
       notice.append(node('strong', 'No observations available'));
       notice.append(
-        node(
-          'p',
-          'Select another dataset, import a local file, or request data through the assistant.',
-        ),
+        node('p', 'Select another dataset, import a local file, or request data through Dora.'),
       );
     }
     if (state.status === 'error') {

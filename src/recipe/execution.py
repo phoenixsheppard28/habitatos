@@ -8,9 +8,10 @@ from typing import Protocol
 
 from shapely.geometry import Point, shape
 
-from .compiler import SQLCompiler
+from .compiler import SQLCompiler, ident
 from .errors import RecipeError
 from .models import Aggregate, AsOfJoin, Filter, Join, Select, SpatialJoin, TimeBucket, Window
+from .progress import stage
 from .validation import validate_recipe
 
 
@@ -275,7 +276,7 @@ class SupabaseExecutor:
     connection_factory supplies an authorized backend connection. Catalog
     authorization and trusted bindings are required separately by the service.
     """
-    version = "recipe-supabase-1"
+    version = "recipe-supabase-2"
 
     def __init__(self, connection_factory, bindings, *, postgis_schema="extensions",
                  max_rows=100_000, statement_timeout_ms=30_000):
@@ -285,27 +286,53 @@ class SupabaseExecutor:
 
     def execute(self, recipe, query, datasets):
         from psycopg.rows import dict_row
-        plan = self.compiler.compile(recipe, query, datasets)
-        report = {"steps": {}, "checks": [], "warnings": [], "compiler_version": plan.version}
+        plan = self.compiler.compile(recipe, query, datasets, materialize=True)
+        report = {"steps": {}, "checks": [], "warnings": [], "compiler_version": plan.version,
+                  "cell_scopes": plan.cell_scopes}
         try:
             with self.connection_factory() as connection:
                 with connection.transaction():
                     with connection.cursor(row_factory=dict_row) as cursor:
-                        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
                         cursor.execute("SELECT set_config('statement_timeout', %s, true)", (str(self.timeout),))
                         cursor.execute("SELECT set_config('TimeZone', 'UTC', true)")
-                        for check in plan.checks:
-                            cursor.execute(check.sql, plan.params, prepare=False)
-                            if cursor.fetchone()["invalid"]:
-                                raise RecipeError(check.code, check.name)
-                            report["checks"].append(check.name)
-                        for label, sql in plan.statistics.items():
-                            cursor.execute(sql, plan.params, prepare=False)
-                            report["steps"][label] = cursor.fetchone()["value"]
-                        cursor.execute(plan.sql, plan.params, prepare=False)
-                        rows = cursor.fetchmany(self.max_rows + 1)
-                        validate_output(rows, recipe, self.max_rows)
-                        rows.sort(key=lambda row: tuple(row[k] for k in recipe.output.keys))
+                        for preparation in plan.stages:
+                            for check in preparation.checks_before:
+                                with stage("sql.validation", check.name):
+                                    cursor.execute(check.sql, plan.params, prepare=False)
+                                    if cursor.fetchone()["invalid"]:
+                                        raise RecipeError(check.code, check.name)
+                                    report["checks"].append(check.name)
+
+                            with stage("sql.materialize", f"Prepare {preparation.name}"):
+                                table = f'"pg_temp".{ident(preparation.table)}'
+                                cursor.execute(f"CREATE TEMP TABLE {ident(preparation.table)} ON COMMIT DROP AS "
+                                               f"SELECT * FROM ({preparation.sql}) prepared LIMIT {self.max_rows + 1}",
+                                               plan.params, prepare=False)
+                                count = cursor.rowcount
+                                if count > self.max_rows:
+                                    raise RecipeError("RESOURCE_LIMIT", preparation.limit_check.name)
+                                report["checks"].append(preparation.limit_check.name)
+                                report["steps"][f"{preparation.name}: row count"] = count
+                                for columns in preparation.indexes:
+                                    if columns:
+                                        cursor.execute(f"CREATE INDEX ON {table} ({', '.join(ident(c) for c in columns)})")
+                                cursor.execute(f"ANALYZE {table}")
+
+                            for label, sql in preparation.statistics.items():
+                                if label == f"{preparation.name}: row count":
+                                    report["steps"][label] = count
+                                else:
+                                    with stage("sql.statistics", label):
+                                        cursor.execute(sql, plan.params, prepare=False)
+                                        report["steps"][label] = cursor.fetchone()["value"]
+
+                        with stage("sql.output", "Read and validate the prepared table"):
+                            cursor.execute(plan.sql, plan.params, prepare=False)
+                            rows = cursor.fetchmany(self.max_rows + 1)
+                            validate_output(rows, recipe, self.max_rows)
+                            rows.sort(key=lambda row: tuple(row[k] for k in recipe.output.keys))
+
                         return rows, report
         except RecipeError:
             raise

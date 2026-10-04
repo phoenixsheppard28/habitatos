@@ -65,7 +65,13 @@ export class WorkspaceSidebar {
           dataset.coverage.species.join(', ') || dataset.variables.join(', ') || dataset.family,
         ),
       );
-      control.append(label);
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.classList.add('icon');
+      icon.setAttribute('aria-hidden', 'true');
+      const symbol = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      symbol.setAttribute('href', '#icon-table');
+      icon.append(symbol);
+      control.append(icon, label);
       control.title = dataset.description;
       control.addEventListener('click', () => {
         void this.store.selectDataset(dataset.dataset_id);

@@ -1,0 +1,47 @@
+services:
+  migrate:
+    image: dora:dev
+    build:
+      target: app-development
+    volumes:
+      - ./src:/app/src:ro
+      - ./contracts:/app/contracts:ro
+      - ./migrations:/app/migrations:ro
+
+  app:
+    image: dora:dev
+    build:
+      target: app-development
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./src:/app/src:ro
+      - ./contracts:/app/contracts:ro
+
+  frontend:
+    build:
+      context: .
+      target: frontend-development
+    environment:
+      HABITAT_API_TARGET: http://app:8000
+      HABITAT_WATCH_POLLING: "true"
+    ports:
+      - "127.0.0.1:${HABITAT_FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./web/src:/web/src:ro
+      - ./web/index.html:/web/index.html:ro
+      - ./web/vite.config.ts:/web/vite.config.ts:ro
+      - ./web/tsconfig.json:/web/tsconfig.json:ro
+      - ./web/tsconfig.app.json:/web/tsconfig.app.json:ro
+      - ./web/tsconfig.node.json:/web/tsconfig.node.json:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    init: true
+    restart: unless-stopped

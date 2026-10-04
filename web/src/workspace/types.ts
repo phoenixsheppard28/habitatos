@@ -84,6 +84,20 @@ export interface ChatResponse {
   updated: boolean;
   retrieved_dataset_ids?: string[];
   citations?: SourceCitation[];
+  request_id?: string;
+  elapsed_seconds?: number;
+  timings?: PipelineProgress[];
+}
+
+export interface PipelineProgress {
+  id: string;
+  request_id: string;
+  stage: string;
+  message: string;
+  status: 'running' | 'complete' | 'error';
+  elapsed_seconds: number;
+  duration_seconds?: number;
+  details?: Record<string, unknown>;
 }
 
 export type View = 'map' | 'table' | 'chart' | 'overview' | 'sources';

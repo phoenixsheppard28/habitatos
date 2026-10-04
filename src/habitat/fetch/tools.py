@@ -3,6 +3,7 @@
 import json
 
 from anthropic import beta_tool
+from recipe.progress import stage
 
 from habitat.fetch import service, session
 
@@ -24,25 +25,28 @@ def search_catalog(
     Search fixtures and Movebank when include_internet is true.
     Set include_zenodo true only if Movebank has no match (Zenodo is slower).
     """
-    results = service.search_catalog(
-        query,
-        species=species,
-        include_internet=include_internet,
-        include_zenodo=include_zenodo,
-    )
+    with stage("fetch.search", "Search source catalogs"):
+        results = service.search_catalog(
+            query,
+            species=species,
+            include_internet=include_internet,
+            include_zenodo=include_zenodo,
+        )
     return json.dumps(results, indent=2)
 
 
 @beta_tool
 def inspect_source(dataset_id: str) -> str:
     """Return metadata, coverage, and rights for a catalog dataset id."""
-    return json.dumps(service.inspect_source(dataset_id), indent=2)
+    with stage("fetch.inspect", "Inspect source metadata"):
+        return json.dumps(service.inspect_source(dataset_id), indent=2)
 
 
 @beta_tool
 def check_access(dataset_id: str) -> str:
     """Check whether a dataset can be downloaded under its license and access rules."""
-    return json.dumps(service.check_access(dataset_id), indent=2)
+    with stage("fetch.access", "Check source access"):
+        return json.dumps(service.check_access(dataset_id), indent=2)
 
 
 @beta_tool
@@ -51,7 +55,8 @@ def download_dataset(dataset_id: str) -> str:
     Download a dataset by id into the raw archive and return its RawManifest JSON.
     On failure returns a JSON error object instead of raising.
     """
-    result = service.download_dataset(dataset_id)
+    with stage("fetch.download", "Download and archive movement data"):
+        result = service.download_dataset(dataset_id)
     if hasattr(result, "model_dump"):
         return json.dumps(result.model_dump(mode="json"), indent=2, default=str)
     return json.dumps(result, indent=2)
@@ -75,9 +80,10 @@ def fetch_environment(
     Discovery alone downloads no data.
     """
     try:
-        result = service.fetch_environment(
-            bbox, start, end, sources=sources, max_items=max_items, max_days=max_days, discover_only=discover_only
-        )
+        with stage("fetch.environment", "Fetch and archive environmental data"):
+            result = service.fetch_environment(
+                bbox, start, end, sources=sources, max_items=max_items, max_days=max_days, discover_only=discover_only
+            )
         return json.dumps(result)
     except ValueError as error:
         failure = {"status": "error", "message": str(error)}

@@ -22,6 +22,7 @@ The images support Apple Silicon and x86-64 hosts.
 | `migrate` | Apply pending SQL migrations | Healthy database |
 | `classifier` | GLiClass dataset classification on CPU | Cached or downloaded model weights |
 | `app` | Serve the frontend, API, assistant, and pipeline | Healthy database, healthy classifier, and successful migrations |
+| `frontend` | Vite development server with hot reload; development setup only | Healthy app |
 
 Fetch, Normalize, Recipe, and Analysis execute inside the app container.
 The frontend uses relative `/api` URLs on the same origin.
@@ -39,6 +40,7 @@ Use `.env.example` as a reference.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `HABITAT_PORT` | `8080` | Host port for the app |
+| `HABITAT_FRONTEND_PORT` | `5173` | Host port for the Docker development frontend |
 | `HABITAT_POSTGRES_PASSWORD` | `habitat-local` | Password for the container database |
 | `ANTHROPIC_API_KEY` | Empty | Enable the assistant and model-based planning |
 | `MOVEBANK_USERNAME` | Empty | Authenticate Movebank study requests |
@@ -93,29 +95,62 @@ After a configuration change, run:
 docker compose up -d --wait
 ```
 
-## Frontend development
+## Docker development with hot reload
 
-Start the Docker stack, then run:
+Start the development stack:
 
 ```sh
+docker compose -f compose.yaml -f compose.dev.yaml up --build -d --wait
+```
+
+Open http://localhost:5173.
+Vite runs inside Docker and forwards `/api` requests to `http://app:8000`.
+Frontend changes appear through Vite hot reload without an image rebuild.
+The app restarts automatically after changes in `src/` or `contracts/`.
+Both watchers use polling to detect changes on Docker Desktop.
+Backend restarts interrupt active requests.
+Frontend dependencies remain inside the frontend image.
+
+Use both Compose files for development commands:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml logs --tail=100 app frontend
+docker compose -f compose.yaml -f compose.dev.yaml down
+```
+
+After dependency changes, run the development startup command again.
+Add SQL migrations, then apply pending migrations:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml run --rm migrate
+```
+
+To return to the built frontend, run:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml down
+docker compose up --build -d --wait
+```
+
+Open http://localhost:8080 for the built frontend.
+
+### Frontend development outside Docker
+
+Start the backend stack, then run Vite locally:
+
+```sh
+docker compose up --build -d --wait
 pnpm --dir web install
 pnpm --dir web run dev
 ```
 
 Open http://localhost:5173.
-Vite forwards `/api` to http://127.0.0.1:8080.
-Frontend changes appear through Vite without an image rebuild.
+Local Vite forwards `/api` to http://127.0.0.1:8080.
 
 For another backend port, set `HABITAT_API_TARGET` in `web/.env.local`:
 
 ```dotenv
 HABITAT_API_TARGET=http://127.0.0.1:8081
-```
-
-Rebuild the app after backend changes:
-
-```sh
-docker compose up --build -d --wait
 ```
 
 ## Retrieve data
@@ -128,7 +163,7 @@ Published datasets appear in the workspace automatically.
 Run a known-source pipeline request directly:
 
 ```sh
-docker compose exec app habitat chirps \
+docker compose exec app dora chirps \
   --bbox 36,-2,36.1,-1.9 \
   --start 2024-01-01 --end 2024-01-02
 ```

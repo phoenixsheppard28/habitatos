@@ -1,4 +1,4 @@
-# Habitat Watch web workspace
+# Dora web workspace
 
 The workspace uses TypeScript, Leaflet, and Vite.
 The Python API reads published observations from the configured PostgreSQL database.
@@ -6,16 +6,16 @@ Maps use Esri World Topographic Map tiles with source attribution.
 
 ## Start development
 
-Start the complete backend from the repository root:
+Start the development stack from the repository root:
 
 ```sh
-docker compose up --build -d --wait
-pnpm --dir web install
-pnpm --dir web run dev
+docker compose -f compose.yaml -f compose.dev.yaml up --build -d --wait
 ```
 
 Open http://localhost:5173 for frontend development.
-Vite forwards `/api` requests to http://127.0.0.1:8080.
+Vite runs inside Docker and forwards `/api` requests to the app container.
+Frontend changes appear through Vite hot reload.
+Changes in `src/` or `contracts/` restart the Python API automatically.
 The container also serves the built workspace at http://localhost:8080.
 The stack includes a local GLiClass service for dataset tagging.
 See [`../docs/docker.md`](../docs/docker.md) for container configuration and service commands.
@@ -36,7 +36,7 @@ Movebank study retrieval also uses `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
 Start the backend in one terminal:
 
 ```sh
-uv run habitat-web --port 8080
+uv run dora-web --port 8080
 ```
 
 Start the frontend in another terminal:

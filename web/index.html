@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f7f8fa" />
-    <title>Habitat Watch · Workspace</title>
+    <title>Dora · Workspace</title>
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap"
@@ -40,6 +40,21 @@
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M13 4v16m3-12h2m-2 4h2m-2 4h2" />
         </symbol>
+        <symbol id="icon-dora" viewBox="0 0 24 24">
+          <path d="M6 4h5a8 8 0 0 1 0 16H6V4Zm0 8h7m-3-3 3 3-3 3" />
+        </symbol>
+        <symbol id="icon-folder" viewBox="0 0 24 24">
+          <path
+            d="M3 7V5a2 2 0 0 1 2-2h5l3 3h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 2h18"
+          />
+        </symbol>
+        <symbol id="icon-search" viewBox="0 0 24 24">
+          <circle cx="10" cy="10" r="6" />
+          <path d="m15 15 5 5" />
+        </symbol>
+        <symbol id="icon-sparkles" viewBox="0 0 24 24">
+          <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Zm7 0v4m-2-2h4" />
+        </symbol>
       </defs>
     </svg>
 
@@ -52,7 +67,12 @@
       >
         <svg class="icon"><use href="#icon-table" /></svg>
       </button>
-      <div class="brand"><strong>Habitat Watch</strong></div>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"
+          ><svg class="icon"><use href="#icon-dora" /></svg
+        ></span>
+        <strong>Dora</strong>
+      </div>
       <div class="breadcrumb">
         Workspace <span>/</span> <b id="workspace-name">Public catalog</b>
       </div>
@@ -66,66 +86,66 @@
     <main class="workspace">
       <aside class="sidebar" id="layers" aria-label="Workspace objects">
         <div class="sidebar-heading">
-          <div><span class="eyebrow">WORKSPACE</span><strong>Habitat exploration</strong></div>
+          <span class="workspace-mark" aria-hidden="true"
+            ><svg class="icon"><use href="#icon-folder" /></svg
+          ></span>
+          <div class="sidebar-heading-label">
+            <strong>Dora workspace</strong><span class="eyebrow">Public catalog</span>
+          </div>
           <button class="icon-button" id="layers-close" aria-label="Close sidebar">×</button>
         </div>
         <button class="create-button" id="rail-add" type="button">
-          <svg class="icon"><use href="#icon-plus" /></svg> Import local data
+          <svg class="icon"><use href="#icon-plus" /></svg> Import data
+          <span class="create-button-hint">Local</span>
         </button>
         <label class="object-search">
-          <span aria-hidden="true">⌕</span>
+          <svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg>
           <input
             id="object-search"
             type="search"
-            placeholder="Find a dataset or view…"
+            placeholder="Search workspace"
             aria-label="Find workspace objects"
           />
         </label>
         <nav class="object-tree" aria-label="Data, visualizations, and analysis">
           <details class="object-section" open>
-            <summary>
+            <summary>Workspace</summary>
+            <button class="object-link active" data-view="map" type="button">
+              <svg class="icon"><use href="#icon-map" /></svg>
+              <span>Observation map</span>
+            </button>
+            <button class="object-link" data-view="table" type="button">
               <svg class="icon"><use href="#icon-table" /></svg>
-              Data <span class="object-count" id="data-count">0</span>
-            </summary>
+              <span>Observation records</span>
+            </button>
+            <button class="object-link" data-view="chart" type="button">
+              <svg class="icon"><use href="#icon-chart" /></svg>
+              <span>Monthly summary</span>
+            </button>
+          </details>
+          <details class="object-section" open>
+            <summary>Catalog <span class="object-count" id="data-count">0</span></summary>
             <div id="layer-list"></div>
             <div id="import-list"></div>
             <p class="catalog-note" id="catalog-note">Loading the public catalog…</p>
           </details>
           <details class="object-section" open>
-            <summary>
-              <svg class="icon"><use href="#icon-chart" /></svg> Visualizations
-            </summary>
-            <button class="object-link active" data-view="map" type="button">
-              <svg class="icon"><use href="#icon-map" /></svg>
-              <span>Observation map<small>Geographic observations</small></span>
-            </button>
-            <button class="object-link" data-view="table" type="button">
-              <svg class="icon"><use href="#icon-table" /></svg>
-              <span>Observation records<small>Searchable data table</small></span>
-            </button>
-            <button class="object-link" data-view="chart" type="button">
-              <svg class="icon"><use href="#icon-chart" /></svg>
-              <span>Monthly summary<small>Database aggregates</small></span>
-            </button>
-          </details>
-          <details class="object-section" open>
-            <summary>
-              <svg class="icon"><use href="#icon-analysis" /></svg> Analysis
-            </summary>
+            <summary>Analysis</summary>
             <button class="object-link" data-view="overview" type="button">
               <svg class="icon"><use href="#icon-analysis" /></svg>
-              <span>Dataset overview<small>Coverage and measurement method</small></span>
+              <span>Dataset overview</span>
             </button>
             <button class="object-link" data-view="sources" type="button">
               <svg class="icon"><use href="#icon-table" /></svg>
-              <span>Sources and provenance<small>Dataset versions and attribution</small></span>
+              <span>Sources and provenance</span>
             </button>
           </details>
           <p class="search-empty" id="search-empty" hidden>No matching objects.</p>
         </nav>
         <div class="sidebar-bottom">
           <button id="rail-chat" type="button">
-            <svg class="icon"><use href="#icon-chat" /></svg> Habitat assistant
+            <svg class="icon"><use href="#icon-sparkles" /></svg> Ask Dora
+            <span class="assistant-badge">AI</span>
           </button>
           <div class="workspace-status">
             <i></i
@@ -139,8 +159,8 @@
       <section class="stage" aria-label="Exploration workspace">
         <header class="object-header">
           <div class="object-path">
-            Habitat exploration <span>/</span>
-            <span id="object-category">Visualizations</span>
+            Dora workspace <span>/</span>
+            <span id="object-category">Workspace</span>
           </div>
           <div class="object-title-row">
             <div>
@@ -204,7 +224,7 @@
         </div>
       </section>
 
-      <aside class="chat" id="chat" aria-label="Habitat assistant" hidden>
+      <aside class="chat" id="chat" aria-label="Dora assistant" hidden>
         <div
           class="chat-header"
           id="chat-handle"
@@ -212,10 +232,10 @@
           aria-label="Move assistant. Drag to either side to dock, or use arrow keys."
         >
           <span class="assistant-mark"
-            ><svg class="icon"><use href="#icon-chat" /></svg
+            ><svg class="icon"><use href="#icon-sparkles" /></svg
           ></span>
           <div class="chat-title">
-            <strong>Habitat assistant</strong>
+            <strong>Dora</strong>
             <p>Drag to either side to dock</p>
           </div>
           <span class="grip" aria-hidden="true">⠿</span>
@@ -249,13 +269,13 @@
           </p>
         </div>
         <form class="ask" id="ask">
-          <label for="question">Ask about this workspace</label>
+          <label for="question">Ask Dora about this workspace</label>
           <div class="composer">
             <textarea
               id="question"
               name="question"
               maxlength="4000"
-              placeholder="Ask a question about the observations…"
+              placeholder="Ask Dora about the observations…"
             ></textarea>
             <div class="composer-bottom">
               <button
@@ -276,7 +296,7 @@
         </form>
       </aside>
       <button class="chat-launcher" id="chat-launcher" type="button" hidden>
-        <svg class="icon"><use href="#icon-chat" /></svg> Ask about this map
+        <svg class="icon"><use href="#icon-sparkles" /></svg> Ask Dora
       </button>
       <input id="file-input" type="file" accept=".geojson,.json,.csv" hidden />
       <div class="toast" id="toast" role="status" hidden></div>

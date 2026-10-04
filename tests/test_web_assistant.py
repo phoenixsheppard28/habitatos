@@ -178,3 +178,33 @@ def test_analysis_without_a_prepared_table_asks_for_prepare(tmp_path, monkeypatc
 def test_analysis_rejects_a_prepared_id_that_is_a_path():
     with pytest.raises(ValueError):
         web_assistant.AnalysisContext.model_validate({"prepared_id": "../../etc", "question": "x"})
+
+
+def test_progress_reports_model_and_tool_timings(assistant, monkeypatch):
+    responses, _ = assistant
+    responses.extend([tool_response("prepare", {"question": "Movement"}), text_response("No table is available.")])
+    monkeypatch.setattr(web_assistant, "prepare", Mock(return_value={"status": "error", "error": {"code": "INVALID_PLAN"}}))
+    events = []
+
+    result = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Movement?"}]),
+                                  on_progress=events.append)
+
+    assert result["answer"] == "No table is available."
+    assert {event["request_id"] for event in events} == {result["request_id"]}
+    assert any(event["stage"] == "assistant" and event["status"] == "running" for event in events)
+    assert any(event["stage"] == "preparation" and event["status"] == "complete" for event in events)
+    assert all(event["duration_seconds"] >= 0 for event in result["timings"])
+    assert result["timings"][-1]["stage"] == "chat"
+
+
+def test_identical_failed_preparation_is_not_executed_twice(assistant, monkeypatch):
+    responses, _ = assistant
+    payload = {"question": "Movement"}
+    responses.extend([tool_response("prepare", payload), tool_response("prepare", payload), text_response("Preparation failed.")])
+    prepare = Mock(return_value={"status": "error", "error": {"code": "INVALID_PLAN"}})
+    monkeypatch.setattr(web_assistant, "prepare", prepare)
+
+    result = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Movement?"}]))
+
+    prepare.assert_called_once_with(payload)
+    assert result["answer"] == "Preparation failed."

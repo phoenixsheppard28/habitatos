@@ -1,7 +1,7 @@
 name: habitat-watch
 
 x-app: &app
-  image: habitat-watch:local
+  image: dora:local
   build:
     context: .
   environment: &app-environment

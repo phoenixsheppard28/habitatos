@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS frontend
+FROM node:24-bookworm-slim AS frontend-base
 
 WORKDIR /web
 RUN corepack enable && corepack prepare pnpm@11.6.0 --activate
@@ -6,9 +6,17 @@ COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY web/index.html web/tsconfig*.json web/vite.config.ts ./
 COPY web/src ./src
+
+FROM frontend-base AS frontend-development
+
+EXPOSE 5173
+CMD ["pnpm", "run", "dev", "--host", "0.0.0.0", "--strictPort"]
+
+FROM frontend-base AS frontend
+
 RUN pnpm run build
 
-FROM python:3.12-slim-bookworm AS app
+FROM python:3.12-slim-bookworm AS backend
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /usr/local/bin/uv
 ENV PYTHONUNBUFFERED=1 \
@@ -37,4 +45,13 @@ COPY --from=frontend /web/dist ./web/dist
 
 USER habitat
 EXPOSE 8000
-CMD ["habitat-web", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["dora-web", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM backend AS app-development
+
+USER root
+RUN uv sync --frozen
+USER habitat
+CMD ["watchfiles", "--filter", "all", "--target-type", "command", "dora-web --host 0.0.0.0 --port 8000", "/app/src", "/app/contracts"]
+
+FROM backend AS app

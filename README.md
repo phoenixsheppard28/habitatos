@@ -1,7 +1,7 @@
-# Habitat Watch
+# Dora
 
 The map workspace lives in [`web/`](web/README.md). It uses TypeScript, Leaflet, Esri World Topographic Map tiles, and Vite.
-The workspace reads published observations through the Python API. The assistant connects to retrieval, Recipe, and Analysis.
+The workspace reads published observations through the Python API. Dora connects to retrieval, Recipe, and Analysis.
 
 ## Start the complete app
 
@@ -25,15 +25,16 @@ Set `ANTHROPIC_API_KEY` in the root `.env` file to enable the assistant.
 Movebank study retrieval also requires `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
 Compose reads these settings at runtime.
 
-For frontend development, keep the stack active and run:
+For Docker development with hot reload, run:
 
 ```sh
-pnpm --dir web install
-pnpm --dir web run dev
+docker compose -f compose.yaml -f compose.dev.yaml up --build -d --wait
 ```
 
 Open http://localhost:5173.
-Vite forwards `/api` requests to the container at http://127.0.0.1:8080.
+Frontend changes appear through Vite hot reload.
+Changes in `src/` or `contracts/` restart the Python API automatically.
+Vite forwards `/api` requests to the app container.
 See [`docs/docker.md`](docs/docker.md) for configuration, pipeline commands, migrations, and service checks.
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
@@ -42,7 +43,7 @@ A self-service ecological data platform that answers questions about historical 
 
 ## The product
 
-Ask a question about a species, habitat, region, and time period. Habitat Watch finds relevant records, combines animal tracking with satellite imagery and environmental observations, and returns evidence-backed analysis with maps and timelines.
+Ask a question about a species, habitat, region, and time period. Dora combines animal tracking, satellite imagery, and environmental observations. Dora returns analysis with source evidence, maps, and timelines.
 
 The product works with public data from the first use. Contractor partnerships, proprietary records, and a collector marketplace are not launch dependencies.
 

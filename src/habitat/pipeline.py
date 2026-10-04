@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from uuid import uuid4
 
+from recipe.progress import stage
+
 from habitat.archive.index import ingested
 from habitat.contracts import (
     BBox,
@@ -61,7 +63,8 @@ def run(
         with connect() as connection:
             return run(request, use_agent, Workspace(connection, default_grid()), use_ai)
 
-    response = fetch.run(request, use_agent=use_agent, archive=workspace.archive)
+    with stage("fetch", "Find and archive source data"):
+        response = fetch.run(request, use_agent=use_agent, archive=workspace.archive)
     if response.status in NO_PUBLISH_STATUSES:
         return PipelineResult(response)
 
@@ -75,12 +78,14 @@ def ingest_and_publish(
     request_aoi = tuple(request.input.requirements.bbox) if request.input.requirements.bbox else None
     outcomes, ingests = [], []
     for manifest in response.output.raw_artifacts:
-        outcome, ingest = process(manifest, workspace, request_aoi or fetched_area(manifest))
+        with stage("normalize", f"Normalize and ingest {manifest.extensions.source_id}"):
+            outcome, ingest = process(manifest, workspace, request_aoi or fetched_area(manifest))
         outcomes.append(outcome)
         if ingest is not None:
             ingests.append(ingest)
 
-    published = publish_changed(ingests, workspace, request.access_scope, use_ai)
+    with stage("catalog.publish", "Publish updated datasets"):
+        published = publish_changed(ingests, workspace, request.access_scope, use_ai)
     return PipelineResult(response, outcomes, published)
 
 

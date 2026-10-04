@@ -32,6 +32,22 @@ def database(scenarios, request):
     elif variant == "species":
         from test_recipe import species_scenario
         species_scenario(scenarios[1])
+    elif variant == "cell_scope":
+        scenario = scenarios[1]
+        tracking = scenario["datasets"][0]
+        tracking["family"] = "animal_locations"
+        tracking["columns"].append({"name": "cell_id", "type": "string", "role": "cell_id",
+                                    "description": "Cell of the animal fix"})
+        scenario["rows"]["tracking"][0]["cell_id"] = "a"
+        rainfall = scenario["datasets"][2]
+        rainfall["family"] = "rainfall_observations"
+        rainfall["columns"][0]["role"] = "cell_id"
+        scenario["rows"]["rainfall"].extend({**row, "cell_id": "unused"}
+                                             for row in list(scenario["rows"]["rainfall"]))
+        scenario["recipe"]["inputs"].pop("cell_shapes")
+        scenario["recipe"]["inputs"] = dict(reversed(list(scenario["recipe"]["inputs"].items())))
+        scenario["recipe"]["steps"].pop(0)
+        scenario["recipe"]["steps"][0]["left"] = "tracking"
     import psycopg
     from psycopg import sql
     from psycopg.types.json import Jsonb
@@ -124,3 +140,50 @@ def test_postgis_rejects_overlapping_intervals(database, scenarios):
     datasets = {d.key: d for raw in s["datasets"] if (d := DatasetVersion.model_validate(raw))}
     with pytest.raises(RecipeError, match="non-overlapping intervals"):
         SupabaseExecutor(lambda: psycopg.connect(dsn), bindings, postgis_schema=POSTGIS_SCHEMA).execute(recipe, query, datasets)
+
+
+@pytest.mark.parametrize("database", ["cell_scope"], indirect=True)
+def test_postgis_cell_scope_preserves_history_and_missing_measurements(database, scenarios):
+    import psycopg
+
+    dsn, bindings, _ = database
+    scenario = scenarios[1]
+    recipe = RecipeSpec.model_validate(scenario["recipe"])
+    query = QuerySpec.model_validate(scenario["query"])
+    datasets = {d.key: d for raw in scenario["datasets"] if (d := DatasetVersion.model_validate(raw))}
+    expected, _ = FixtureExecutor(FixtureCatalog(scenario).read).execute(recipe, query, datasets)
+    executor = SupabaseExecutor(lambda: psycopg.connect(dsn), bindings, postgis_schema=POSTGIS_SCHEMA)
+
+    rows, report = executor.execute(recipe, query, datasets)
+
+    assert rows == expected
+    assert rows[0]["preceding_rainfall_mm"] == 5
+    assert report["cell_scopes"] == {"rain": ["tracking"]}
+    assert report["steps"]["rain: row count"] == 3
+    assert executor.compiler.compile(recipe, query, datasets).cell_scopes == {}
+
+    with psycopg.connect(dsn) as connection:
+        with pytest.raises(RecipeError, match="input row limit"):
+            SupabaseExecutor(lambda: connection, bindings, postgis_schema=POSTGIS_SCHEMA,
+                             max_rows=1).execute(recipe, query, datasets)
+
+
+def test_postgis_temp_tables_do_not_survive_execution(database, scenarios):
+    import psycopg
+
+    dsn, bindings, _ = database
+    scenario = scenarios[0]
+    recipe = RecipeSpec.model_validate(scenario["recipe"])
+    query = QuerySpec.model_validate(scenario["query"])
+    datasets = {d.key: d for raw in scenario["datasets"] if (d := DatasetVersion.model_validate(raw))}
+    connection = psycopg.connect(dsn)
+    connection.close = lambda: None
+    try:
+        executor = SupabaseExecutor(lambda: connection, bindings, postgis_schema=POSTGIS_SCHEMA)
+        first, _ = executor.execute(recipe, query, datasets)
+        second, _ = executor.execute(recipe, query, datasets)
+
+        assert first == second
+        assert connection.execute("SELECT count(*) FROM pg_class WHERE relnamespace=pg_my_temp_schema()").fetchone()[0] == 0
+    finally:
+        psycopg.Connection.close(connection)

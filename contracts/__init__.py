@@ -1,4 +1,4 @@
-"""Shared handoff models for Habitat Watch."""
+"""Shared handoff models for Dora."""
 
 from contracts.models import (
     AnalysisRequest,

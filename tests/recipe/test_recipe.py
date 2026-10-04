@@ -186,6 +186,71 @@ def test_planner_repairs_missing_column_with_bounded_feedback(scenarios, tmp_pat
     assert "missing column" in attempts[1][0]
 
 
+def test_requirement_filters_are_repaired_before_catalog_search(scenarios, tmp_path):
+    from unittest.mock import Mock
+
+    scenario = scenarios[0]
+    service = fixture_service(scenario, tmp_path)
+    searches = Mock(wraps=service.catalog.search_metadata)
+    service.catalog.search_metadata = searches
+    attempts = []
+
+    def generate(*, instructions, context, schema):
+        if schema.get("type") != "array":
+            return {"recipe": scenario["recipe"]}
+        assert searches.call_count == 0
+        attempts.append(deepcopy(context))
+        assert schema["$defs"]["Requirement"]["properties"]["filters"]["additionalProperties"] is False
+        requirements = deepcopy(scenario["requirements"])
+        if len(attempts) == 1:
+            requirements[0]["filters"]["region_bbox"] = [0, 0, 2, 2]
+        return requirements
+
+    service.planner = JsonPlanner(generate, search_filters={"tags": "Catalog tags"})
+    response = service.run(request_for(scenario))
+
+    assert response["status"] == "ok", response
+    assert len(attempts) == 2
+    assert "region_bbox" in attempts[1]["validation_feedback"][0]
+    assert searches.call_count == len(scenario["requirements"])
+
+
+def test_requirement_repair_is_bounded_and_does_not_execute(scenarios, tmp_path):
+    from unittest.mock import Mock
+
+    scenario = scenarios[0]
+    invalid = deepcopy(scenario["requirements"])
+    invalid[0]["filters"]["access_scope"] = "public"
+    generate = Mock(return_value=invalid)
+    service = fixture_service(scenario, tmp_path)
+    service.planner = JsonPlanner(generate, search_filters={"tags": "Catalog tags"})
+    service.catalog.search_metadata = Mock()
+    service.executor.execute = Mock()
+
+    response = service.run(request_for(scenario))
+
+    assert response["error"]["code"] == "INVALID_PLAN"
+    assert generate.call_count == 3
+    service.catalog.search_metadata.assert_not_called()
+    service.executor.execute.assert_not_called()
+
+
+def test_requirement_filter_values_use_catalog_validation(scenarios):
+    from habitat.recipe_inputs import HabitatRecipeCatalog, SEARCH_FILTERS
+
+    requirement = deepcopy(scenarios[0]["requirements"][0])
+    requirement["filters"] = {"family": ["invented_family"]}
+    repaired = deepcopy(requirement)
+    repaired["filters"] = {"family": "animal_daily_movement"}
+    responses = iter([[requirement], [repaired]])
+    planner = JsonPlanner(lambda **kwargs: next(responses), search_filters=SEARCH_FILTERS,
+                          validate_filters=HabitatRecipeCatalog.validate_filters)
+
+    requirements = planner.requirements(QuerySpec.model_validate(scenarios[0]["query"]))
+
+    assert requirements[0].filters == {"family": "animal_daily_movement"}
+
+
 def test_invalid_operation_exhausts_planner_without_executing(scenarios, tmp_path):
     s = scenarios[0]
     s["recipe"]["steps"][0]["operation"] = "run_arbitrary_sql"

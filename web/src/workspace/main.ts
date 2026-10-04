@@ -66,7 +66,7 @@ element('export').addEventListener('click', () => {
   );
   const link = node('a');
   link.href = url;
-  link.download = `habitat-${selected.source_id}-${store.through}.geojson`;
+  link.download = `dora-${selected.source_id}-${store.through}.geojson`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
