@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>rainfall_zones</Name><UserStyle><Title>Synthetic monthly rainfall</Title><FeatureTypeStyle><Rule><PolygonSymbolizer><Fill><CssParameter name="fill">#2878a8</CssParameter><CssParameter name="fill-opacity">0.50</CssParameter></Fill><Stroke><CssParameter name="stroke">#d9edf6</CssParameter><CssParameter name="stroke-width">0.4</CssParameter></Stroke></PolygonSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>
