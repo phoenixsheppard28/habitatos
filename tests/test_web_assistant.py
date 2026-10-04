@@ -7,6 +7,8 @@ import pytest
 
 from habitat import web_assistant
 from habitat.web import ChatRequest
+from habitat.web_charts import chart_specs
+from support import movement_request
 
 
 class ResponseBlock(SimpleNamespace):
@@ -208,3 +210,106 @@ def test_identical_failed_preparation_is_not_executed_twice(assistant, monkeypat
 
     prepare.assert_called_once_with(payload)
     assert result["answer"] == "Preparation failed."
+
+
+def test_analysis_results_reach_the_browser_without_the_map_or_model(assistant, monkeypatch):
+    responses, calls = assistant
+    responses.extend([
+        tool_response("analyze", {"prepared_id": "a" * 32, "question": "Chart daily movement"}),
+        tool_response("analyze", {"prepared_id": "a" * 32, "question": "Compare wet and dry windows"}),
+        text_response("The analyses are in Charts."),
+    ])
+    result = {
+        "result_id": "movement", "question": "Chart daily movement", "created_at": "2026-10-04T00:00:00Z",
+        "status": "complete", "findings": ["Median displacement was 7 km."],
+        "metrics": {"displacement_km_median": 7},
+        "timeline": {"series": [{"date": "2026-01-01", "median_daily_displacement": None,
+                                  "unit": "km", "predicted": False},
+                                 {"date": "2026-01-02", "median_daily_displacement": 7,
+                                  "unit": "km", "predicted": False}]},
+        "evidence": {"datasets": [{"dataset_id": "movement", "version": 1}]},
+        "limitations": ["Tracked sample only."], "artifact_versions": {"method": "movement_summary@1"},
+        "map": {"type": "FeatureCollection", "features": []}, "model_reference": None,
+    }
+    second = {**result, "result_id": "comparison", "question": "Compare wet and dry windows", "status": "partial"}
+    charts = chart_specs(result)
+    analyze = Mock(side_effect=[
+        {"analysis_id": "first", "prepared_id": "a" * 32, "status": "ok", "warnings": [],
+         "output": {"result": result, "model_artifact": None}, "charts": charts},
+        {"analysis_id": "second", "prepared_id": "a" * 32, "status": "partial", "warnings": ["One gap."],
+         "output": {"result": second, "model_artifact": None}, "charts": chart_specs(second)},
+    ])
+    monkeypatch.setattr(web_assistant, "analyze", analyze)
+
+    response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Analyze and chart movement"}]))
+
+    assert response["updated"] is False
+    assert [analysis["analysis_id"] for analysis in response["analyses"]] == ["first", "second"]
+    assert response["analyses"][0]["result"]["timeline"] == result["timeline"]
+    assert response["analyses"][1]["warnings"] == ["One gap."]
+    assert response["analyses"][0]["result"]["evidence"] == result["evidence"]
+    assert response["analyses"][0]["charts"] == charts
+    assert "map" not in response["analyses"][0]["result"]
+    assert "model_reference" not in response["analyses"][0]["result"]
+    assert "Charts tab" in calls[0]["system"]
+
+
+@pytest.mark.parametrize("status", ["error", "insufficient_data"])
+def test_failed_analysis_does_not_create_a_chart(assistant, monkeypatch, status):
+    responses, _ = assistant
+    responses.extend([tool_response("analyze", {}), text_response("No evidence is available.")])
+    monkeypatch.setattr(web_assistant, "analyze", Mock(return_value={
+        "status": status, "output": {"result": {"status": "insufficient_data", "findings": []}},
+    }))
+
+    response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Analyze movement"}]))
+
+    assert response["analyses"] == []
+
+
+def test_tool_limit_preserves_completed_analysis_charts(assistant, monkeypatch):
+    responses, _ = assistant
+    responses.append(tool_response("analyze", {}))
+    monkeypatch.setattr(web_assistant, "MAX_TOOL_ROUNDS", 1)
+    monkeypatch.setattr(web_assistant, "analyze", Mock(return_value={
+        "analysis_id": "completed", "prepared_id": "a" * 32, "status": "ok", "warnings": [],
+        "output": {"result": {"status": "complete", "findings": ["Result available."]}},
+    }))
+
+    response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Analyze movement"}]))
+
+    assert response["analyses"][0]["analysis_id"] == "completed"
+
+
+def test_real_analysis_produces_chart_specs_in_the_chat_response(assistant, tmp_path, monkeypatch):
+    responses, calls = assistant
+    request, store = movement_request(tmp_path)
+    prepared_id = "a" * 32
+    directory = tmp_path / "web" / prepared_id
+    directory.mkdir(parents=True)
+    (directory / "prepared.json").write_text(json.dumps({"query": request["input"]["query"], "recipe": {}}))
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, anthropic_api_key="test"))
+    monkeypatch.setattr(web_assistant, "RecipeArtifactReader", lambda *args: store)
+
+    def handoff(query, recipe, request_id):
+        return {**request, "request_id": request_id, "query_id": query["query_id"],
+                "input": {**request["input"], "query": query}}
+
+    monkeypatch.setattr(web_assistant, "analysis_request", handoff)
+    responses.extend([
+        tool_response("analyze", {"prepared_id": prepared_id, "question": "Chart movement and rainfall"}),
+        text_response("Movement and rainfall charts are ready."),
+    ])
+
+    response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Chart movement and rainfall"}]))
+
+    analysis = response["analyses"][0]
+    assert analysis["result"]["question"] == "Chart movement and rainfall"
+    assert [chart["kind"] for chart in analysis["charts"]] == ["bar", "line"]
+    timeline = analysis["charts"][1]
+    assert [point["y"] for point in timeline["series"][0]["points"]] == [None, 7, 4, 7]
+    assert timeline["y_axis"]["unit"] == "km"
+    assert analysis["result"]["evidence"]["datasets"] == [{"dataset_id": "dataset-movement", "version": "1"}]
+    tool_result = json.loads(calls[1]["messages"][-1]["content"][0]["content"])
+    assert tool_result["charts"][1]["title"] == timeline["title"]
+    assert "series" not in tool_result["charts"][1]

@@ -22,6 +22,7 @@ from habitat.pipeline import build_request, run as run_pipeline
 from habitat.recipe_inputs import FAMILIES, SEARCH_FILTERS, HabitatRecipeCatalog, executor
 from habitat.sources import SOURCES
 from habitat.web import catalog, connection, dataset_features, public_dataset
+from habitat.web_charts import chart_specs
 from workflow.recipe_handoff import RecipeArtifactReader, analysis_request
 
 
@@ -167,7 +168,9 @@ def analyze(payload):
     result = run_analysis(request, store=reader)
 
     return {"analysis_id": analysis_id, "prepared_id": context.prepared_id, "status": result["status"],
-            "output": result.get("output"), "warnings": result.get("warnings"), "error": result.get("error")}
+            "output": result.get("output"), "warnings": result.get("warnings"), "error": result.get("error"),
+            "charts": chart_specs((result.get("output") or {}).get("result") or {})
+            if result["status"] in {"ok", "partial"} else []}
 
 
 def retrieve(payload):
@@ -235,6 +238,7 @@ def answer_with_tools(request):
     updated = False
     retrieved_dataset_ids = []
     citations = []
+    analyses = []
     assistant = client()
     prepared_results = {}
     for round_index in range(MAX_TOOL_ROUNDS):
@@ -246,6 +250,9 @@ def answer_with_tools(request):
             "missing evidence from zero. Cite dataset IDs, versions and source URLs. Explain incompatible dates "
             "or regions before comparing layers. Use summarize_dataset for numerical summaries. For scientific "
             "questions, call prepare once to build the analysis table, then call analyze with its prepared_id. "
+            "For requests for charts, plots, trends or comparisons, use prepare and analyze. Successful analysis "
+            "results appear automatically in the Charts tab, including timelines and supported comparisons. "
+            "Mention the Charts tab after a successful analysis. Never invent chart data in your written answer. "
             "Run further analyses on the same prepared_id instead of preparing again. Prepare again only when "
             "the region, dates, species or required variables change. Do not repeat an identical failed prepare call. "
             "Preparation repairs invalid plans internally. If preparation still fails, explain the actual error. "
@@ -275,7 +282,8 @@ def answer_with_tools(request):
         if not calls:
             text = "\n".join(block.text for block in response.content if block.type == "text")
             return {"answer": text or "The assistant returned no answer. Try a more specific question.",
-                    "updated": updated, "citations": citations, "retrieved_dataset_ids": retrieved_dataset_ids}
+                    "updated": updated, "citations": citations, "retrieved_dataset_ids": retrieved_dataset_ids,
+                    "analyses": analyses}
 
         messages.append({"role": "assistant", "content": [block.model_dump(exclude_none=True)
                                                            for block in response.content]})
@@ -297,6 +305,18 @@ def answer_with_tools(request):
                 elif call.name == "analyze":
                     with stage("analysis", "Run the validated analysis"):
                         output = analyze(call.input)
+                    result = (output.get("output") or {}).get("result")
+                    if output.get("status") in {"ok", "partial"} and result:
+                        analyses.append({
+                            "analysis_id": output["analysis_id"], "prepared_id": output["prepared_id"],
+                            "status": output["status"], "warnings": output.get("warnings") or [],
+                            "charts": output.get("charts") or [],
+                            "result": {key: result[key] for key in
+                                       ("result_id", "question", "created_at", "status", "findings", "metrics",
+                                        "timeline", "evidence", "limitations", "artifact_versions") if key in result},
+                        })
+                    output = {**output, "charts": [{key: chart[key] for key in ("chart_id", "title", "kind")}
+                                                   for chart in output.get("charts") or []]}
                 elif call.name == "retrieve":
                     with stage("retrieval", "Fetch, normalize and publish source data"):
                         output = retrieve(call.input)
@@ -320,4 +340,5 @@ def answer_with_tools(request):
         messages.append({"role": "user", "content": results})
 
     return {"answer": "The assistant reached its tool limit. Narrow the region, dates, or question.",
-            "updated": updated, "citations": citations, "retrieved_dataset_ids": retrieved_dataset_ids}
+            "updated": updated, "citations": citations, "retrieved_dataset_ids": retrieved_dataset_ids,
+            "analyses": analyses}
