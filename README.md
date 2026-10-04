@@ -21,7 +21,7 @@ Database records, downloaded files, and analysis artifacts persist in Docker vol
 The first start creates an empty catalog.
 Use the assistant or the pipeline command to retrieve data.
 
-Set `ANTHROPIC_API_KEY` in the root `.env` file to enable the assistant.
+Set `OPENAI_API_KEY` in the root `.env` file to enable the assistant.
 Movebank study retrieval also requires `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
 Compose reads these settings at runtime.
 

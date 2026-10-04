@@ -64,7 +64,7 @@ export class WorkspaceAssistant {
       if (!this.busy) {
         element('assistant-status').textContent = state.assistantAvailable
           ? 'Dora is connected · local imports remain on this device.'
-          : 'Set ANTHROPIC_API_KEY on the backend to use Dora.';
+          : 'Set OPENAI_API_KEY on the backend to use Dora.';
       }
     });
   }

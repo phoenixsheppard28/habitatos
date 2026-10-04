@@ -1,14 +1,14 @@
-"""Claude-backed fetch agent on the Anthropic SDK tool runner."""
+"""OpenAI-backed fetch agent with bounded local tools."""
 
+import json
 from dataclasses import dataclass
 
-import anthropic
+from openai import OpenAI
 
 from habitat import llm
-from habitat.fetch.tools import FETCH_AGENT_TOOLS
+from habitat.fetch.tools import FETCH_AGENT_TOOLS, tool_definition
 
 MAX_ITERATIONS = 20
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 FETCH_INSTRUCTIONS = """
 You are Dora's fetch assistant. Your job is to find and download
@@ -44,20 +44,29 @@ class AgentRun:
     refused: bool = False
 
 
-def run_agent(prompt: str, client: anthropic.Anthropic | None = None, max_iterations: int = MAX_ITERATIONS) -> AgentRun:
-    runner = (client or llm.client()).beta.messages.tool_runner(
-        model=llm.FETCH_MODEL,
-        max_tokens=16000,
-        system=FETCH_INSTRUCTIONS,
-        tools=FETCH_AGENT_TOOLS,
-        messages=[{"role": "user", "content": prompt}],
-        max_iterations=max_iterations,
-        output_config={"effort": "medium"},
-        betas=[FALLBACK_BETA],
-        fallbacks="default",
-    )
-    last = runner.until_done()
+def run_agent(prompt: str, client: OpenAI | None = None, max_iterations: int = MAX_ITERATIONS) -> AgentRun:
+    assistant = client or llm.client()
+    messages = [{"role": "system", "content": FETCH_INSTRUCTIONS}, {"role": "user", "content": prompt}]
+    tools = [tool_definition(function) for function in FETCH_AGENT_TOOLS]
+    functions = {function.__name__: function for function in FETCH_AGENT_TOOLS}
 
-    summary = "\n".join(block.text for block in last.content if block.type == "text")
-    # The runner stops at the limit right after a turn that still asked for tools.
-    return AgentRun(summary=summary, reached_limit=last.stop_reason == "tool_use", refused=last.stop_reason == "refusal")
+    for _ in range(max_iterations):
+        response = assistant.chat.completions.create(
+            model=llm.FETCH_MODEL, max_completion_tokens=16000, tools=tools, messages=messages,
+        )
+        message = response.choices[0].message
+        if message.refusal:
+            return AgentRun(summary=message.refusal, reached_limit=False, refused=True)
+        if not message.tool_calls:
+            return AgentRun(summary=message.content or "", reached_limit=False)
+
+        messages.append(message.model_dump(exclude_none=True))
+        for call in message.tool_calls:
+            try:
+                arguments = json.loads(call.function.arguments)
+                result = functions[call.function.name](**arguments)
+            except Exception as error:
+                result = f"Tool failed ({type(error).__name__}): {error}"
+            messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
+
+    return AgentRun(summary="", reached_limit=True)

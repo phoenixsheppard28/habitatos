@@ -1,20 +1,19 @@
 """Agent-facing tools — thin wrappers over habitat.fetch.service."""
 
 import json
+from inspect import Parameter, signature
 
-from anthropic import beta_tool
+from pydantic import create_model
 from recipe.progress import stage
 
 from habitat.fetch import service, session
 
 
-@beta_tool
 def list_downloaded_files() -> str:
     """List files currently stored in the local raw data archive."""
     return json.dumps(service.list_downloaded_files())
 
 
-@beta_tool
 def search_catalog(
     query: str,
     species: list[str] | None = None,
@@ -35,21 +34,18 @@ def search_catalog(
     return json.dumps(results, indent=2)
 
 
-@beta_tool
 def inspect_source(dataset_id: str) -> str:
     """Return metadata, coverage, and rights for a catalog dataset id."""
     with stage("fetch.inspect", "Inspect source metadata"):
         return json.dumps(service.inspect_source(dataset_id), indent=2)
 
 
-@beta_tool
 def check_access(dataset_id: str) -> str:
     """Check whether a dataset can be downloaded under its license and access rules."""
     with stage("fetch.access", "Check source access"):
         return json.dumps(service.check_access(dataset_id), indent=2)
 
 
-@beta_tool
 def download_dataset(dataset_id: str) -> str:
     """
     Download a dataset by id into the raw archive and return its RawManifest JSON.
@@ -62,7 +58,6 @@ def download_dataset(dataset_id: str) -> str:
     return json.dumps(result, indent=2)
 
 
-@beta_tool
 def fetch_environment(
     bbox: list[float],
     start: str,
@@ -99,3 +94,15 @@ FETCH_AGENT_TOOLS = [
     download_dataset,
     fetch_environment,
 ]
+
+
+def tool_definition(function) -> dict:
+    parameters = signature(function).parameters
+    fields = {
+        name: (parameter.annotation, ... if parameter.default is Parameter.empty else parameter.default)
+        for name, parameter in parameters.items()
+    }
+    schema = create_model(f"{function.__name__}Arguments", **fields).model_json_schema()
+    return {"type": "function", "function": {
+        "name": function.__name__, "description": function.__doc__.strip(), "parameters": schema,
+    }}

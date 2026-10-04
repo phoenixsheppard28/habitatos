@@ -64,8 +64,8 @@ def test_invalid_classifier_scores_fail_instead_of_becoming_evidence(rainfall, s
         GLiClassLabeler("http://classifier:8001", transport=transport).label_dataset(rainfall, [])
 
 
-def test_local_configuration_labels_without_an_anthropic_key():
-    config.configure(classifier_url="http://classifier:8001", classifier_threshold=0.8, anthropic_api_key=None)
+def test_local_configuration_labels_without_an_openai_key():
+    config.configure(classifier_url="http://classifier:8001", classifier_threshold=0.8, openai_api_key=None)
 
     labeler = dataset_labeler()
 

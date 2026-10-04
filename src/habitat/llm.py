@@ -1,14 +1,14 @@
-import anthropic
+from openai import OpenAI
 
 from habitat.config import settings
 
-FETCH_MODEL = "claude-sonnet-5-5"
-CATALOG_MODEL = "claude-opus-5-5"
+FETCH_MODEL = "gpt-4.1-mini"
+CATALOG_MODEL = "gpt-4.1"
 
 
-def client() -> anthropic.Anthropic:
-    api_key = settings().anthropic_api_key
+def client() -> OpenAI:
+    api_key = settings().openai_api_key
     if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set. Add it to the .env file at the project root.")
+        raise RuntimeError("OPENAI_API_KEY is not set. Add it to the .env file at the project root.")
 
-    return anthropic.Anthropic(api_key=api_key)
+    return OpenAI(api_key=api_key)

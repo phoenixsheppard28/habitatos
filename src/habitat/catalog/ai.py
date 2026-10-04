@@ -2,14 +2,12 @@ import json
 from datetime import datetime
 from typing import Any, Protocol
 
-import anthropic
+from openai import OpenAI
 from pydantic import BaseModel
 
 from habitat.catalog.tags import validate_ai_tags
 from habitat import llm
 from habitat.contracts import DatasetVersion, Tag, load_contract
-
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 TAGGING_SYSTEM = """You label ecological datasets for a search catalog.
 Choose tags only from the vocabulary in the request. Choose a tag only when the metadata or sample rows support it.
@@ -59,7 +57,7 @@ def tag_schema(vocabulary: dict[str, list[str]]) -> dict[str, Any]:
 
 
 class CatalogAssistant:
-    def __init__(self, client: anthropic.Anthropic | None = None, model: str = llm.CATALOG_MODEL):
+    def __init__(self, client: OpenAI | None = None, model: str = llm.CATALOG_MODEL):
         self.client = client or llm.client()
         self.model = model
         self.vocabulary: dict[str, list[str]] = load_contract("tag_vocabulary.json")["ai_keys"]
@@ -117,17 +115,16 @@ class CatalogAssistant:
         return QuestionFilters.model_validate(answer)
 
     def structured_call(self, system: str, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
-        response = self.client.beta.messages.create(
+        response = self.client.chat.completions.create(
             model=self.model,
-            max_tokens=16000,
-            betas=[FALLBACK_BETA],
-            fallbacks="default",
-            system=system,
-            output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
-            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=16000,
+            response_format={"type": "json_schema", "json_schema": {"name": "catalog_result", "strict": True, "schema": schema}},
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
         )
-        if response.stop_reason == "refusal":
-            raise RefusedError(f"model declined: {response.stop_details}")
+        choice = response.choices[0]
+        if choice.message.refusal:
+            raise RefusedError(f"model declined: {choice.message.refusal}")
+        if choice.finish_reason != "stop" or not choice.message.content:
+            raise ValueError(f"model returned no complete structured answer: {choice.finish_reason}")
 
-        text = next(block.text for block in response.content if block.type == "text")
-        return json.loads(text)
+        return json.loads(choice.message.content)

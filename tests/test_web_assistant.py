@@ -12,15 +12,19 @@ from support import movement_request
 
 class ResponseBlock(SimpleNamespace):
     def model_dump(self, **kwargs):
-        return vars(self)
+        return {"role": "assistant", "content": self.content,
+                "tool_calls": [{"id": call.id, "type": "function",
+                                "function": {"name": call.function.name, "arguments": call.function.arguments}}
+                               for call in self.tool_calls or []]}
 
 
 def text_response(text):
-    return SimpleNamespace(content=[ResponseBlock(type="text", text=text)])
+    return SimpleNamespace(choices=[SimpleNamespace(message=ResponseBlock(content=text, tool_calls=None))])
 
 
 def tool_response(name, payload):
-    return SimpleNamespace(content=[ResponseBlock(type="tool_use", id=f"tool-{name}", name=name, input=payload)])
+    call = SimpleNamespace(id=f"tool-{name}", function=SimpleNamespace(name=name, arguments=json.dumps(payload)))
+    return SimpleNamespace(choices=[SimpleNamespace(message=ResponseBlock(content=None, tool_calls=[call]))])
 
 
 @pytest.fixture
@@ -32,8 +36,8 @@ def assistant(monkeypatch):
         calls.append(deepcopy(kwargs))
         return responses.pop(0)
 
-    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(anthropic_api_key="test"))
-    monkeypatch.setattr(web_assistant, "client", lambda: SimpleNamespace(messages=SimpleNamespace(create=create)))
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(openai_api_key="test"))
+    monkeypatch.setattr(web_assistant, "client", lambda: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
     monkeypatch.setattr(web_assistant, "catalog", lambda: {"datasets": [], "assistant_available": True})
 
     return responses, calls
@@ -53,6 +57,25 @@ def test_missing_data_offer_does_not_retrieve_before_the_user_agrees(assistant, 
     assert response["updated"] is False
     assert response["retrieved_dataset_ids"] == []
     retrieve.assert_not_called()
+
+
+def test_planner_uses_openai_answer_function(monkeypatch):
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        return tool_response("answer", {"value": [{"dataset_id": "rainfall"}]})
+
+    monkeypatch.setattr(web_assistant, "client", lambda: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
+
+    result = web_assistant.generate_plan(
+        instructions="Select datasets", context={"datasets": []}, schema={"type": "array", "items": {"type": "object"}},
+    )
+
+    assert result == [{"dataset_id": "rainfall"}]
+    assert calls[0]["tool_choice"] == {"type": "function", "function": {"name": "answer"}}
+    assert calls[0]["tools"][0]["function"]["parameters"]["properties"]["value"]["type"] == "array"
 
 
 def test_confirmation_retrieves_refreshes_evidence_and_returns_the_published_dataset(assistant, monkeypatch):
@@ -90,10 +113,12 @@ def test_confirmation_retrieves_refreshes_evidence_and_returns_the_published_dat
     assert response["updated"] is True
     assert response["retrieved_dataset_ids"] == ["rainfall"]
     assert response["citations"] == [citation]
-    refreshed_context = json.loads(calls[1]["system"].split("Workspace context: ", 1)[1])
+    refreshed_context = json.loads(calls[1]["messages"][0]["content"].split("Workspace context: ", 1)[1])
     assert refreshed_context["datasets"] == [dataset]
     assert refreshed_context["retrieved_dataset_ids"] == ["rainfall"]
     assert calls[0]["messages"][-1] == {"role": "user", "content": "yes"}
+    assert calls[1]["messages"][-2]["tool_calls"][0]["function"]["name"] == "retrieve"
+    assert calls[1]["messages"][-1]["role"] == "tool"
 
 
 def test_empty_retrieval_does_not_report_a_workspace_update(assistant, monkeypatch):
@@ -275,7 +300,7 @@ def test_analysis_results_reach_the_browser_without_the_map_or_model(assistant, 
     assert response["analyses"][0]["charts"] == []
     assert "map" not in response["analyses"][0]["result"]
     assert "model_reference" not in response["analyses"][0]["result"]
-    assert "Charts tab" in calls[0]["system"]
+    assert "Charts tab" in calls[0]["messages"][0]["content"]
 
 
 @pytest.mark.parametrize("status", ["error", "insufficient_data"])
@@ -312,7 +337,7 @@ def prepared(assistant, tmp_path, monkeypatch):
     directory = tmp_path / "web" / prepared_id
     directory.mkdir(parents=True)
     (directory / "prepared.json").write_text(json.dumps({"query": request["input"]["query"], "recipe": {}}))
-    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, anthropic_api_key="test"))
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, openai_api_key="test"))
     monkeypatch.setattr(web_assistant, "RecipeArtifactReader", lambda *args: store)
     monkeypatch.setattr(web_assistant, "uuid4", lambda: SimpleNamespace(hex="b" * 32))
 
@@ -340,7 +365,7 @@ def test_plot_code_runs_on_the_prepared_table_and_the_figure_reaches_the_browser
     assert chart["code"] == code
     assert chart["figure"]["data"][0]["type"] == "scatter"
     assert chart["figure"]["layout"]["template"]["layout"]["colorway"][0] == "#387c78"
-    tool_result = json.loads(calls[2]["messages"][-1]["content"][0]["content"])
+    tool_result = json.loads(calls[2]["messages"][-1]["content"])
     assert tool_result == {"status": "ok", "chart_id": "b" * 32, "figure": {
         "title": "Movement and rainfall", "traces": [{"type": "scatter", "mode": "markers"}]}}
 
@@ -356,7 +381,7 @@ def test_plot_errors_return_the_traceback_so_the_model_can_fix_the_code(assistan
     response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Chart movement"}]))
 
     assert response["analyses"][0]["charts"] == []
-    tool_result = json.loads(calls[2]["messages"][-1]["content"][0]["content"])
+    tool_result = json.loads(calls[2]["messages"][-1]["content"])
     assert tool_result["status"] == "error"
     assert "missing" in tool_result["error"]
     assert 'File "<plot>"' in tool_result["error"]
@@ -371,7 +396,7 @@ def test_plot_needs_an_analysis_from_the_same_turn(assistant):
 
     web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Chart movement"}]))
 
-    tool_result = json.loads(calls[1]["messages"][-1]["content"][0]["content"])
+    tool_result = json.loads(calls[1]["messages"][-1]["content"])
     assert "Call analyze first" in tool_result["error"]
 
 
@@ -382,7 +407,7 @@ def test_statistics_tables_and_method_selection_reach_the_browser(assistant, tmp
     directory = tmp_path / "web" / prepared_id
     directory.mkdir(parents=True)
     (directory / "prepared.json").write_text(json.dumps({"query": request["input"]["query"], "recipe": {}}))
-    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, anthropic_api_key="test"))
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, openai_api_key="test"))
     monkeypatch.setattr(web_assistant, "RecipeArtifactReader", lambda *args: store)
     monkeypatch.setattr(web_assistant, "analysis_request", lambda query, recipe, request_id: {
         **request, "request_id": request_id, "query_id": query["query_id"], "input": {**request["input"], "query": query},
@@ -400,5 +425,5 @@ def test_statistics_tables_and_method_selection_reach_the_browser(assistant, tmp
     assert analysis["result"]["artifact_versions"]["method"] == "statistics@1"
     assert analysis["result"]["tables"][0]["title"] == "Descriptive statistics"
     assert analysis["result"]["metrics"]["variables"]["rainfall"]["n"] == 7
-    tool = next(tool for tool in calls[0]["tools"] if tool["name"] == "analyze")
-    assert "analysis" in tool["input_schema"]["properties"]
+    tool = next(tool for tool in calls[0]["tools"] if tool["function"]["name"] == "analyze")
+    assert "analysis" in tool["function"]["parameters"]["properties"]

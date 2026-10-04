@@ -23,6 +23,14 @@ def test_process_environment_wins_over_env_file(tmp_path, monkeypatch):
     assert config.load_settings(env_file).data_dir == tmp_path.resolve()
 
 
+def test_openai_key_uses_process_environment(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=file-key\n")
+    monkeypatch.setenv("OPENAI_API_KEY", "process-key")
+
+    assert config.load_settings(env_file).openai_api_key == "process-key"
+
+
 def test_relative_data_dir_is_relative_to_the_project(tmp_path, monkeypatch):
     monkeypatch.setenv(config.DATA_DIR_VARIABLE, "elsewhere")
 

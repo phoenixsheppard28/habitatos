@@ -30,7 +30,7 @@ pnpm --dir web install
 ```
 
 Configure `HABITAT_DATABASE_URL` in the root `.env` file.
-Configure `ANTHROPIC_API_KEY` to enable the assistant.
+Configure `OPENAI_API_KEY` to enable the assistant.
 Movebank study retrieval also uses `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
 
 Start the backend in one terminal:

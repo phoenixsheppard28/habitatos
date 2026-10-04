@@ -1,11 +1,9 @@
 import asyncio
-import subprocess
 
 import pytest
 
-from fake_claude import FakeClaude, text, tool_use
+from fake_openai import FakeOpenAI, text, tool_use
 from habitat import llm
-from habitat.config import PROJECT_ROOT
 from habitat.contracts import FetchRequest, FetchRequestInput, FetchRequirements, QuerySpec, TimeRange
 from habitat.fetch import agent, run as fetch_run, service
 from habitat.fetch.run import run, run_with_agent
@@ -23,9 +21,9 @@ def request(question="demo", **requirements) -> FetchRequest:
 
 
 @pytest.fixture
-def fake_claude(monkeypatch):
+def fake_openai(monkeypatch):
     def install(turns, repeat_last=False):
-        fake = FakeClaude(turns, repeat_last)
+        fake = FakeOpenAI(turns, repeat_last)
         monkeypatch.setattr(llm, "client", fake.client)
         return fake
 
@@ -63,11 +61,11 @@ def test_coverage_mismatch_reported():
     assert result.output.raw_artifacts[0].coverage.start.year == 2025
 
 
-def test_agent_searches_then_downloads_one_artifact(fake_claude):
-    fake = fake_claude([
+def test_agent_searches_then_downloads_one_artifact(fake_openai):
+    fake = fake_openai([
         [tool_use("search_catalog", query="antelope movement", include_internet=False)],
         [tool_use("download_dataset", dataset_id="fixture-movement-001")],
-        [text("Downloaded the demo antelope tracks.")],
+        text("Downloaded the demo antelope tracks."),
     ])
 
     result = asyncio.run(run_with_agent(request()))
@@ -78,14 +76,14 @@ def test_agent_searches_then_downloads_one_artifact(fake_claude):
     assert "fixture-movement-001" in fake.tool_results()[0]
     first = fake.requests[0]
     assert first["model"] == llm.FETCH_MODEL
-    assert first["system"] == agent.FETCH_INSTRUCTIONS
-    assert {t["name"] for t in first["tools"]} == {t.name for t in agent.FETCH_AGENT_TOOLS}
+    assert first["messages"][0] == {"role": "system", "content": agent.FETCH_INSTRUCTIONS}
+    assert {t["function"]["name"] for t in first["tools"]} == {t.__name__ for t in agent.FETCH_AGENT_TOOLS}
 
 
-def test_agent_loop_limit_returns_partial(fake_claude, monkeypatch):
+def test_agent_loop_limit_returns_partial(fake_openai, monkeypatch):
     monkeypatch.setattr(agent, "MAX_ITERATIONS", 3)
     monkeypatch.setattr(fetch_run, "run_agent", lambda prompt: agent.run_agent(prompt, max_iterations=3))
-    fake = fake_claude([
+    fake = fake_openai([
         [tool_use("download_dataset", dataset_id="fixture-movement-001")],
         [tool_use("list_downloaded_files")],
     ], repeat_last=True)
@@ -99,17 +97,17 @@ def test_agent_loop_limit_returns_partial(fake_claude, monkeypatch):
     assert len(result.output.raw_artifacts) == 1
 
 
-def test_agent_handoff_uses_only_this_requests_receipts(fake_claude):
+def test_agent_handoff_uses_only_this_requests_receipts(fake_openai):
     service.download_dataset("fixture-rainfall-001")
-    fake_claude([[tool_use("download_dataset", dataset_id="fixture-movement-001")], [text("done")]])
+    fake_openai([[tool_use("download_dataset", dataset_id="fixture-movement-001")], text("done")])
 
     result = asyncio.run(run_with_agent(request()))
 
     assert [a.source.study_id for a in result.output.raw_artifacts] == ["study-demo-1"]
 
 
-def test_agent_claim_without_download_is_insufficient(fake_claude):
-    fake_claude([[text("I downloaded everything")]])
+def test_agent_claim_without_download_is_insufficient(fake_openai):
+    fake_openai([text("I downloaded everything")])
 
     result = asyncio.run(run_with_agent(request()))
 
@@ -117,7 +115,7 @@ def test_agent_claim_without_download_is_insufficient(fake_claude):
     assert not result.output.raw_artifacts
 
 
-def test_agent_keeps_downloads_after_failure(fake_claude, monkeypatch):
+def test_agent_keeps_downloads_after_failure(fake_openai, monkeypatch):
     def failing_agent(prompt):
         service.download_dataset("fixture-movement-001")
         raise TimeoutError()
@@ -147,15 +145,6 @@ def test_account_scoped_downloads_are_not_in_the_public_handoff():
 
     assert receipts.artifacts == {}
     assert "excluded from public handoff" in receipts.warnings[0]
-
-
-def test_no_other_llm_provider_code_remains():
-    # Built from parts, so this file does not match its own search.
-    pattern = "|".join(["open" + "router", "open" + "ai", "from " + "agents"])
-    found = subprocess.run(
-        ["grep", "-rniE", pattern, "src", "tests"], cwd=PROJECT_ROOT, capture_output=True, text=True
-    ).stdout
-    assert found == ""
 
 
 @pytest.mark.live

@@ -1,5 +1,7 @@
 # Merge plan: fetch_pipeline + processing_pipeline → one `habitat` package
 
+Historical plan (2026-10-03). Its Anthropic decisions are obsolete. The current application uses OpenAI; see `src/habitat/llm.py` and `.env.example`.
+
 This document is the task specification for one agent. Do the phases in order.
 Do not start a phase until the tests of the previous phase pass.
 

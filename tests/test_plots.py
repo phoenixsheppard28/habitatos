@@ -21,12 +21,12 @@ def test_files_processes_and_network_are_not_available(code):
 
 
 def test_backend_secrets_are_not_in_the_plot_environment(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "secret")
     code = "fig = go.Figure(layout={'title': {'text': str(sorted(pd.io.common.os.environ))}})"
 
     figure = render_figure(TABLE, code)
 
-    assert "ANTHROPIC_API_KEY" not in figure["layout"]["title"]["text"]
+    assert "OPENAI_API_KEY" not in figure["layout"]["title"]["text"]
 
 
 def test_code_must_assign_a_figure():

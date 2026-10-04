@@ -18,7 +18,7 @@ services:
     <<: *app
     environment:
       <<: *app-environment
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MOVEBANK_USERNAME: ${MOVEBANK_USERNAME:-}
       MOVEBANK_PASSWORD: ${MOVEBANK_PASSWORD:-}
       HABITAT_CLASSIFIER_URL: http://classifier:8001

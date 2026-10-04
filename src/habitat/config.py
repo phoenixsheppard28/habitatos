@@ -15,7 +15,7 @@ DATA_DIR_VARIABLE = "HABITAT_DATA_DIR"
 class Settings:
     database_url: str | None
     data_dir: Path
-    anthropic_api_key: str | None
+    openai_api_key: str | None
     movebank_username: str | None
     movebank_password: str | None
     classifier_url: str | None = None
@@ -47,7 +47,7 @@ def load_settings(env_file: Path = ENV_FILE) -> Settings:
     return Settings(
         database_url=values.get(DATABASE_URL_VARIABLE) or None,
         data_dir=(data_dir if data_dir.is_absolute() else PROJECT_ROOT / data_dir).resolve(),
-        anthropic_api_key=values.get("ANTHROPIC_API_KEY") or None,
+        openai_api_key=values.get("OPENAI_API_KEY") or None,
         movebank_username=values.get("MOVEBANK_USERNAME") or None,
         movebank_password=values.get("MOVEBANK_PASSWORD") or None,
         classifier_url=values.get("HABITAT_CLASSIFIER_URL") or None,

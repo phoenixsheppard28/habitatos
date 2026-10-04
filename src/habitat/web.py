@@ -48,7 +48,7 @@ def catalog():
     fields = ("dataset_id", "version", "family", "source_id", "description", "summary", "coverage",
               "variables", "row_count", "created_at", "raw_artifact_refs")
     return {"datasets": [{key: row["descriptor"].get(key) for key in fields} for row in rows],
-            "assistant_available": bool(settings().anthropic_api_key)}
+            "assistant_available": bool(settings().openai_api_key)}
 
 
 def dataset_features(dataset_id):

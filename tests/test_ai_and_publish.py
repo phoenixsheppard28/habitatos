@@ -15,24 +15,22 @@ from habitat.storage.series import SeriesStore
 
 
 class FakeMessages:
-    def __init__(self, answers, stop_reason="end_turn"):
+    def __init__(self, answers, refusal=None):
         self.answers = list(answers)
-        self.stop_reason = stop_reason
+        self.refusal = refusal
         self.requests = []
 
     def create(self, **request):
         self.requests.append(request)
         text = json.dumps(self.answers.pop(0)) if self.answers else ""
-        return SimpleNamespace(
-            stop_reason=self.stop_reason,
-            stop_details=None,
-            content=[SimpleNamespace(type="text", text=text)],
-        )
+        return SimpleNamespace(choices=[SimpleNamespace(
+            finish_reason="stop", message=SimpleNamespace(content=text, refusal=self.refusal),
+        )])
 
 
-def fake_assistant(answers, stop_reason="end_turn"):
-    messages = FakeMessages(answers, stop_reason)
-    client = SimpleNamespace(beta=SimpleNamespace(messages=messages))
+def fake_assistant(answers, refusal=None):
+    messages = FakeMessages(answers, refusal)
+    client = SimpleNamespace(chat=SimpleNamespace(completions=messages))
     return CatalogAssistant(client=client), messages
 
 
@@ -60,12 +58,12 @@ def test_parse_question_keeps_species_names_for_later_resolution():
     assert filters.species_names == ["antelope"]
     assert filters.tags_any == [Tag(key="topic", value="drought", origin=TagOrigin.AI)]
     request = messages.requests[0]
-    assert request["output_config"]["format"]["type"] == "json_schema"
-    assert request["fallbacks"] == "default"
+    assert request["response_format"]["type"] == "json_schema"
+    assert request["response_format"]["json_schema"]["strict"] is True
 
 
 def test_refusal_raises_instead_of_returning_empty_filters():
-    assistant, _ = fake_assistant([], stop_reason="refusal")
+    assistant, _ = fake_assistant([], refusal="declined")
 
     with pytest.raises(RefusedError):
         assistant.parse_question("anything")

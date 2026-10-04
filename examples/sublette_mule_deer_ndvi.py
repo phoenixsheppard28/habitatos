@@ -1,6 +1,6 @@
 """End-to-end run: how did Wyoming Sublette mule deer move in response to NDVI changes in spring 2019?
 
-The coordinator runs Fetch, Normalize, Recipe and Analysis for one historical query. Claude plans the recipe;
+The coordinator runs Fetch, Normalize, Recipe and Analysis for one historical query. OpenAI plans the recipe;
 `--scripted` uses a fixed recipe instead. The last section compares movement with NDVI change per 1 km cell,
 which the Analysis lane does not calculate.
 
@@ -80,31 +80,30 @@ class AcceptAll:
                           {role: float(role == "primary_evidence") for role in ROLES}, 1, 1)
 
 
-def claude_generate(*, instructions, context, schema):
-    """Structured output through a tool call. The tool input must be an object, so arrays are wrapped.
-
-    Opus 5.5 rejects a forced tool_choice, so the system prompt asks for the call.
-    """
+def openai_generate(*, instructions, context, schema):
+    """Wrap array results in an object for the answer tool."""
     schema = dict(schema)
     definitions = schema.pop("$defs", {})
     tool = {
-        "name": "answer",
-        "description": "Return the answer.",
-        "input_schema": {"type": "object", "properties": {"value": schema}, "required": ["value"],
-                         "$defs": definitions},
+        "type": "function", "function": {
+            "name": "answer", "description": "Return the answer.",
+            "parameters": {"type": "object", "properties": {"value": schema}, "required": ["value"],
+                           "$defs": definitions},
+        },
     }
-    message = client().messages.create(
+    response = client().chat.completions.create(
         model=CATALOG_MODEL,
-        max_tokens=16000,
-        system=PLANNER_SYSTEM,
+        max_completion_tokens=16000,
         tools=[tool],
-        messages=[{"role": "user", "content": f"{instructions}\n\nContext:\n{json.dumps(context, default=str)}"}],
+        tool_choice={"type": "function", "function": {"name": "answer"}},
+        messages=[{"role": "system", "content": PLANNER_SYSTEM},
+                  {"role": "user", "content": f"{instructions}\n\nContext:\n{json.dumps(context, default=str)}"}],
     )
 
-    block = next((block for block in message.content if block.type == "tool_use"), None)
-    if block is None:
+    call = next((call for call in response.choices[0].message.tool_calls or [] if call.function.name == "answer"), None)
+    if call is None:
         raise ValueError("the planner answered without the answer tool")
-    return block.input["value"]
+    return json.loads(call.function.arguments)["value"]
 
 
 def scripted_generate(*, instructions, context, schema):
@@ -150,7 +149,7 @@ def movement_and_ndvi_recipe(movement: dict, vegetation: dict) -> dict:
 
 def build_coordinator(connection: psycopg.Connection, scripted: bool) -> tuple[Coordinator, RecipeService]:
     catalog = HabitatRecipeCatalog(PostgresCatalog(connection), allowed_scopes={"public"})
-    planner = JsonPlanner(scripted_generate if scripted else claude_generate, search_filters=SEARCH_FILTERS)
+    planner = JsonPlanner(scripted_generate if scripted else openai_generate, search_filters=SEARCH_FILTERS)
     recipe_service = RecipeService(
         catalog=catalog, planner=planner, assessor=AcceptAll(),
         executor=executor(lambda: psycopg.connect(database_url()), catalog, max_rows=1_000_000,
@@ -246,7 +245,7 @@ def ndvi_change_response(frame: pd.DataFrame, connection: psycopg.Connection) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--scripted", action="store_true", help="use the fixed recipe instead of Claude")
+    parser.add_argument("--scripted", action="store_true", help="use the fixed recipe instead of OpenAI")
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING)
 

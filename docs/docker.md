@@ -42,7 +42,7 @@ Use `.env.example` as a reference.
 | `HABITAT_PORT` | `8080` | Host port for the app |
 | `HABITAT_FRONTEND_PORT` | `5173` | Host port for the Docker development frontend |
 | `HABITAT_POSTGRES_PASSWORD` | `habitat-local` | Password for the container database |
-| `ANTHROPIC_API_KEY` | Empty | Enable the assistant and model-based planning |
+| `OPENAI_API_KEY` | Empty | Enable the assistant and model-based planning |
 | `MOVEBANK_USERNAME` | Empty | Authenticate Movebank study requests |
 | `MOVEBANK_PASSWORD` | Empty | Authenticate Movebank study requests |
 | `HABITAT_CLASSIFIER_THRESHOLD` | `0.7` | Minimum score for model tags |
@@ -74,7 +74,7 @@ Deterministic tags retain priority.
 Classification scores indicate model confidence, not measured ecological evidence.
 An unavailable classifier leaves deterministic tagging active and records a warning in the app logs.
 The classifier retains the dataset description instead of generating a summary.
-Chatbot answers and structured analysis planning continue to use the configured Anthropic model.
+Chatbot answers and structured analysis planning use the configured OpenAI models.
 
 The internal service accepts `POST http://classifier:8001/classify` with `text`, `labels`, and an optional `threshold`.
 The service accepts at most 25 labels and returns the highest-scoring label when its score meets the threshold.

@@ -5,7 +5,7 @@ description = "Dora: fetch, archive, normalize, catalog, search, recipe feature 
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=0.70",
+    "openai>=1.100,<3",
     "httpx>=0.27",
     "numpy>=2.0",
     "pandas>=2.2",
