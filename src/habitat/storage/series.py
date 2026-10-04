@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from habitat.contracts import RawManifest
 from habitat.grid import Grid, parse_cell_id, transformer
 from habitat.normalize.rows import ANIMAL_ENTITIES, ANIMAL_LOCATIONS, CELL_OBSERVATIONS, NormalizedBatch
+from habitat.normalize.rows import MONITORING_SITES, SITE_OBSERVATIONS
 
 
 class BatchRecord(BaseModel):
@@ -281,6 +282,7 @@ def upsert_animal_entities(cursor: psycopg.Cursor, entities: pa.Table) -> None:
 
 
 REFERENCE_UPSERTS: dict[str, ReferenceUpsert] = {ANIMAL_ENTITIES: upsert_animal_entities}
+REFERENCE_UPSERTS[MONITORING_SITES] = upsert_on_key(MONITORING_SITES, ("site_id",))
 
 
 def version_parameters(version: SeriesVersion) -> dict[str, Any]:
@@ -338,12 +340,28 @@ def summarize_animal_locations(connection: psycopg.Connection, version: SeriesVe
     )
 
 
+def summarize_site_observations(connection: psycopg.Connection, version: SeriesVersion) -> SeriesSummary:
+    start, end, row_count, parameters = connection.execute(
+        f"""
+        SELECT min(time_start), max(time_end), count(*), coalesce(array_agg(DISTINCT parameter), '{{}}')
+        FROM site_observations
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        """,
+        version_parameters(version),
+    ).fetchone()
+
+    return SeriesSummary(
+        start, end, row_count, sorted(parameters), distinct_cell_ids(connection, SITE_OBSERVATIONS, version)
+    )
+
+
 FamilySummary = Callable[[psycopg.Connection, SeriesVersion], SeriesSummary]
 
 FAMILY_SUMMARIES: dict[str, FamilySummary] = {
     CELL_OBSERVATIONS: summarize_cell_observations,
     ANIMAL_LOCATIONS: summarize_animal_locations,
 }
+FAMILY_SUMMARIES[SITE_OBSERVATIONS] = summarize_site_observations
 
 
 def copy_rows(cursor: psycopg.Cursor, family: str, series_id: str, key: str, table: pa.Table) -> None:
