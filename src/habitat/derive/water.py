@@ -124,7 +124,9 @@ class Month:
     @classmethod
     def of(cls, day: date) -> "Month":
         first = day.replace(day=1)
-        return cls(datetime.combine(first, time.min, tzinfo=UTC), datetime.combine(next_month(first), time.min, tzinfo=UTC))
+        return cls(
+            datetime.combine(first, time.min, tzinfo=UTC), datetime.combine(next_month(first), time.min, tzinfo=UTC)
+        )
 
 
 def next_month(month: date) -> date:
@@ -260,7 +262,7 @@ def input_batches(
     with connection.cursor(row_factory=dict_row) as cursor:
         rows = cursor.execute(
             """
-            SELECT b.series_id, b.batch_key, b.mapping_version, b.raw_manifest, s.latest_version, s.family
+            SELECT b.series_id, b.batch_key, b.mapping_version, b.raw_manifest, s.latest_version
             FROM ingest_batches b
             JOIN series s USING (series_id)
             WHERE b.superseded_in_version IS NULL
