@@ -44,10 +44,13 @@ Three parts connect the lanes:
 | `cell_observations` with only `rainfall_mm` | `rainfall_observations` | `recipe_rainfall_observations` |
 | `cell_observations` with only `ndvi`, `evi`, `mndwi`, `ndmi` | `vegetation_observations` | `recipe_vegetation_observations` |
 | `animal_locations` | `animal_locations` | `recipe_animal_locations` |
+| `population_counts` | `population_counts` | `recipe_population_counts` (migration 013) |
 | Other variables, for example `elevation_m` | none | The adapter does not show the dataset to Recipe |
 
 Each view has the minimum columns of the v1 contract in `README.md`. Each view also has `access_scope`, `available_at` and quality columns.
 The `cell_id` column is in all three families. A recipe can join an animal fix to the rainfall or vegetation of its cell with no spatial join.
+`population_counts` has no `cell_id`. One row is a value for one area. `count_area_cells` gives the cells of each area and the overlap fraction of each cell.
+Compare population values only inside one `comparability_group`. Never spread an area value over its cells. See `docs/ingestion/POPULATION.md`, section 5.6.
 
 ### 2.2 Versions
 

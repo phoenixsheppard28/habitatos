@@ -295,6 +295,52 @@ ANIMAL_ENTITIES_SCHEMA = pa.schema(
 )
 
 
+POPULATION_COUNTS_SCHEMA = pa.schema(
+    [
+        pa.field("source_record_id", pa.string(), nullable=False),
+        pa.field("dataset_id", pa.string(), nullable=False),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("source_item_id", pa.string(), nullable=False),
+        pa.field("processing_version", pa.string(), nullable=False),
+        pa.field("mapping_version", pa.string(), nullable=False),
+        pa.field("area_id", pa.string(), nullable=False),
+        pa.field("taxon_name", pa.string(), nullable=False),
+        pa.field("gbif_taxon_key", pa.int64(), nullable=True),
+        pa.field("time_start", UTC_TIMESTAMP, nullable=False),
+        pa.field("time_end", UTC_TIMESTAMP, nullable=False),
+        pa.field("time_precision", pa.string(), nullable=False),
+        pa.field("available_at", UTC_TIMESTAMP, nullable=False),
+        pa.field("metric", pa.string(), nullable=False),
+        pa.field("method", pa.string(), nullable=False),
+        pa.field("value", pa.float64(), nullable=True),
+        pa.field("unit", pa.string(), nullable=False),
+        pa.field("se", pa.float64(), nullable=True),
+        pa.field("ci_low", pa.float64(), nullable=True),
+        pa.field("ci_high", pa.float64(), nullable=True),
+        pa.field("ci_level", pa.float64(), nullable=True),
+        pa.field("effort_value", pa.float64(), nullable=True),
+        pa.field("effort_unit", pa.string(), nullable=True),
+        pa.field("comparability_group", pa.string(), nullable=False),
+        pa.field("quality_flag", pa.string(), nullable=False),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
+COUNT_AREAS_SCHEMA = pa.schema(
+    [
+        pa.field("area_id", pa.string(), nullable=False),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("area_name", pa.string(), nullable=False),
+        pa.field("area_type", pa.string(), nullable=False),
+        pa.field("area_km2", pa.float64(), nullable=True),
+        pa.field("geometry_wkt", pa.string(), nullable=True),
+        pa.field("geometry_source", pa.string(), nullable=True),
+        pa.field("valid_from", UTC_TIMESTAMP, nullable=True),
+        pa.field("valid_to", UTC_TIMESTAMP, nullable=True),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
 class AnimalEntity(BaseModel):
     entity_id: str
     source_id: str
