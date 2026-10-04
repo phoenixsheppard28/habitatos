@@ -262,6 +262,23 @@
             ×
           </button>
         </div>
+        <div class="chat-toolbar">
+          <button
+            class="plain-button"
+            id="chat-history-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="chat-history"
+          >
+            History <span id="chat-history-count">0</span>
+          </button>
+          <button class="plain-button" id="chat-new" type="button">New chat</button>
+          <span id="chat-storage-status" role="status">Saved on this device</span>
+        </div>
+        <section class="chat-history" id="chat-history" aria-label="Previous conversations" hidden>
+          <div id="chat-history-list"></div>
+        </section>
+        <div class="chat-conversation-title" id="chat-conversation-title">New conversation</div>
         <div class="thread" id="thread" role="log" aria-live="polite" aria-relevant="additions">
           <p class="assistant-intro">
             Ask about dataset coverage, analyze observations, or request data for a region and date

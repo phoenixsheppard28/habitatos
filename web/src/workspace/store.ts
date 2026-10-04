@@ -110,7 +110,7 @@ export class WorkspaceStore {
     this.notify();
   }
 
-  addAnalyses(analyses: WorkspaceAnalysis[]): void {
+  addAnalyses(analyses: WorkspaceAnalysis[], showCharts = true): void {
     if (!analyses.length) return;
 
     const incomingIds = new Set(analyses.map((analysis) => analysis.analysis_id));
@@ -118,7 +118,7 @@ export class WorkspaceStore {
       ...analyses.slice().reverse(),
       ...this.state.analyses.filter((analysis) => !incomingIds.has(analysis.analysis_id)),
     ];
-    this.state.view = 'chart';
+    if (showCharts) this.state.view = 'chart';
     this.notify();
   }
 
