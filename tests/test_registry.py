@@ -4,6 +4,7 @@ from habitat.config import PROJECT_ROOT
 from habitat.sources import SOURCES
 
 EXPECTED = {"sentinel2", "modis_mod13q1", "chirps", "movebank_repository", "movebank_study", "zenodo", "fixture"}
+EXPECTED |= {"ogutu_kenya_rangelands", "literature_counts"}
 
 
 def test_every_source_id_has_a_connector():

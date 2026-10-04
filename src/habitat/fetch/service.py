@@ -9,7 +9,11 @@ from habitat.fetch.catalog import REPOSITORY_PREFIX, search_catalog
 from habitat.fetch.connectors import ConnectorRequest, ConnectorResult, validate_area_and_dates
 from habitat.fetch.connectors import chirps, stac
 from habitat.fetch.connectors.fixture import check_fixture_access, get_catalog_entry, inspect_fixture
+from habitat.fetch.connectors.literature_counts import DATASET_PREFIX as LITERATURE_PREFIX
+from habitat.fetch.connectors.literature_counts import check_literature_access, inspect_literature
 from habitat.fetch.connectors.movebank_study import check_movebank_access, inspect_movebank
+from habitat.fetch.connectors.ogutu_kenya_rangelands import DATASET_ID as OGUTU_DATASET_ID
+from habitat.fetch.connectors.ogutu_kenya_rangelands import check_ogutu_access, inspect_ogutu
 from habitat.fetch.connectors.zenodo import check_zenodo_access, inspect_zenodo
 from habitat.sources import get_source
 
@@ -24,6 +28,10 @@ def resolve_dataset(dataset_id: str) -> tuple[str, str] | None:
         return "movebank_repository", dataset_id.removeprefix(REPOSITORY_PREFIX)
     if dataset_id.startswith("zenodo:"):
         return "zenodo", dataset_id
+    if dataset_id == OGUTU_DATASET_ID:
+        return "ogutu_kenya_rangelands", dataset_id
+    if dataset_id.startswith(LITERATURE_PREFIX):
+        return "literature_counts", dataset_id
     if get_catalog_entry(dataset_id) is not None:
         return "fixture", dataset_id
     return None
@@ -41,6 +49,10 @@ def inspect_source(dataset_id: str) -> dict[str, Any]:
         return inspect_zenodo(item)
     if source_id == "fixture":
         return inspect_fixture(item)
+    if source_id == "ogutu_kenya_rangelands":
+        return inspect_ogutu(item)
+    if source_id == "literature_counts":
+        return inspect_literature(item)
     return {"found": True, "dataset_id": dataset_id, "source_id": source_id, "package": item}
 
 
@@ -56,6 +68,10 @@ def check_access(dataset_id: str) -> dict[str, Any]:
         return check_zenodo_access(item)
     if source_id == "fixture":
         return check_fixture_access(item)
+    if source_id == "ogutu_kenya_rangelands":
+        return check_ogutu_access(item)
+    if source_id == "literature_counts":
+        return check_literature_access(item)
     return {"dataset_id": dataset_id, "status": "available", "license": "see package metadata"}
 
 

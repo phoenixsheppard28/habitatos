@@ -9,6 +9,8 @@ from habitat.grid import Grid
 CELL_OBSERVATIONS = "cell_observations"
 ANIMAL_LOCATIONS = "animal_locations"
 ANIMAL_ENTITIES = "animal_entities"
+POPULATION_COUNTS = "population_counts"
+COUNT_AREAS = "count_areas"
 
 
 @dataclass

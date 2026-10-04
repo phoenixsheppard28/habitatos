@@ -6,6 +6,7 @@ from habitat.fetch.connectors.fixture import search_fixtures
 from habitat.fetch.connectors.movebank_repository import search_data_packages
 from habitat.fetch.connectors.movebank_study import search_movebank
 from habitat.fetch.connectors.zenodo import search_zenodo
+from habitat.fetch.population_catalog import search_population_sources
 
 REPOSITORY_PREFIX = "movebank-repository:"
 
@@ -35,12 +36,17 @@ def search_catalog(
     *,
     include_internet: bool = False,
     include_zenodo: bool = False,
+    bbox: list[float] | None = None,
+    data_kinds: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Search fixtures; with include_internet also Movebank studies and packages; Zenodo (slower) on request."""
     results = search_fixtures(query, species)
+    results.extend(search_population_sources(query, species, bbox))
     if include_internet and query.strip():
         results.extend(search_movebank(query))
         results.extend(search_repository(query))
         if include_zenodo:
             results.extend(search_zenodo(query))
+    if data_kinds:
+        results = [result for result in results if result.get("data_kind") in data_kinds]
     return results

@@ -19,7 +19,7 @@ from shapely.geometry import shape
 from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.contracts import DatasetVersion as HabitatDataset
 from habitat.contracts import SearchFilters, Tag
-from habitat.normalize.rows import ANIMAL_LOCATIONS
+from habitat.normalize.rows import ANIMAL_LOCATIONS, POPULATION_COUNTS
 
 RAINFALL = "rainfall_observations"
 VEGETATION = "vegetation_observations"
@@ -29,7 +29,8 @@ VEGETATION_INDICES = frozenset({"ndvi", "evi", "mndwi", "ndmi"})
 POSTGIS_SCHEMA = "extensions"
 
 SEARCH_FILTERS = {
-    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION])}, or a list of them",
+    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION, POPULATION_COUNTS])}, "
+              "or a list of them",
     "variables": f"list of measured variables: rainfall_mm or {sorted(VEGETATION_INDICES)}; any one matches",
     "source_id": "source id or list of them, for example chirps, sentinel2, modis_mod13q1, movebank",
     "tags": "object of catalog tag key to value; every pair must match, for example {\"biome\": \"savanna\"}",
@@ -170,10 +171,59 @@ FAMILIES = {
 }
 
 
+FAMILIES[POPULATION_COUNTS] = RecipeFamily(
+    name=POPULATION_COUNTS,
+    view="recipe_population_counts",
+    row_grain="one row per count or estimate of one taxon, area, metric, method and interval",
+    columns=[
+        *identity_columns(),
+        Column(name="area_id", type="string", nullable=False,
+               description="Count area, namespaced by source, for example ke_county:2; "
+                           "count_area_cells gives its 1 km cells and overlap fractions"),
+        Column(name="area_name", type="string", nullable=False, description="Name of the count area"),
+        Column(name="area_type", type="string", nullable=False,
+               description="survey_block, park, admin_unit, ecosystem, site or region"),
+        Column(name="area_km2", type="number", unit="km2", description="Area of the count area that the source gives"),
+        Column(name="taxon_name", type="string", nullable=False, role="species",
+               description="Scientific name, or the source name of a species group such as Sheep and goats"),
+        Column(name="gbif_taxon_key", type="integer", description="GBIF backbone key; null for a group"),
+        Column(name="time_start", type="timestamp", nullable=False, role="interval_start",
+               description="First day of the count interval, UTC"),
+        Column(name="time_end", type="timestamp", nullable=False, role="interval_end",
+               description="Last day of the count interval, inclusive, UTC; equal to time_start when the source "
+                           "gives one day"),
+        Column(name="time_precision", type="string", nullable=False, description="composite for a survey"),
+        Column(name="metric", type="string", nullable=False,
+               description="count, population_estimate, density, index, relative_abundance or presence"),
+        Column(name="method", type="string", nullable=False,
+               description="Field or statistical method, for example aerial_sample or model"),
+        Column(name="value", type="number", role="measurement",
+               description="The count or estimate, in the unit of the row; never spread over cells"),
+        Column(name="unit", type="string", nullable=False,
+               description="individuals, individuals_per_km2, index or another unit of the metric"),
+        Column(name="se", type="number", description="Standard error of the value"),
+        Column(name="ci_low", type="number", description="Lower limit of the interval of the value"),
+        Column(name="ci_high", type="number", description="Upper limit of the interval of the value"),
+        Column(name="ci_level", type="number", unit="1", description="Level of the interval, for example 0.95"),
+        Column(name="effort_value", type="number", description="Survey effort"),
+        Column(name="effort_unit", type="string", description="Unit of the survey effort"),
+        Column(name="comparability_group", type="string", nullable=False,
+               description="Compare or trend values only inside one group: same source, area, taxon, metric, "
+                           "method and unit"),
+        Column(name="available_at", type="timestamp", nullable=False, role="available_at",
+               description="When the source published the value; use it for point-in-time joins"),
+        Column(name="quality_flag", type="string", nullable=False, description="ok, or the first reason that applies"),
+    ],
+)
+
+
 def recipe_family(dataset: HabitatDataset) -> str | None:
     """The Recipe family of a catalog dataset. None when the dataset has no Recipe view (for example elevation)."""
     if dataset.family == ANIMAL_LOCATIONS:
         return ANIMAL_LOCATIONS
+
+    if dataset.family == POPULATION_COUNTS:
+        return POPULATION_COUNTS
 
     variables = set(dataset.variables)
     if dataset.family != "cell_observations" or not variables:

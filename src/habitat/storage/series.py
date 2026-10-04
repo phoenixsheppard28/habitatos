@@ -10,10 +10,13 @@ import pyarrow as pa
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel
+from shapely import wkt
 
+from habitat.area_cells import area_cell_overlaps
 from habitat.contracts import RawManifest
-from habitat.grid import Grid, parse_cell_id, transformer
+from habitat.grid import Grid, default_grid, parse_cell_id, transformer
 from habitat.normalize.rows import ANIMAL_ENTITIES, ANIMAL_LOCATIONS, CELL_OBSERVATIONS, NormalizedBatch
+from habitat.normalize.rows import COUNT_AREAS, POPULATION_COUNTS
 
 
 class BatchRecord(BaseModel):
@@ -59,6 +62,7 @@ class SeriesSummary:
     variables: list[str]
     cell_ids: list[str]
     taxa: list[tuple[int, str]] = field(default_factory=list)
+    footprint_wkt: str | None = None
 
 
 def batch_key(manifest: RawManifest, mapping_version: str) -> str:
@@ -280,7 +284,54 @@ def upsert_animal_entities(cursor: psycopg.Cursor, entities: pa.Table) -> None:
     )
 
 
+def upsert_count_areas(cursor: psycopg.Cursor, areas: pa.Table) -> None:
+    """Replace the areas, then compute the grid cells again for each area that is new or has a new geometry."""
+    rows = areas.to_pylist()
+    area_ids = [area["area_id"] for area in rows]
+    unchanged = {
+        area_id
+        for (area_id,) in cursor.execute(
+            """
+            SELECT a.area_id
+            FROM count_areas a JOIN unnest(%s::text[], %s::text[]) AS n(area_id, geometry_wkt) USING (area_id)
+            WHERE a.geometry IS NOT DISTINCT FROM ST_GeomFromText(n.geometry_wkt, 4326)
+            """,
+            (area_ids, [area["geometry_wkt"] for area in rows]),
+        )
+    }
+
+    cursor.executemany(
+        """
+        INSERT INTO count_areas (area_id, source_id, area_name, area_type, area_km2, geometry, geometry_source,
+                                 valid_from, valid_to, attributes)
+        VALUES (%s, %s, %s, %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s)
+        ON CONFLICT (area_id) DO UPDATE SET
+            source_id = EXCLUDED.source_id, area_name = EXCLUDED.area_name, area_type = EXCLUDED.area_type,
+            area_km2 = EXCLUDED.area_km2, geometry = EXCLUDED.geometry, geometry_source = EXCLUDED.geometry_source,
+            valid_from = EXCLUDED.valid_from, valid_to = EXCLUDED.valid_to, attributes = EXCLUDED.attributes
+        """,
+        [
+            (
+                a["area_id"], a["source_id"], a["area_name"], a["area_type"], a["area_km2"], a["geometry_wkt"],
+                a["geometry_source"], a["valid_from"], a["valid_to"], Jsonb(json.loads(a["attributes"])),
+            )
+            for a in rows
+        ],
+    )
+
+    changed = [area for area in rows if area["area_id"] not in unchanged]
+    cursor.execute("DELETE FROM count_area_cells WHERE area_id = ANY(%s)", ([area["area_id"] for area in changed],))
+    grid = default_grid()
+    with cursor.copy("COPY count_area_cells (area_id, cell_id, overlap_fraction) FROM STDIN") as copy:
+        for area in changed:
+            if area["geometry_wkt"] is None:
+                continue
+            for cell_id, share in area_cell_overlaps(grid, wkt.loads(area["geometry_wkt"])):
+                copy.write_row((area["area_id"], cell_id, share))
+
+
 REFERENCE_UPSERTS: dict[str, ReferenceUpsert] = {ANIMAL_ENTITIES: upsert_animal_entities}
+REFERENCE_UPSERTS[COUNT_AREAS] = upsert_count_areas
 
 
 def version_parameters(version: SeriesVersion) -> dict[str, Any]:
@@ -338,12 +389,50 @@ def summarize_animal_locations(connection: psycopg.Connection, version: SeriesVe
     )
 
 
+def summarize_population_counts(connection: psycopg.Connection, version: SeriesVersion) -> SeriesSummary:
+    """The footprint is the union of the count areas. A point area counts as a small box around the point."""
+    parameters = version_parameters(version)
+    start, end, row_count, metrics = connection.execute(
+        f"""
+        SELECT min(time_start), max(time_end), count(*), coalesce(array_agg(DISTINCT metric), '{{}}')
+        FROM population_counts
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        """,
+        parameters,
+    ).fetchone()
+    taxa = connection.execute(
+        f"""
+        SELECT DISTINCT gbif_taxon_key, taxon_name FROM population_counts
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES}) AND gbif_taxon_key IS NOT NULL
+        """,
+        parameters,
+    ).fetchall()
+    (footprint_wkt,) = connection.execute(
+        f"""
+        SELECT ST_AsText(ST_SimplifyPreserveTopology(ST_Union(
+            CASE WHEN ST_Dimension(a.geometry) = 2 THEN a.geometry ELSE ST_Expand(a.geometry, 0.005) END
+        ), 0.005))
+        FROM count_areas a
+        WHERE a.geometry IS NOT NULL AND a.area_id IN (
+            SELECT area_id FROM population_counts
+            WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        )
+        """,
+        parameters,
+    ).fetchone()
+
+    return SeriesSummary(
+        start, end, row_count, sorted(metrics), [], [tuple(t) for t in taxa], footprint_wkt=footprint_wkt
+    )
+
+
 FamilySummary = Callable[[psycopg.Connection, SeriesVersion], SeriesSummary]
 
 FAMILY_SUMMARIES: dict[str, FamilySummary] = {
     CELL_OBSERVATIONS: summarize_cell_observations,
     ANIMAL_LOCATIONS: summarize_animal_locations,
 }
+FAMILY_SUMMARIES[POPULATION_COUNTS] = summarize_population_counts
 
 
 def copy_rows(cursor: psycopg.Cursor, family: str, series_id: str, key: str, table: pa.Table) -> None:

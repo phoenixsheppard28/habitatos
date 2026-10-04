@@ -9,10 +9,18 @@ from habitat.fetch.connectors.chirps import STORAGE_FORMAT as CHIRPS_FORMAT
 from habitat.fetch.connectors.chirps import fetch_chirps
 from habitat.fetch.connectors.fixture import PRODUCT as FIXTURE_PRODUCT
 from habitat.fetch.connectors.fixture import fetch_fixture
+from habitat.fetch.connectors.literature_counts import DESCRIPTION as LITERATURE_DESCRIPTION
+from habitat.fetch.connectors.literature_counts import PRODUCT as LITERATURE_PRODUCT
+from habitat.fetch.connectors.literature_counts import STORAGE_FORMAT as LITERATURE_FORMAT
+from habitat.fetch.connectors.literature_counts import fetch_literature_counts
 from habitat.fetch.connectors.movebank_repository import PRODUCT as REPOSITORY_PRODUCT
 from habitat.fetch.connectors.movebank_repository import fetch_movebank_repository
 from habitat.fetch.connectors.movebank_study import PRODUCT as STUDY_PRODUCT
 from habitat.fetch.connectors.movebank_study import fetch_movebank_study
+from habitat.fetch.connectors.ogutu_kenya_rangelands import DESCRIPTION as OGUTU_DESCRIPTION
+from habitat.fetch.connectors.ogutu_kenya_rangelands import PRODUCT as OGUTU_PRODUCT
+from habitat.fetch.connectors.ogutu_kenya_rangelands import STORAGE_FORMAT as OGUTU_FORMAT
+from habitat.fetch.connectors.ogutu_kenya_rangelands import fetch_ogutu_kenya_rangelands
 from habitat.fetch.connectors.stac import MODIS_PRODUCT, SENTINEL2_PRODUCT, fetch_modis, fetch_sentinel2
 from habitat.fetch.connectors.stac import STORAGE_FORMAT as STAC_FORMAT
 from habitat.fetch.connectors.zenodo import PRODUCT as ZENODO_PRODUCT
@@ -20,8 +28,10 @@ from habitat.fetch.connectors.zenodo import fetch_zenodo
 from habitat.grid import Grid
 from habitat.normalize.rows import NormalizedBatch
 from habitat.normalize.sources.chirps import normalize_chirps
+from habitat.normalize.sources.literature_counts import normalize_literature_counts
 from habitat.normalize.sources.modis import normalize_modis
 from habitat.normalize.sources.movebank import normalize_movebank, normalize_movebank_study
+from habitat.normalize.sources.ogutu_kenya_rangelands import normalize_ogutu_kenya_rangelands
 from habitat.normalize.sources.sentinel2 import normalize_sentinel2
 
 Normalizer = Callable[[RawManifest, ArtifactStore, Grid, BBox | None], NormalizedBatch]
@@ -84,6 +94,16 @@ SOURCES: dict[str, Source] = {
             "Synthetic demo data for development and tests; never published",
             frozenset({"animal_locations", "rainfall_observations"}),
             fetch_fixture, None, "csv", needs_item=True,
+        ),
+        Source(
+            "ogutu_kenya_rangelands", OGUTU_PRODUCT, OGUTU_DESCRIPTION,
+            frozenset({"population_counts"}),
+            fetch_ogutu_kenya_rangelands, normalize_ogutu_kenya_rangelands, OGUTU_FORMAT,
+        ),
+        Source(
+            "literature_counts", LITERATURE_PRODUCT, LITERATURE_DESCRIPTION,
+            frozenset({"population_counts"}),
+            fetch_literature_counts, normalize_literature_counts, LITERATURE_FORMAT, needs_item=True,
         ),
     ]
 }
