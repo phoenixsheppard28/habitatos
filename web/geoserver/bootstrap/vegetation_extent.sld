@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>vegetation_extent</Name><UserStyle><Title>Illustrative vegetation extent</Title><FeatureTypeStyle><Rule><PolygonSymbolizer><Fill><CssParameter name="fill">#6f8a53</CssParameter><CssParameter name="fill-opacity">0.36</CssParameter></Fill><Stroke><CssParameter name="stroke">#556e40</CssParameter><CssParameter name="stroke-width">1</CssParameter></Stroke></PolygonSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>

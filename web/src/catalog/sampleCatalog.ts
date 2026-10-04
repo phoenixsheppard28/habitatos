@@ -14,6 +14,12 @@ export const sampleCatalog: CatalogDocument = {
       opacity: 0.78, order: 0, actions: ['zoom'], sample: false,
     },
     {
+      id: 'basemap-humanitarian', title: 'Humanitarian map', description: 'OpenStreetMap Humanitarian style', sourceType: 'osm',
+      bounds, crs: 'EPSG:3857', attribution: '© OpenStreetMap contributors, Tiles © HOT', visible: false,
+      opacity: 0.84, order: 0, actions: ['zoom'], sample: false,
+      query: { tileUrl: 'https://{a-c}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png' },
+    },
+    {
       id: 'study-boundary', title: 'Study boundary', description: 'Sample study extent published as WMS',
       sourceType: 'wms', serviceUrl: `${geoserver}/habitat/wms`, layerName: 'habitat:study_boundary',
       bounds, crs: 'EPSG:4326', attribution: 'Habitat Watch sample', visible: true, opacity: 1,

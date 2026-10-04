@@ -23,9 +23,21 @@ LOCATION_COLUMNS = {"timestamp", "location-long", "location-lat"}
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
-def metadata_value(item: dict, key: str) -> str | None:
-    values = item["metadata"].get(key)
-    return values[0]["value"] if values else None
+def metadata_value(item: dict, *keys: str) -> str | None:
+    """The first value of the first key that the package has. Older and newer packages use different keys."""
+    for key in keys:
+        if values := item["metadata"].get(key):
+            return values[0]["value"]
+    return None
+
+
+def published_at(item: dict) -> datetime:
+    value = metadata_value(item, "dc.date.available", "dc.date.issued", "dc.date.accessioned")
+    if value is None:
+        raise ValueError("data package has no publication date")
+
+    published = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return published if published.tzinfo else published.replace(tzinfo=UTC)
 
 
 def package_files(item: dict) -> list[dict]:
@@ -113,7 +125,7 @@ def archive_location_file(
         version, stored = archive.put(artifact_id_for(item["handle"], locations.name), files, STORAGE_FORMAT)
 
     start, end = timestamps.min().to_pydatetime(), timestamps.max().to_pydatetime()
-    published = datetime.fromisoformat(metadata_value(item, "dc.date.available").replace("Z", "+00:00"))
+    published = published_at(item)
     taxon = metadata_value(item, "dwc.ScientificName")
     manifest = RawManifest(
         artifact_id=artifact_id_for(item["handle"], locations.name),
@@ -128,10 +140,10 @@ def archive_location_file(
         retrieved_at=retrieved_at,
         coverage=Coverage(species=[taxon] if taxon else [], start=start, end=end),
         rights=Rights(
-            license=metadata_value(item, "dc.rights"),
+            license=metadata_value(item, "dc.rights", "dc.rights.uri"),
             retention_allowed=True,
             reuse_allowed=True,
-            attribution=metadata_value(item, "dc.identifier.citation"),
+            attribution=metadata_value(item, "dc.identifier.citation", "mdr.citation.CSE"),
         ),
         extensions=SourceItem(
             source_id="movebank_repository",
