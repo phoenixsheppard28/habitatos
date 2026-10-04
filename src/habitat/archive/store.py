@@ -37,6 +37,8 @@ class ArtifactStore(Protocol):
 
     def verify(self, manifest: RawManifest) -> None: ...
 
+    def remove(self, manifest: RawManifest) -> int: ...
+
     def next_version(self, artifact_id: str) -> str: ...
 
     def list_files(self) -> list[str]: ...
@@ -143,6 +145,20 @@ class LocalArtifactStore:
         while self.directory(artifact_id, str(version)).exists():
             version += 1
         return str(version)
+
+    def remove(self, manifest: RawManifest) -> int:
+        artifact_id, version = parse_artifact_uri(manifest.storage.uri)
+        if not self.exists(artifact_id, version):
+            return 0
+
+        self.verify(manifest)
+        files = self.files(artifact_id, version)
+        size = sum(path.stat().st_size for path in files)
+        for path in files:
+            path.unlink()
+
+        # The empty version directory prevents a later download from reusing this version.
+        return size
 
     def list_files(self) -> list[str]:
         if not self.root.is_dir():

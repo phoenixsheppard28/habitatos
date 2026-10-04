@@ -43,7 +43,7 @@ class MemoryArtifactIndex:
 
 
 class PostgresArtifactIndex:
-    """Manifests in the `raw_artifacts` table. The raw files stay in the archive."""
+    """Source metadata stays in PostgreSQL after processed raw files are removed."""
 
     def __init__(self, connection: psycopg.Connection):
         self.connection = connection
@@ -79,6 +79,37 @@ class PostgresArtifactIndex:
             """,
             (*row_values(manifest), manifest.extensions.source_key),
         )
+
+    def published_artifacts(self) -> list[RawManifest]:
+        rows = self.connection.execute("""
+            SELECT a.manifest FROM raw_artifacts a
+            WHERE EXISTS (
+                SELECT 1 FROM ingest_batches b JOIN datasets d ON d.dataset_id = b.series_id
+                WHERE d.status = 'ready' AND d.access_scope = a.access_scope
+                  AND b.added_in_version <= d.version
+                  AND (b.superseded_in_version IS NULL OR b.superseded_in_version > d.version)
+                  AND b.raw_manifest->>'artifact_id' = a.artifact_id
+                  AND b.raw_manifest->>'version' = a.version
+                  AND b.raw_manifest->>'checksum' = a.checksum
+            )
+        """).fetchall()
+
+        return [RawManifest.model_validate(row[0]) for row in rows]
+
+    def find_published(self, source_id, source_item_id, processing_version, product_status, access_scope):
+        row = self.connection.execute("""
+            SELECT b.raw_manifest FROM ingest_batches b
+            JOIN latest_datasets d ON d.dataset_id = b.series_id
+            WHERE d.status = 'ready' AND d.access_scope = %s
+              AND b.added_in_version <= d.version
+              AND (b.superseded_in_version IS NULL OR b.superseded_in_version > d.version)
+              AND b.source_item_id = %s AND b.processing_version = %s AND b.product_status = %s
+              AND b.raw_manifest->'extensions'->>'source_id' = %s
+              AND b.raw_manifest->>'access_scope' = %s
+            ORDER BY d.version DESC LIMIT 1
+        """, (access_scope, source_item_id, processing_version, product_status, source_id, access_scope)).fetchone()
+
+        return RawManifest.model_validate(row[0]) if row else None
 
 
 def row_values(manifest: RawManifest) -> tuple:

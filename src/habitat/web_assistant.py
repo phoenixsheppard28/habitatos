@@ -92,7 +92,7 @@ def generate_plan(*, instructions, context, schema):
         tools=[{"name": "answer", "description": "Return the typed planning decision.",
                 "input_schema": {"type": "object", "properties": {"value": schema}, "required": ["value"],
                                   "$defs": definitions}}],
-        tool_choice={"type": "tool", "name": "answer"},
+        tool_choice={"type": "auto"},
         messages=[{"role": "user", "content": f"{instructions}\nContext: {json.dumps(context)}"}],
     )
     for block in response.content:

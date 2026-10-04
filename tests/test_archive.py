@@ -172,3 +172,29 @@ def test_raw_artifacts_rejects_a_duplicate_source_key(database):
 
     with pytest.raises(DuplicateSourceKey):
         index.record(duplicate)
+
+
+def test_removing_raw_files_preserves_metadata_and_version_identity():
+    archive = Archive()
+    manifest = archived(archive)
+
+    with archive.store.lock():
+        removed = archive.store.remove(manifest)
+
+    assert removed == 6
+    assert archive.store.list_files() == []
+    assert archive.index.find_by_source_key(manifest.extensions.source_key) == manifest
+    assert archive.cached(manifest.extensions.source_key) is None
+    assert archive.store.next_version(manifest.artifact_id) == "2"
+    assert archive.store.remove(manifest) == 0
+
+
+def test_removing_raw_files_does_not_delete_changed_content():
+    archive = Archive()
+    manifest = archived(archive)
+    archive.store.open(manifest, "red").write_bytes(b"changed")
+
+    with pytest.raises(ChecksumMismatch):
+        archive.store.remove(manifest)
+
+    assert archive.store.open(manifest, "red").read_bytes() == b"changed"

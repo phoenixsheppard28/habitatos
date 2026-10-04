@@ -286,6 +286,13 @@ def fetch_movebank_study(
         result.manifests.append(cached)
         return result
 
+    previous = archive.index.find_by_source_key(source_key)
+    if previous and already_ingested(previous.extensions.source_item_id,
+                                     previous.extensions.processing_version,
+                                     previous.extensions.product_status.value):
+        result.manifests.append(previous)
+        return result
+
     try:
         content = authenticated_csv(study_id, auth) if auth else public_preview_csv(study_id)
     except PermissionError as error:

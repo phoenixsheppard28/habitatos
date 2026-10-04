@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Workspace:
-    """Raw files stay in the archive. Manifests, canonical rows and the catalog live in PostgreSQL."""
+    """Raw files are temporary. Source metadata, normalized rows and catalog records stay in PostgreSQL."""
 
     connection: psycopg.Connection
     grid: Grid
@@ -77,10 +77,10 @@ def resolve_entity_taxa(batch: NormalizedBatch) -> None:
 def publish_changed(
     outcomes: list[IngestOutcome], workspace: Workspace, access_scope: str = "public", use_ai: bool = False
 ) -> list[str]:
-    appended = [o for o in outcomes if o.append and o.append.appended]
+    ingested = [o for o in outcomes if o.append]
     published = []
-    for series in sorted({o.append.series_id for o in appended}):
-        source_id = next(o.manifest.extensions.source_id for o in appended if o.append.series_id == series)
+    for series in sorted({o.append.series_id for o in ingested}):
+        source_id = next(o.manifest.extensions.source_id for o in ingested if o.append.series_id == series)
         descriptor = publish_series_version(
             workspace.store,
             workspace.catalog,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import logging
 
 from pydantic import ValidationError
 
@@ -11,6 +12,8 @@ from .errors import RecipeError
 from .models import DatasetVersion, QuerySpec
 from .progress import notify, stage
 from .validation import validate_recipe
+
+logger = logging.getLogger(__name__)
 
 
 class RecipeService:
@@ -183,6 +186,7 @@ class RecipeService:
             else:
                 response["error"] = exc.as_dict()
         except Exception:
+            logger.exception("Recipe preparation failed request=%s", request.get("request_id"))
             response["error"] = RecipeError("INTERNAL_ERROR", "unexpected backend failure; inspect backend logs").as_dict()
         finally:
             if response["status"] == "error" and isinstance(response["access_scope"], str):

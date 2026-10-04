@@ -10,7 +10,7 @@ from habitat.archive.index import PostgresArtifactIndex
 from habitat.catalog.store import PostgresCatalog
 from habitat.contracts import SearchFilters
 from habitat.ingest import Workspace
-from habitat.pipeline import build_request, process, run
+from habitat.pipeline import build_request, cleanup_published_raw_files, process, run
 
 
 def movebank_and_gbif(request: httpx.Request) -> httpx.Response:
@@ -40,6 +40,7 @@ def test_fetch_normalize_append_publish_then_nothing_new(workspace, database, mo
     assert first.status == "ok"
     assert [o.status for o in first.outcomes] == ["appended"]
     assert first.published == [first.outcomes[0].series_id]
+    assert workspace.archive.store.list_files() == []
     assert [o.status for o in second.outcomes] == ["already_present"]
     assert second.published == []
 
@@ -50,6 +51,13 @@ def test_fetch_normalize_append_publish_then_nothing_new(workspace, database, mo
     found = PostgresCatalog(database).search_datasets(SearchFilters(access_scope=["public"]))
     assert [m.dataset.version for m in found] == [1]
     assert found[0].dataset.species[0].gbif_key == 2441105
+
+    item = first.fetch.output.raw_artifacts[0].extensions
+    published = PostgresArtifactIndex(database).find_published(item.source_id, item.source_item_id,
+                                                              item.processing_version, item.product_status.value, "public")
+    assert published == first.fetch.output.raw_artifacts[0]
+    assert PostgresArtifactIndex(database).find_published(item.source_id, item.source_item_id,
+                                                         item.processing_version, item.product_status.value, "private") is None
 
 
 def test_insufficient_data_never_publishes(workspace, database, mock_http):
@@ -80,6 +88,7 @@ def test_fixture_data_is_quarantined_not_published(workspace, database):
     assert "no canonical mapping" in result.outcomes[0].reason
     assert result.published == []
     assert database.execute("SELECT count(*) FROM datasets").fetchone()[0] == 0
+    assert workspace.archive.store.list_files()
 
 
 def test_a_corrupt_archive_file_is_quarantined(workspace):
@@ -100,3 +109,64 @@ def test_the_area_of_an_agent_request_comes_from_the_manifest():
 
     assert fetched_area(manifest) == (1, 2, 3, 4)
     assert fetched_area(make_manifest("chirps", {}, datetime(2024, 1, 1, tzinfo=UTC))) is None
+
+
+def test_failed_publication_keeps_raw_files_and_retry_publishes_existing_rows(workspace, database, mock_http, monkeypatch):
+    from habitat import pipeline
+
+    mock_http(movebank_and_gbif)
+    publish = pipeline.publish_changed
+
+    def unavailable(*args):
+        raise RuntimeError("catalog unavailable")
+
+    monkeypatch.setattr(pipeline, "publish_changed", unavailable)
+    with pytest.raises(RuntimeError, match="catalog unavailable"):
+        run(package_request(), use_agent=False, workspace=workspace)
+    assert workspace.archive.store.list_files()
+    assert database.execute("SELECT count(*) FROM animal_locations").fetchone()[0] == 4
+    assert database.execute("SELECT count(*) FROM datasets").fetchone()[0] == 0
+
+    monkeypatch.setattr(pipeline, "publish_changed", publish)
+    retried = run(package_request(), use_agent=False, workspace=workspace)
+
+    assert retried.outcomes[0].status == "already_present"
+    assert retried.published == [retried.outcomes[0].series_id]
+    assert workspace.archive.store.list_files() == []
+    assert database.execute("SELECT count(*) FROM animal_locations").fetchone()[0] == 4
+
+
+def test_raw_files_survive_a_database_rollback(workspace, database, mock_http):
+    mock_http(movebank_and_gbif)
+
+    with pytest.raises(RuntimeError, match="rollback"):
+        with database.transaction():
+            run(package_request(), use_agent=False, workspace=workspace)
+            assert workspace.archive.store.list_files()
+            assert cleanup_published_raw_files(workspace) == {"artifacts": 0, "bytes": 0}
+            raise RuntimeError("rollback")
+
+    assert workspace.archive.store.list_files()
+    assert database.execute("SELECT count(*) FROM animal_locations").fetchone()[0] == 0
+    assert database.execute("SELECT count(*) FROM datasets").fetchone()[0] == 0
+
+
+def test_cleanup_failure_keeps_the_published_dataset_available(workspace, database, mock_http, monkeypatch):
+    mock_http(movebank_and_gbif)
+    remove = workspace.archive.store.remove
+
+    def failed_cleanup(manifest):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr(workspace.archive.store, "remove", failed_cleanup)
+    result = run(package_request(), use_agent=False, workspace=workspace)
+
+    assert result.published
+    assert workspace.archive.store.list_files()
+    assert database.execute("SELECT count(*) FROM animal_locations").fetchone()[0] == 4
+
+    monkeypatch.setattr(workspace.archive.store, "remove", remove)
+    removed = cleanup_published_raw_files(workspace)
+    assert removed["artifacts"] == 1
+    assert removed["bytes"] > 0
+    assert workspace.archive.store.list_files() == []

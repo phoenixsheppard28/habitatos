@@ -178,7 +178,7 @@ The new volumes do not contain data from an existing standalone database or the 
 | Volume | Container path | Contents |
 | --- | --- | --- |
 | `database` | `/var/lib/postgresql/data` | Catalog, observations, and migration records |
-| `artifacts` | `/app/data` | Raw downloads, Recipe artifacts, and Analysis outputs |
+| `artifacts` | `/app/data` | Temporary raw downloads, Recipe artifacts, and Analysis outputs |
 | `classifier-models` | `/models` | Pinned GLiClass weights and tokenizer |
 
 Stop the services and retain data:

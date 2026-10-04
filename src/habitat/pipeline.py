@@ -1,4 +1,4 @@
-"""End to end: fetch raw files, keep them in the archive, normalize, append to series, and publish."""
+"""Fetch temporary raw files, normalize, publish database records, and remove processed downloads."""
 
 import argparse
 import logging
@@ -8,7 +8,10 @@ from uuid import uuid4
 
 from recipe.progress import stage
 
-from habitat.archive.index import ingested
+from psycopg.pq import TransactionStatus
+
+from habitat.archive import ChecksumMismatch
+from habitat.archive.index import PostgresArtifactIndex, ingested
 from habitat.contracts import (
     BBox,
     FetchRequest,
@@ -22,9 +25,10 @@ from habitat.contracts import (
 from habitat.db import connect
 from habitat.fetch import run as fetch
 from habitat.grid import default_grid
-from habitat.ingest import Workspace, ingest_manifest, publish_changed
+from habitat.ingest import IngestOutcome, Workspace, ingest_manifest, publish_changed
 from habitat.normalize.rows import series_id_for
 from habitat.sources import SOURCES, get_source
+from habitat.storage.series import AppendResult
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +90,35 @@ def ingest_and_publish(
 
     with stage("catalog.publish", "Publish updated datasets"):
         published = publish_changed(ingests, workspace, request.access_scope, use_ai)
+    with stage("archive.cleanup", "Remove raw files saved in the database"):
+        cleanup_published_raw_files(workspace)
     return PipelineResult(response, outcomes, published)
+
+
+def cleanup_published_raw_files(workspace: Workspace) -> dict[str, int]:
+    removed = {"artifacts": 0, "bytes": 0}
+    if workspace.connection.info.transaction_status != TransactionStatus.IDLE:
+        return removed
+
+    index = PostgresArtifactIndex(workspace.connection)
+    manifests = index.published_artifacts()
+    if workspace.connection.info.transaction_status != TransactionStatus.IDLE:
+        return removed
+
+    with workspace.archive.store.lock():
+        for manifest in manifests:
+            try:
+                size = workspace.archive.store.remove(manifest)
+            except (OSError, ChecksumMismatch) as error:
+                logger.warning("Raw cleanup failed for %s/%s: %s", manifest.artifact_id, manifest.version, error)
+                continue
+            if size:
+                removed["artifacts"] += 1
+                removed["bytes"] += size
+
+    logger.info("Removed %d processed raw artifacts (%d bytes); source metadata remains in the database.",
+                removed["artifacts"], removed["bytes"])
+    return removed
 
 
 def fetched_area(manifest: RawManifest) -> BBox | None:
@@ -109,7 +141,11 @@ def process(manifest: RawManifest, workspace: Workspace, aoi: BBox | None):
         item.source_item_id, item.processing_version, item.product_status.value
     ):
         outcome.status = "already_present"
-        return outcome, None
+        version = workspace.store.latest_version(outcome.series_id)
+        batch = next(batch for batch in version.batches if
+                     (batch.source_item_id, batch.processing_version, batch.product_status) ==
+                     (item.source_item_id, item.processing_version, item.product_status.value))
+        return outcome, IngestOutcome(manifest, AppendResult(outcome.series_id, version.version, batch.batch_key, False))
 
     ingest = ingest_manifest(manifest, workspace.archive, workspace.store, workspace.grid, aoi)
     if ingest.quarantine_reason:

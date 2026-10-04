@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from habitat.contracts import RawManifest
+from habitat.archive.index import PostgresArtifactIndex
 from habitat.fetch import session
 from habitat.fetch.catalog import REPOSITORY_PREFIX, search_catalog
 from habitat.fetch.connectors import ConnectorRequest, ConnectorResult, validate_area_and_dates
@@ -60,7 +61,27 @@ def check_access(dataset_id: str) -> dict[str, Any]:
 
 
 def run_connector(source_id: str, request: ConnectorRequest) -> ConnectorResult:
-    result = get_source(source_id).fetch(request, session.archive())
+    archive = session.archive()
+    reused = {}
+
+    def already_published(source_item_id, processing_version, product_status):
+        if not isinstance(archive.index, PostgresArtifactIndex):
+            return False
+        manifest = archive.index.find_published(source_id, source_item_id, processing_version,
+                                                product_status, request.access_scope)
+        if manifest is None:
+            return False
+        if request.bbox:
+            bounds = manifest.extensions.properties.get("requested_bbox") or manifest.coverage.bbox
+            if not bounds or not (bounds[0] <= request.bbox[0] <= request.bbox[2] <= bounds[2]
+                                  and bounds[1] <= request.bbox[1] <= request.bbox[3] <= bounds[3]):
+                return False
+        reused[(manifest.artifact_id, manifest.version)] = manifest
+        return True
+
+    result = get_source(source_id).fetch(request, archive, already_published)
+    known = {(manifest.artifact_id, manifest.version) for manifest in result.manifests}
+    result.manifests.extend(manifest for key, manifest in reused.items() if key not in known)
     for manifest in result.manifests:
         session.record(manifest)
     for error in result.errors:

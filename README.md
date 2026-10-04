@@ -102,6 +102,10 @@ Skip stages when suitable artifacts already exist. Known sources reuse normaliza
 
 **Hot path:** save raw data immediately, then use cached validated records or normalize the minimum required fields before answering. **Background path:** finish normalization, retry failed jobs, enrich the catalog, and evaluate proposed mapping/recipe improvements. Scheduling is an application responsibility; do not depend on an LLM remembering to perform background work. Return an explicit pending or insufficient-data response when required evidence is not ready.
 
+Raw downloads are temporary. The pipeline removes processed files after PostgreSQL or Supabase commits the normalized rows and catalog records.
+Source metadata, checksums, versions, licenses, and citations remain in the database. Failed or unprocessed downloads remain available for retries.
+Recipe preparation and analysis read normalized database records. Repeated retrievals reuse published records without downloading the same files again.
+
 Initial stack: Python for connectors and analysis; PostgreSQL for the catalog, canonical observations, and JSONB staging attributes; local files in development and object storage later for original files, raster imagery, and versioned Parquet feature datasets. A durable job table and worker provide orchestration. Raster measurements stay as files until relevant values are extracted. Do not pass whole imagery files or millions of records into LLM context.
 
 ## Four contributor lanes
