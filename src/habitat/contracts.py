@@ -54,14 +54,18 @@ class Rights(BaseModel):
     attribution: str | None = None
 
 
+SourceItemKind = Literal["raster", "tabular", "vector", "derived"]
+
+
 class SourceItem(BaseModel):
-    """Typed `extensions` of a RawManifest for one source item: a raster scene or a tabular file."""
+    """Typed `extensions` of a RawManifest for one source item: a raster scene, a tabular file, a vector file,
+    or a run that derives values from other series."""
 
     source_id: str
     product: str
     source_item_id: str
     source_key: str
-    kind: Literal["raster", "tabular"] = "raster"
+    kind: SourceItemKind = "raster"
     time_start: datetime
     time_end: datetime
     time_precision: TimePrecision
