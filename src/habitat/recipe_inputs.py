@@ -20,6 +20,7 @@ from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.contracts import DatasetVersion as HabitatDataset
 from habitat.contracts import SearchFilters, Tag
 from habitat.normalize.rows import ANIMAL_LOCATIONS
+from habitat.normalize.rows import SITE_FEATURES
 
 RAINFALL = "rainfall_observations"
 VEGETATION = "vegetation_observations"
@@ -27,10 +28,17 @@ DAILY_MOVEMENT = "animal_daily_movement"
 DAILY_MOVEMENT_SUFFIX = "--daily-movement"
 VEGETATION_INDICES = frozenset({"ndvi", "evi", "mndwi", "ndmi"})
 POSTGIS_SCHEMA = "extensions"
+WATER = "water_observations"
+WATER_VARIABLES = frozenset({
+    "surface_water_fraction", "distance_to_surface_water_m", "distance_to_water_m", "distance_to_permanent_water_m",
+    "distance_to_natural_water_m", "distance_to_artificial_water_m", "water_point_density",
+})
 
 SEARCH_FILTERS = {
-    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION])}, or a list of them",
-    "variables": f"list of measured variables: rainfall_mm or {sorted(VEGETATION_INDICES)}; any one matches",
+    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION, WATER, SITE_FEATURES])}, "
+              "or a list of them",
+    "variables": f"list of measured variables: rainfall_mm, {sorted(VEGETATION_INDICES)} or "
+                 f"{sorted(WATER_VARIABLES)}; any one matches",
     "source_id": "source id or list of them, for example chirps, sentinel2, modis_mod13q1, movebank",
     "tags": "object of catalog tag key to value; every pair must match, for example {\"biome\": \"savanna\"}",
 }
@@ -167,6 +175,71 @@ FAMILIES = {
                    description="When the source published the fixes of the row"),
         ],
     ),
+    WATER: RecipeFamily(
+        name=WATER,
+        view="recipe_water_observations",
+        row_grain="one row per 1 km cell, water variable and month",
+        columns=[
+            *identity_columns(),
+            *cell_columns(),
+            Column(name="interval_start", type="timestamp", nullable=False, role="interval_start",
+                   description="First day of the month, inclusive, UTC"),
+            Column(name="interval_end", type="timestamp", nullable=False, role="interval_end",
+                   description="First day of the next month, exclusive, UTC"),
+            Column(name="variable", type="string", nullable=False,
+                   description=f"Water variable name, one of {sorted(WATER_VARIABLES)}"),
+            Column(name="value", type="number", role="measurement",
+                   description="Value of the variable in the unit column; null beyond the 20 km search radius"),
+            Column(name="unit", type="string", nullable=False, description="m, fraction or count_per_km2"),
+            Column(name="stat", type="string", nullable=False,
+                   description="mean (share of pixels), centroid (from the cell centre) or density"),
+            Column(name="pixel_count", type="integer", nullable=False,
+                   description="Observed pixels, or water features within the search radius"),
+            Column(name="source_id", type="string", nullable=False,
+                   description="jrc_gsw_monthly (observed) or water_derived (from features and observed water)"),
+            *quality_columns(),
+        ],
+        native_geometry_columns=frozenset({"geometry"}),
+    ),
+    SITE_FEATURES: RecipeFamily(
+        name=SITE_FEATURES,
+        view="recipe_site_features",
+        row_grain="one row per feature version (a river, lake, dam or water point)",
+        columns=[
+            Column(name="dataset_id", type="string", nullable=False, description="Catalog dataset id (the series id)"),
+            Column(name="dataset_version", type="string", nullable=False, description="Pinned catalog version"),
+            Column(name="source_record_id", type="string", nullable=False,
+                   description="Source record of this feature version, for example node/123@v2"),
+            Column(name="feature_id", type="string", nullable=False,
+                   description="Feature id, scoped by source, for example osm:way/42 or wpdx:<wpdx_id>"),
+            Column(name="feature_class", type="string", nullable=False,
+                   description="river, lake, pan, reservoir, wetland, dam or water_point"),
+            Column(name="feature_type", type="string", nullable=False, description="Finer type, for example borehole"),
+            Column(name="origin", type="string", nullable=False, description="natural, artificial or unknown"),
+            Column(name="permanence", type="string", nullable=False,
+                   description="permanent, seasonal, intermittent or unknown"),
+            Column(name="status", type="string", nullable=False,
+                   description="Functional status of a water point, for example functional or non_functional"),
+            Column(name="name", type="string", description="Name given by the source"),
+            Column(name="time_start", type="timestamp", nullable=False, role="event_time",
+                   description="First time the source shows this version of the feature"),
+            Column(name="valid_until", type="timestamp", nullable=False,
+                   description="Start of the next version of the feature, else 9999-12-31"),
+            Column(name="longitude", type="number", unit="degree", role="longitude",
+                   description="WGS84 longitude of a point feature; null for a line or an area"),
+            Column(name="latitude", type="number", unit="degree", role="latitude",
+                   description="WGS84 latitude of a point feature; null for a line or an area"),
+            Column(name="cell_id", type="string", role="cell_id",
+                   description="EASE-Grid 2.0 1 km cell of a point feature; join a line or an area by geometry"),
+            Column(name="geometry", type="geometry", nullable=False, role="geometry",
+                   description="Point, line or area, WGS84"),
+            Column(name="available_at", type="timestamp", nullable=False, role="available_at",
+                   description="When the source published this version of the feature"),
+            Column(name="quality_flag", type="string", nullable=False,
+                   description="ok, or the reason the row is uncertain"),
+        ],
+        native_geometry_columns=frozenset({"geometry"}),
+    ),
 }
 
 
@@ -175,12 +248,18 @@ def recipe_family(dataset: HabitatDataset) -> str | None:
     if dataset.family == ANIMAL_LOCATIONS:
         return ANIMAL_LOCATIONS
 
+    if dataset.family == SITE_FEATURES:
+        return SITE_FEATURES
+
     variables = set(dataset.variables)
     if dataset.family != "cell_observations" or not variables:
         return None
 
     if variables == {"rainfall_mm"}:
         return RAINFALL
+
+    if variables <= WATER_VARIABLES:
+        return WATER
 
     return VEGETATION if variables <= VEGETATION_INDICES else None
 

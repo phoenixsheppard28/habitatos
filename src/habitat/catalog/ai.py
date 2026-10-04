@@ -91,14 +91,19 @@ class CatalogAssistant:
             "properties": {
                 "families": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ["animal_locations", "occurrences", "cell_observations"]},
+                    "items": {"type": "string", "enum": ["animal_locations", "occurrences", "cell_observations",
+                                                         "site_features"]},
                 },
                 "species_names": {"type": "array", "items": {"type": "string"}},
                 "start": nullable_date,
                 "end": nullable_date,
                 "variables": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ["ndvi", "evi", "mndwi", "ndmi", "rainfall_mm"]},
+                    "items": {"type": "string", "enum": ["ndvi", "evi", "mndwi", "ndmi", "rainfall_mm",
+                                                         "surface_water_fraction", "distance_to_surface_water_m",
+                                                         "distance_to_water_m", "distance_to_permanent_water_m",
+                                                         "distance_to_natural_water_m",
+                                                         "distance_to_artificial_water_m", "water_point_density"]},
                 },
                 "tags_any": {"type": "array", "items": tag_schema(self.vocabulary)},
             },
