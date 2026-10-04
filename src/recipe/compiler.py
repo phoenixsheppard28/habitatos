@@ -12,7 +12,7 @@ from .errors import RecipeError
 from .models import Aggregate, AsOfJoin, Filter, Join, Select, SpatialJoin, TimeBucket, Window
 from .validation import validate_recipe
 
-COMPILER_VERSION = "recipe-sql-2"
+COMPILER_VERSION = "recipe-sql-3"
 
 
 def ident(value):
@@ -54,6 +54,7 @@ class SQLStage:
     limit_check: SQLCheck
     indexes: list[tuple[str, ...]]
     statistics: dict[str, str]
+    input_context: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -65,9 +66,10 @@ class CompiledRecipe:
     version: str = COMPILER_VERSION
     stages: list[SQLStage] = field(default_factory=list)
     cell_scopes: dict[str, list[str]] = field(default_factory=dict)
+    index_scopes: dict[str, list[str]] = field(default_factory=dict)
 
 
-def rainfall_cell_scopes(recipe, datasets):
+def environmental_cell_scopes(recipe, datasets):
     inputs = {alias: datasets[ref.key] for alias, ref in recipe.inputs.items()}
     steps = {step.id: step for step in recipe.steps}
     users = {name: [] for name in [*recipe.inputs, *(step.id for step in recipe.steps)]}
@@ -118,10 +120,56 @@ def rainfall_cell_scopes(recipe, datasets):
     scopes = {}
     for alias, dataset in inputs.items():
         cell = next((c.name for c in dataset.columns if c.role == "cell_id"), None)
-        if dataset.family == "rainfall_observations" and cell:
+        if dataset.family in {"rainfall_observations", "vegetation_observations"} and cell:
             matches = consumers(alias, cell)
             if matches:
                 scopes[alias] = sorted(matches)
+    return scopes
+
+
+def vegetation_index_scopes(recipe, datasets):
+    users = {name: [] for name in [*recipe.inputs, *(step.id for step in recipe.steps)]}
+    for step in recipe.steps:
+        for name in ([step.input] if isinstance(step, (Select, Filter, TimeBucket, Aggregate))
+                     else [step.left, step.right]):
+            users[name].append(step)
+
+    def paths(name, column, allowed=None):
+        if name == recipe.output.step or not users[name]:
+            return [allowed]
+        restrictions = []
+        for step in users[name]:
+            selected = allowed
+            if isinstance(step, Filter):
+                for predicate in step.predicates:
+                    if predicate.column != column:
+                        continue
+                    if predicate.operator == "eq" and isinstance(predicate.value, str):
+                        values = {predicate.value}
+                    elif predicate.operator == "in" and isinstance(predicate.value, list):
+                        values = set(predicate.value)
+                    else:
+                        continue
+                    selected = values if selected is None else selected & values
+                restrictions.extend(paths(step.id, column, selected))
+            elif isinstance(step, Select):
+                renamed = [out for out, source in step.columns.items() if source == column]
+                restrictions.extend(paths(step.id, renamed[0], selected) if len(renamed) == 1 else [selected])
+            elif isinstance(step, TimeBucket) and step.output != column:
+                restrictions.extend(paths(step.id, column, selected))
+            else:
+                restrictions.append(selected)
+        return restrictions
+
+    scopes = {}
+    for alias, ref in recipe.inputs.items():
+        dataset = datasets[ref.key]
+        if dataset.family != "vegetation_observations" or "index_name" not in {c.name for c in dataset.columns}:
+            continue
+        restrictions = paths(alias, "index_name")
+        if all(values is not None for values in restrictions):
+            scopes[alias] = sorted(set().union(*restrictions))
+
     return scopes
 
 
@@ -138,7 +186,8 @@ class SQLCompiler:
         namespace = "recipe_" + uuid4().hex
         tables = {name: f"{namespace}_{index}" for index, name in
                   enumerate([*recipe.inputs, *(step.id for step in recipe.steps)])}
-        cell_scopes = rainfall_cell_scopes(recipe, datasets) if materialize else {}
+        cell_scopes = environmental_cell_scopes(recipe, datasets) if materialize else {}
+        index_scopes = vegetation_index_scopes(recipe, datasets) if materialize else {}
         indexes = {name: set() for name in tables}
         for step in recipe.steps:
             if isinstance(step, (Join, AsOfJoin, Window)):
@@ -212,6 +261,10 @@ class SQLCompiler:
                     source_cell = next(c.name for c in datasets[recipe.inputs[source].key].columns if c.role == "cell_id")
                     matches.append(f"EXISTS(SELECT 1 FROM {relation(source)} cells WHERE cells.{ident(source_cell)}=source.{cell})")
                 restrictions.append("(" + " OR ".join(matches) + ")")
+            if alias in index_scopes:
+                indices = index_scopes[alias]
+                column = ident(binding.columns["index_name"])
+                restrictions.append(f"{column} IN ({', '.join(param(index) for index in indices)})" if indices else "FALSE")
 
             raw = f"SELECT {', '.join(projected)} FROM {ident(binding.schema)}.{ident(binding.table)} AS source"
             if restrictions:
@@ -236,7 +289,13 @@ class SQLCompiler:
             ctes.append(f"{ident(alias)} AS ({body})")
             check(f"{alias}: input row limit", f"SELECT count(*)>{param(self.max_rows)} AS invalid FROM {relation(alias)}", "RESOURCE_LIMIT")
             if materialize:
-                stages.append(SQLStage(alias, tables[alias], body, [], checks[-1], sorted(indexes[alias]), {}))
+                input_context = {"dataset_id": ds.dataset_id, "dataset_version": ds.version,
+                                 "family": ds.family, "region": query.region,
+                                 "time_range": {"start": (query.time_range.start-timedelta(seconds=lookback)).isoformat(),
+                                                "end": query.time_range.end.isoformat()},
+                                 "selected_indices": index_scopes.get(alias),
+                                 "track_cell_inputs": cell_scopes.get(alias, [])}
+                stages.append(SQLStage(alias, tables[alias], body, [], checks[-1], sorted(indexes[alias]), {}, input_context))
 
         for step in recipe.steps:
             first_check, first_stat = len(checks), set(stats)
@@ -321,4 +380,5 @@ class SQLCompiler:
         body = f"SELECT {select} FROM {relation(output.step)} WHERE {time}>={param(query.time_range.start)} AND {time}<={param(query.time_range.end)}"
         order = ", ".join(ident(k) for k in output.keys)
         final_sql = prefix() + body + f" ORDER BY {order} LIMIT {param(self.max_rows+1)}"
-        return CompiledRecipe(final_sql, params, checks, stats, stages=stages, cell_scopes=cell_scopes)
+        return CompiledRecipe(final_sql, params, checks, stats, stages=stages,
+                              cell_scopes=cell_scopes, index_scopes=index_scopes)

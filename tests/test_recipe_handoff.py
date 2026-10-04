@@ -79,3 +79,22 @@ def test_the_recipe_query_carries_the_forecast_cutoff():
 
     assert recipe_query["forecast_cutoff"] == "2011-03-05T00:00:00Z"
     assert "forecast" not in recipe_query and "comparison_windows" not in recipe_query
+
+
+def test_workflow_preserves_residence_settings_and_satellite_source():
+    from contracts.models import QuerySpec
+
+    query = QuerySpec.model_validate({
+        "query_id": "q", "question": "Bear residence time", "task_type": "historical", "access_scope": "public",
+        "time_range": {"start": "2026-01-01T00:00:00Z", "end": "2026-02-01T00:00:00Z"},
+        "region": {"type": "Point", "coordinates": [0, 0]}, "species": ["bear"],
+        "analysis_method": "residence_time", "max_tracking_gap_hours": 4,
+        "extensions": {"vegetation_source_id": "sentinel2"},
+    }).model_dump(mode="json")
+    request = {"request_id": "r", "query_id": "q", "access_scope": "public", "input": {"query": query}}
+
+    recipe_query = recipe_request(request)["input"]["query"]
+
+    assert recipe_query["analysis_method"] == "residence_time"
+    assert recipe_query["max_tracking_gap_hours"] == 4
+    assert recipe_query["extensions"] == {"vegetation_source_id": "sentinel2"}

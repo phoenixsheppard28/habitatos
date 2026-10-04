@@ -1,0 +1,852 @@
+- generic [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - button "Show or hide sidebar" [expanded] [ref=f1e3] [cursor=pointer]
+    - strong [ref=f1e10]: Dora
+    - generic [ref=f1e11]: Workspace / Public catalog
+    - generic [ref=f1e12]:
+      - status [ref=f1e13]: Connected
+      - button "↻ Refresh" [ref=f1e14] [cursor=pointer]
+      - button "↓ Export data" [ref=f1e15] [cursor=pointer]
+  - main [ref=f1e16]:
+    - complementary "Workspace objects" [ref=f1e17]:
+      - generic [ref=f1e18]:
+        - generic [ref=f1e22]:
+          - strong [ref=f1e23]: Dora workspace
+          - generic [ref=f1e24]: Public catalog
+        - button "Close sidebar" [ref=f1e25] [cursor=pointer]: ×
+      - button "Import data Local" [ref=f1e26] [cursor=pointer]:
+        - text: Import data
+        - generic [ref=f1e29]: Local
+      - searchbox "Find workspace objects" [ref=f1e33]
+      - navigation "Data, visualizations, and analysis" [ref=f1e34]:
+        - group [ref=f1e35]:
+          - generic "Workspace ›" [ref=f1e36] [cursor=pointer]
+          - button "Observation map" [ref=f1e37] [cursor=pointer]
+          - button "Observation records" [ref=f1e41] [cursor=pointer]
+          - button "Analysis charts" [ref=f1e45] [cursor=pointer]
+        - group [ref=f1e49]:
+          - generic "Catalog 5 ›" [ref=f1e50] [cursor=pointer]:
+            - text: Catalog
+            - generic [ref=f1e51]: "5"
+            - text: ›
+          - generic [ref=f1e52]:
+            - button "Comparison of movement strategies of three populations of white-bearded wildebeest Connochaetes taurinus" [pressed] [ref=f1e53] [cursor=pointer]:
+              - generic [ref=f1e56]:
+                - text: Comparison of movement strategies of three populations of white-bearded wildebeest
+                - generic [ref=f1e57]: Connochaetes taurinus
+            - button "Study \"American black bear movement ecology in Connecticut\" Ursus americanus" [ref=f1e58] [cursor=pointer]:
+              - generic [ref=f1e61]:
+                - text: Study "American black bear movement ecology in Connecticut"
+                - generic [ref=f1e62]: Ursus americanus
+            - button "CHIRPS v2.0 daily rainfall per 1 km cell rainfall_mm" [ref=f1e63] [cursor=pointer]:
+              - generic [ref=f1e66]:
+                - text: CHIRPS v2.0 daily rainfall per 1 km cell
+                - generic [ref=f1e67]: rainfall_mm
+            - button "MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell evi, ndvi" [ref=f1e68] [cursor=pointer]:
+              - generic [ref=f1e71]:
+                - text: MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell
+                - generic [ref=f1e72]: evi, ndvi
+            - button "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition mndwi, ndmi, ndvi" [ref=f1e73] [cursor=pointer]:
+              - generic [ref=f1e76]:
+                - text: Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition
+                - generic [ref=f1e77]: mndwi, ndmi, ndvi
+          - paragraph [ref=f1e78]: Select a dataset. The map shows one published dataset at a time.
+        - group [ref=f1e79]:
+          - generic "Analysis ›" [ref=f1e80] [cursor=pointer]
+          - button "Dataset overview" [ref=f1e81] [cursor=pointer]
+          - button "Sources and provenance" [ref=f1e85] [cursor=pointer]
+      - generic [ref=f1e89]:
+        - button "Ask Dora AI" [ref=f1e90] [cursor=pointer]:
+          - text: Ask Dora
+          - generic [ref=f1e93]: AI
+        - generic [ref=f1e96]:
+          - text: Public observations
+          - generic [ref=f1e97]: movebank_repository · version 2
+    - region "Exploration workspace" [ref=f1e98]:
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Dora workspace / Analysis
+        - generic [ref=f1e102]:
+          - heading "Analysis charts" [level=1] [ref=f1e335]
+          - paragraph [ref=f1e104]: Analysis results from Dora and the selected dataset summary.
+      - generic "Visualization views" [ref=f1e112]:
+        - button "Map" [ref=f1e113] [cursor=pointer]
+        - button "Table" [ref=f1e114] [cursor=pointer]
+        - button "Charts" [ref=f1e115] [cursor=pointer]
+        - button "Overview" [ref=f1e116] [cursor=pointer]
+        - generic [ref=f1e140]: Dataset version 2
+      - generic [ref=f1e117]:
+        - region "Selected workspace object" [ref=f1e336]:
+          - generic [ref=f1e338]:
+            - heading "Requested analyses" [level=2] [ref=f1e339]
+            - paragraph [ref=f1e340]: Ask Dora for an analysis. Results appear here with their original dates and evidence.
+          - button "Ask Dora for a chart" [ref=f1e341] [cursor=pointer]
+          - article [ref=f1e342]:
+            - heading "Daily displacement pattern of the selected wildebeest from 2011-02-01 to 2011-03-31, as a time series" [level=2] [ref=f1e343]
+            - paragraph [ref=f1e344]: Completed analysis · 2026-10-04T06:19:37Z · trend@1 · movebank_repository--movebank-data-repository--ease2-global-1km--study-208413731@2
+            - paragraph [ref=f1e345]: "Daily displacement: n=550, mean 1.026403, median 0.503733 km."
+            - generic [ref=f1e346]:
+              - heading "Daily median displacement" [level=3] [ref=f1e347]
+              - paragraph [ref=f1e348]: Missing values have no marks. Lines stop at missing days.
+              - region "Daily median displacement" [ref=f1e349]:
+                - img "Daily median displacement. Date (UTC); Daily median displacement (km)." [ref=f1e350]:
+                  - generic [ref=f1e351]: "-0.263"
+                  - generic [ref=f1e352]: "0.902"
+                  - generic [ref=f1e353]: "2.066"
+                  - generic [ref=f1e354]: "3.231"
+                  - generic [ref=f1e355]: "4.396"
+                  - 'generic "Observed · 2011-02-01: 0.6241 km" [ref=f1e356]'
+                  - 'generic "Observed · 2011-02-02: 0.7486 km" [ref=f1e357]'
+                  - 'generic "Observed · 2011-02-03: 0.6702 km" [ref=f1e358]'
+                  - 'generic "Observed · 2011-02-04: 0.7782 km" [ref=f1e359]'
+                  - 'generic "Observed · 2011-02-05: 1.3662 km" [ref=f1e360]'
+                  - 'generic "Observed · 2011-02-06: 0.2257 km" [ref=f1e361]'
+                  - 'generic "Observed · 2011-02-07: 2.1061 km" [ref=f1e362]'
+                  - 'generic "Observed · 2011-02-08: 1.4068 km" [ref=f1e363]'
+                  - 'generic "Observed · 2011-02-09: 0.5096 km" [ref=f1e364]'
+                  - 'generic "Observed · 2011-02-10: 0.6995 km" [ref=f1e365]'
+                  - 'generic "Observed · 2011-02-11: 0.4983 km" [ref=f1e366]'
+                  - 'generic "Observed · 2011-02-12: 0.4759 km" [ref=f1e367]'
+                  - 'generic "Observed · 2011-02-13: 1.0115 km" [ref=f1e368]'
+                  - 'generic "Observed · 2011-02-14: 0.5191 km" [ref=f1e369]'
+                  - 'generic "Observed · 2011-02-15: 0.6461 km" [ref=f1e370]'
+                  - 'generic "Observed · 2011-02-16: 0.835 km" [ref=f1e371]'
+                  - 'generic "Observed · 2011-02-17: 1.2196 km" [ref=f1e372]'
+                  - 'generic "Observed · 2011-02-18: 0.8354 km" [ref=f1e373]'
+                  - 'generic "Observed · 2011-02-19: 0.5211 km" [ref=f1e374]'
+                  - 'generic "Observed · 2011-02-20: 0.355 km" [ref=f1e375]'
+                  - 'generic "Observed · 2011-02-21: 0.6692 km" [ref=f1e376]'
+                  - 'generic "Observed · 2011-02-22: 0.6459 km" [ref=f1e377]'
+                  - 'generic "Observed · 2011-02-23: 0.4442 km" [ref=f1e378]'
+                  - 'generic "Observed · 2011-02-24: 0.932 km" [ref=f1e379]'
+                  - 'generic "Observed · 2011-02-25: 0.3071 km" [ref=f1e380]'
+                  - 'generic "Observed · 2011-02-26: 0.3387 km" [ref=f1e381]'
+                  - 'generic "Observed · 2011-02-27: 0.481 km" [ref=f1e382]'
+                  - 'generic "Observed · 2011-02-28: 0.2775 km" [ref=f1e383]'
+                  - 'generic "Observed · 2011-03-01: 0.3459 km" [ref=f1e384]'
+                  - 'generic "Observed · 2011-03-02: 0.3727 km" [ref=f1e385]'
+                  - 'generic "Observed · 2011-03-03: 0.479 km" [ref=f1e386]'
+                  - 'generic "Observed · 2011-03-04: 0.4869 km" [ref=f1e387]'
+                  - 'generic "Observed · 2011-03-05: 0.3258 km" [ref=f1e388]'
+                  - 'generic "Observed · 2011-03-06: 0.161 km" [ref=f1e389]'
+                  - 'generic "Observed · 2011-03-07: 0.4639 km" [ref=f1e390]'
+                  - 'generic "Observed · 2011-03-11: 4.0075 km" [ref=f1e391]'
+                  - 'generic "Observed · 2011-03-12: 0.4281 km" [ref=f1e392]'
+                  - 'generic "Observed · 2011-03-13: 1.024 km" [ref=f1e393]'
+                  - 'generic "Observed · 2011-03-14: 0.6612 km" [ref=f1e394]'
+                  - 'generic "Observed · 2011-03-15: 0.2742 km" [ref=f1e395]'
+                  - 'generic "Observed · 2011-03-16: 0.2736 km" [ref=f1e396]'
+                  - 'generic "Observed · 2011-03-17: 0.7877 km" [ref=f1e397]'
+                  - 'generic "Observed · 2011-03-18: 0.6505 km" [ref=f1e398]'
+                  - 'generic "Observed · 2011-03-19: 0.7008 km" [ref=f1e399]'
+                  - 'generic "Observed · 2011-03-20: 0.5522 km" [ref=f1e400]'
+                  - 'generic "Observed · 2011-03-21: 0.3282 km" [ref=f1e401]'
+                  - 'generic "Observed · 2011-03-22: 0.6176 km" [ref=f1e402]'
+                  - 'generic "Observed · 2011-03-23: 0.4404 km" [ref=f1e403]'
+                  - 'generic "Observed · 2011-03-24: 0.315 km" [ref=f1e404]'
+                  - 'generic "Observed · 2011-03-25: 0.4562 km" [ref=f1e405]'
+                  - 'generic "Observed · 2011-03-26: 0.4096 km" [ref=f1e406]'
+                  - 'generic "Observed · 2011-03-27: 0.6896 km" [ref=f1e407]'
+                  - 'generic "Observed · 2011-03-28: 0.1954 km" [ref=f1e408]'
+                  - 'generic "Observed · 2011-03-29: 0.1251 km" [ref=f1e409]'
+                  - 'generic "Observed · 2011-03-30: 0.2111 km" [ref=f1e410]'
+                  - 'generic "Observed · 2011-03-31: 0.1667 km" [ref=f1e411]'
+                  - generic "2011-02-01" [ref=f1e413]
+                  - generic "2011-03-01" [ref=f1e414]
+                  - generic "2011-03-31" [ref=f1e415]
+                  - generic [ref=f1e416]: Date (UTC)
+                  - generic [ref=f1e417]: Daily median displacement (km)
+              - generic [ref=f1e418]: Observed
+              - group [ref=f1e421]:
+                - generic "View chart data" [active] [ref=f1e422] [cursor=pointer]
+                - table [ref=f1e574]:
+                  - rowgroup [ref=f1e575]:
+                    - row [ref=f1e576]:
+                      - columnheader "Series" [ref=f1e577]
+                      - columnheader "Date (UTC)" [ref=f1e578]
+                      - columnheader "Daily median displacement" [ref=f1e579]
+                      - columnheader "Unit" [ref=f1e580]
+                      - columnheader "Evidence" [ref=f1e581]
+                  - rowgroup [ref=f1e582]:
+                    - row [ref=f1e583]:
+                      - cell "Observed" [ref=f1e584]
+                      - cell "2011-02-01" [ref=f1e585]
+                      - cell "0.6241" [ref=f1e586]
+                      - cell "km" [ref=f1e587]
+                      - cell [ref=f1e588]
+                    - row [ref=f1e589]:
+                      - cell "Observed" [ref=f1e590]
+                      - cell "2011-02-02" [ref=f1e591]
+                      - cell "0.7486" [ref=f1e592]
+                      - cell "km" [ref=f1e593]
+                      - cell [ref=f1e594]
+                    - row [ref=f1e595]:
+                      - cell "Observed" [ref=f1e596]
+                      - cell "2011-02-03" [ref=f1e597]
+                      - cell "0.6702" [ref=f1e598]
+                      - cell "km" [ref=f1e599]
+                      - cell [ref=f1e600]
+                    - row [ref=f1e601]:
+                      - cell "Observed" [ref=f1e602]
+                      - cell "2011-02-04" [ref=f1e603]
+                      - cell "0.7782" [ref=f1e604]
+                      - cell "km" [ref=f1e605]
+                      - cell [ref=f1e606]
+                    - row [ref=f1e607]:
+                      - cell "Observed" [ref=f1e608]
+                      - cell "2011-02-05" [ref=f1e609]
+                      - cell "1.3662" [ref=f1e610]
+                      - cell "km" [ref=f1e611]
+                      - cell [ref=f1e612]
+                    - row [ref=f1e613]:
+                      - cell "Observed" [ref=f1e614]
+                      - cell "2011-02-06" [ref=f1e615]
+                      - cell "0.2257" [ref=f1e616]
+                      - cell "km" [ref=f1e617]
+                      - cell [ref=f1e618]
+                    - row [ref=f1e619]:
+                      - cell "Observed" [ref=f1e620]
+                      - cell "2011-02-07" [ref=f1e621]
+                      - cell "2.1061" [ref=f1e622]
+                      - cell "km" [ref=f1e623]
+                      - cell [ref=f1e624]
+                    - row [ref=f1e625]:
+                      - cell "Observed" [ref=f1e626]
+                      - cell "2011-02-08" [ref=f1e627]
+                      - cell "1.4068" [ref=f1e628]
+                      - cell "km" [ref=f1e629]
+                      - cell [ref=f1e630]
+                    - row [ref=f1e631]:
+                      - cell "Observed" [ref=f1e632]
+                      - cell "2011-02-09" [ref=f1e633]
+                      - cell "0.5096" [ref=f1e634]
+                      - cell "km" [ref=f1e635]
+                      - cell [ref=f1e636]
+                    - row [ref=f1e637]:
+                      - cell "Observed" [ref=f1e638]
+                      - cell "2011-02-10" [ref=f1e639]
+                      - cell "0.6995" [ref=f1e640]
+                      - cell "km" [ref=f1e641]
+                      - cell [ref=f1e642]
+                    - row [ref=f1e643]:
+                      - cell "Observed" [ref=f1e644]
+                      - cell "2011-02-11" [ref=f1e645]
+                      - cell "0.4983" [ref=f1e646]
+                      - cell "km" [ref=f1e647]
+                      - cell [ref=f1e648]
+                    - row [ref=f1e649]:
+                      - cell "Observed" [ref=f1e650]
+                      - cell "2011-02-12" [ref=f1e651]
+                      - cell "0.4759" [ref=f1e652]
+                      - cell "km" [ref=f1e653]
+                      - cell [ref=f1e654]
+                    - row [ref=f1e655]:
+                      - cell "Observed" [ref=f1e656]
+                      - cell "2011-02-13" [ref=f1e657]
+                      - cell "1.0115" [ref=f1e658]
+                      - cell "km" [ref=f1e659]
+                      - cell [ref=f1e660]
+                    - row [ref=f1e661]:
+                      - cell "Observed" [ref=f1e662]
+                      - cell "2011-02-14" [ref=f1e663]
+                      - cell "0.5191" [ref=f1e664]
+                      - cell "km" [ref=f1e665]
+                      - cell [ref=f1e666]
+                    - row [ref=f1e667]:
+                      - cell "Observed" [ref=f1e668]
+                      - cell "2011-02-15" [ref=f1e669]
+                      - cell "0.6461" [ref=f1e670]
+                      - cell "km" [ref=f1e671]
+                      - cell [ref=f1e672]
+                    - row [ref=f1e673]:
+                      - cell "Observed" [ref=f1e674]
+                      - cell "2011-02-16" [ref=f1e675]
+                      - cell "0.835" [ref=f1e676]
+                      - cell "km" [ref=f1e677]
+                      - cell [ref=f1e678]
+                    - row [ref=f1e679]:
+                      - cell "Observed" [ref=f1e680]
+                      - cell "2011-02-17" [ref=f1e681]
+                      - cell "1.2196" [ref=f1e682]
+                      - cell "km" [ref=f1e683]
+                      - cell [ref=f1e684]
+                    - row [ref=f1e685]:
+                      - cell "Observed" [ref=f1e686]
+                      - cell "2011-02-18" [ref=f1e687]
+                      - cell "0.8354" [ref=f1e688]
+                      - cell "km" [ref=f1e689]
+                      - cell [ref=f1e690]
+                    - row [ref=f1e691]:
+                      - cell "Observed" [ref=f1e692]
+                      - cell "2011-02-19" [ref=f1e693]
+                      - cell "0.5211" [ref=f1e694]
+                      - cell "km" [ref=f1e695]
+                      - cell [ref=f1e696]
+                    - row [ref=f1e697]:
+                      - cell "Observed" [ref=f1e698]
+                      - cell "2011-02-20" [ref=f1e699]
+                      - cell "0.355" [ref=f1e700]
+                      - cell "km" [ref=f1e701]
+                      - cell [ref=f1e702]
+                    - row [ref=f1e703]:
+                      - cell "Observed" [ref=f1e704]
+                      - cell "2011-02-21" [ref=f1e705]
+                      - cell "0.6692" [ref=f1e706]
+                      - cell "km" [ref=f1e707]
+                      - cell [ref=f1e708]
+                    - row [ref=f1e709]:
+                      - cell "Observed" [ref=f1e710]
+                      - cell "2011-02-22" [ref=f1e711]
+                      - cell "0.6459" [ref=f1e712]
+                      - cell "km" [ref=f1e713]
+                      - cell [ref=f1e714]
+                    - row [ref=f1e715]:
+                      - cell "Observed" [ref=f1e716]
+                      - cell "2011-02-23" [ref=f1e717]
+                      - cell "0.4442" [ref=f1e718]
+                      - cell "km" [ref=f1e719]
+                      - cell [ref=f1e720]
+                    - row [ref=f1e721]:
+                      - cell "Observed" [ref=f1e722]
+                      - cell "2011-02-24" [ref=f1e723]
+                      - cell "0.932" [ref=f1e724]
+                      - cell "km" [ref=f1e725]
+                      - cell [ref=f1e726]
+                    - row [ref=f1e727]:
+                      - cell "Observed" [ref=f1e728]
+                      - cell "2011-02-25" [ref=f1e729]
+                      - cell "0.3071" [ref=f1e730]
+                      - cell "km" [ref=f1e731]
+                      - cell [ref=f1e732]
+                    - row [ref=f1e733]:
+                      - cell "Observed" [ref=f1e734]
+                      - cell "2011-02-26" [ref=f1e735]
+                      - cell "0.3387" [ref=f1e736]
+                      - cell "km" [ref=f1e737]
+                      - cell [ref=f1e738]
+                    - row [ref=f1e739]:
+                      - cell "Observed" [ref=f1e740]
+                      - cell "2011-02-27" [ref=f1e741]
+                      - cell "0.481" [ref=f1e742]
+                      - cell "km" [ref=f1e743]
+                      - cell [ref=f1e744]
+                    - row [ref=f1e745]:
+                      - cell "Observed" [ref=f1e746]
+                      - cell "2011-02-28" [ref=f1e747]
+                      - cell "0.2775" [ref=f1e748]
+                      - cell "km" [ref=f1e749]
+                      - cell [ref=f1e750]
+                    - row [ref=f1e751]:
+                      - cell "Observed" [ref=f1e752]
+                      - cell "2011-03-01" [ref=f1e753]
+                      - cell "0.3459" [ref=f1e754]
+                      - cell "km" [ref=f1e755]
+                      - cell [ref=f1e756]
+                    - row [ref=f1e757]:
+                      - cell "Observed" [ref=f1e758]
+                      - cell "2011-03-02" [ref=f1e759]
+                      - cell "0.3727" [ref=f1e760]
+                      - cell "km" [ref=f1e761]
+                      - cell [ref=f1e762]
+                    - row [ref=f1e763]:
+                      - cell "Observed" [ref=f1e764]
+                      - cell "2011-03-03" [ref=f1e765]
+                      - cell "0.479" [ref=f1e766]
+                      - cell "km" [ref=f1e767]
+                      - cell [ref=f1e768]
+                    - row [ref=f1e769]:
+                      - cell "Observed" [ref=f1e770]
+                      - cell "2011-03-04" [ref=f1e771]
+                      - cell "0.4869" [ref=f1e772]
+                      - cell "km" [ref=f1e773]
+                      - cell [ref=f1e774]
+                    - row [ref=f1e775]:
+                      - cell "Observed" [ref=f1e776]
+                      - cell "2011-03-05" [ref=f1e777]
+                      - cell "0.3258" [ref=f1e778]
+                      - cell "km" [ref=f1e779]
+                      - cell [ref=f1e780]
+                    - row [ref=f1e781]:
+                      - cell "Observed" [ref=f1e782]
+                      - cell "2011-03-06" [ref=f1e783]
+                      - cell "0.161" [ref=f1e784]
+                      - cell "km" [ref=f1e785]
+                      - cell [ref=f1e786]
+                    - row [ref=f1e787]:
+                      - cell "Observed" [ref=f1e788]
+                      - cell "2011-03-07" [ref=f1e789]
+                      - cell "0.4639" [ref=f1e790]
+                      - cell "km" [ref=f1e791]
+                      - cell [ref=f1e792]
+                    - row [ref=f1e793]:
+                      - cell "Observed" [ref=f1e794]
+                      - cell "2011-03-10" [ref=f1e795]
+                      - cell "Missing" [ref=f1e796]
+                      - cell "km" [ref=f1e797]
+                      - cell [ref=f1e798]
+                    - row [ref=f1e799]:
+                      - cell "Observed" [ref=f1e800]
+                      - cell "2011-03-11" [ref=f1e801]
+                      - cell "4.0075" [ref=f1e802]
+                      - cell "km" [ref=f1e803]
+                      - cell [ref=f1e804]
+                    - row [ref=f1e805]:
+                      - cell "Observed" [ref=f1e806]
+                      - cell "2011-03-12" [ref=f1e807]
+                      - cell "0.4281" [ref=f1e808]
+                      - cell "km" [ref=f1e809]
+                      - cell [ref=f1e810]
+                    - row [ref=f1e811]:
+                      - cell "Observed" [ref=f1e812]
+                      - cell "2011-03-13" [ref=f1e813]
+                      - cell "1.024" [ref=f1e814]
+                      - cell "km" [ref=f1e815]
+                      - cell [ref=f1e816]
+                    - row [ref=f1e817]:
+                      - cell "Observed" [ref=f1e818]
+                      - cell "2011-03-14" [ref=f1e819]
+                      - cell "0.6612" [ref=f1e820]
+                      - cell "km" [ref=f1e821]
+                      - cell [ref=f1e822]
+                    - row [ref=f1e823]:
+                      - cell "Observed" [ref=f1e824]
+                      - cell "2011-03-15" [ref=f1e825]
+                      - cell "0.2742" [ref=f1e826]
+                      - cell "km" [ref=f1e827]
+                      - cell [ref=f1e828]
+                    - row [ref=f1e829]:
+                      - cell "Observed" [ref=f1e830]
+                      - cell "2011-03-16" [ref=f1e831]
+                      - cell "0.2736" [ref=f1e832]
+                      - cell "km" [ref=f1e833]
+                      - cell [ref=f1e834]
+                    - row [ref=f1e835]:
+                      - cell "Observed" [ref=f1e836]
+                      - cell "2011-03-17" [ref=f1e837]
+                      - cell "0.7877" [ref=f1e838]
+                      - cell "km" [ref=f1e839]
+                      - cell [ref=f1e840]
+                    - row [ref=f1e841]:
+                      - cell "Observed" [ref=f1e842]
+                      - cell "2011-03-18" [ref=f1e843]
+                      - cell "0.6505" [ref=f1e844]
+                      - cell "km" [ref=f1e845]
+                      - cell [ref=f1e846]
+                    - row [ref=f1e847]:
+                      - cell "Observed" [ref=f1e848]
+                      - cell "2011-03-19" [ref=f1e849]
+                      - cell "0.7008" [ref=f1e850]
+                      - cell "km" [ref=f1e851]
+                      - cell [ref=f1e852]
+                    - row [ref=f1e853]:
+                      - cell "Observed" [ref=f1e854]
+                      - cell "2011-03-20" [ref=f1e855]
+                      - cell "0.5522" [ref=f1e856]
+                      - cell "km" [ref=f1e857]
+                      - cell [ref=f1e858]
+                    - row [ref=f1e859]:
+                      - cell "Observed" [ref=f1e860]
+                      - cell "2011-03-21" [ref=f1e861]
+                      - cell "0.3282" [ref=f1e862]
+                      - cell "km" [ref=f1e863]
+                      - cell [ref=f1e864]
+                    - row [ref=f1e865]:
+                      - cell "Observed" [ref=f1e866]
+                      - cell "2011-03-22" [ref=f1e867]
+                      - cell "0.6176" [ref=f1e868]
+                      - cell "km" [ref=f1e869]
+                      - cell [ref=f1e870]
+                    - row [ref=f1e871]:
+                      - cell "Observed" [ref=f1e872]
+                      - cell "2011-03-23" [ref=f1e873]
+                      - cell "0.4404" [ref=f1e874]
+                      - cell "km" [ref=f1e875]
+                      - cell [ref=f1e876]
+                    - row [ref=f1e877]:
+                      - cell "Observed" [ref=f1e878]
+                      - cell "2011-03-24" [ref=f1e879]
+                      - cell "0.315" [ref=f1e880]
+                      - cell "km" [ref=f1e881]
+                      - cell [ref=f1e882]
+                    - row [ref=f1e883]:
+                      - cell "Observed" [ref=f1e884]
+                      - cell "2011-03-25" [ref=f1e885]
+                      - cell "0.4562" [ref=f1e886]
+                      - cell "km" [ref=f1e887]
+                      - cell [ref=f1e888]
+                    - row [ref=f1e889]:
+                      - cell "Observed" [ref=f1e890]
+                      - cell "2011-03-26" [ref=f1e891]
+                      - cell "0.4096" [ref=f1e892]
+                      - cell "km" [ref=f1e893]
+                      - cell [ref=f1e894]
+                    - row [ref=f1e895]:
+                      - cell "Observed" [ref=f1e896]
+                      - cell "2011-03-27" [ref=f1e897]
+                      - cell "0.6896" [ref=f1e898]
+                      - cell "km" [ref=f1e899]
+                      - cell [ref=f1e900]
+                    - row [ref=f1e901]:
+                      - cell "Observed" [ref=f1e902]
+                      - cell "2011-03-28" [ref=f1e903]
+                      - cell "0.1954" [ref=f1e904]
+                      - cell "km" [ref=f1e905]
+                      - cell [ref=f1e906]
+                    - row [ref=f1e907]:
+                      - cell "Observed" [ref=f1e908]
+                      - cell "2011-03-29" [ref=f1e909]
+                      - cell "0.1251" [ref=f1e910]
+                      - cell "km" [ref=f1e911]
+                      - cell [ref=f1e912]
+                    - row [ref=f1e913]:
+                      - cell "Observed" [ref=f1e914]
+                      - cell "2011-03-30" [ref=f1e915]
+                      - cell "0.2111" [ref=f1e916]
+                      - cell "km" [ref=f1e917]
+                      - cell [ref=f1e918]
+                    - row [ref=f1e919]:
+                      - cell "Observed" [ref=f1e920]
+                      - cell "2011-03-31" [ref=f1e921]
+                      - cell "0.1667" [ref=f1e922]
+                      - cell "km" [ref=f1e923]
+                      - cell [ref=f1e924]
+            - group [ref=f1e423]:
+              - generic "Limitations and warnings" [ref=f1e424] [cursor=pointer]
+          - paragraph [ref=f1e425]: The dataset summary below follows the timeline control. Requested analyses retain the dates used for each request.
+          - generic [ref=f1e427]:
+            - heading "Monthly daily displacement" [level=2] [ref=f1e428]
+            - paragraph [ref=f1e429]: Sum of measured daily displacements in kilometers.
+          - article [ref=f1e430]:
+            - 'img "Oct 2010: 159.1 km; Nov 2010: 447.8 km; Dec 2010: 366.5 km; Jan 2011: 325.1 km; Feb 2011: 353.5 km; Mar 2011: 211 km; Apr 2011: 290.7 km; May 2011: 340.9 km; Jun 2011: 428.1 km; Jul 2011: 349.7 km; Aug 2011: 263.2 km; Sep 2011: 263 km; Oct 2011: 500.9 km; Nov 2011: 271.7 km; Dec 2011: 157.4 km; Jan 2012: 239.3 km; Feb 2012: 310.3 km; Mar 2012: 415.7 km; Apr 2012: 184.9 km; May 2012: 124.3 km; Jun 2012: 114.6 km; Jul 2012: 178.4 km; Aug 2012: 150.2 km; Sep 2012: 191.5 km; Oct 2012: 140.2 km; Nov 2012: 130.5 km; Dec 2012: 84.8 km; Jan 2013: 21.6 km" [ref=f1e431]':
+              - generic [ref=f1e432]:
+                - generic [ref=f1e433]: "159.1"
+                - 'generic "Oct 2010: 159.1 km" [ref=f1e435]'
+                - generic [ref=f1e436]: Oct 2010
+              - generic [ref=f1e437]:
+                - generic [ref=f1e438]: "447.8"
+                - 'generic "Nov 2010: 447.8 km" [ref=f1e440]'
+                - generic [ref=f1e441]: Nov 2010
+              - generic [ref=f1e442]:
+                - generic [ref=f1e443]: "366.5"
+                - 'generic "Dec 2010: 366.5 km" [ref=f1e445]'
+                - generic [ref=f1e446]: Dec 2010
+              - generic [ref=f1e447]:
+                - generic [ref=f1e448]: "325.1"
+                - 'generic "Jan 2011: 325.1 km" [ref=f1e450]'
+                - generic [ref=f1e451]: Jan 2011
+              - generic [ref=f1e452]:
+                - generic [ref=f1e453]: "353.5"
+                - 'generic "Feb 2011: 353.5 km" [ref=f1e455]'
+                - generic [ref=f1e456]: Feb 2011
+              - generic [ref=f1e457]:
+                - generic [ref=f1e458]: "211"
+                - 'generic "Mar 2011: 211 km" [ref=f1e460]'
+                - generic [ref=f1e461]: Mar 2011
+              - generic [ref=f1e462]:
+                - generic [ref=f1e463]: "290.7"
+                - 'generic "Apr 2011: 290.7 km" [ref=f1e465]'
+                - generic [ref=f1e466]: Apr 2011
+              - generic [ref=f1e467]:
+                - generic [ref=f1e468]: "340.9"
+                - 'generic "May 2011: 340.9 km" [ref=f1e470]'
+                - generic [ref=f1e471]: May 2011
+              - generic [ref=f1e472]:
+                - generic [ref=f1e473]: "428.1"
+                - 'generic "Jun 2011: 428.1 km" [ref=f1e475]'
+                - generic [ref=f1e476]: Jun 2011
+              - generic [ref=f1e477]:
+                - generic [ref=f1e478]: "349.7"
+                - 'generic "Jul 2011: 349.7 km" [ref=f1e480]'
+                - generic [ref=f1e481]: Jul 2011
+              - generic [ref=f1e482]:
+                - generic [ref=f1e483]: "263.2"
+                - 'generic "Aug 2011: 263.2 km" [ref=f1e485]'
+                - generic [ref=f1e486]: Aug 2011
+              - generic [ref=f1e487]:
+                - generic [ref=f1e488]: "263"
+                - 'generic "Sep 2011: 263 km" [ref=f1e490]'
+                - generic [ref=f1e491]: Sep 2011
+              - generic [ref=f1e492]:
+                - generic [ref=f1e493]: "500.9"
+                - 'generic "Oct 2011: 500.9 km" [ref=f1e495]'
+                - generic [ref=f1e496]: Oct 2011
+              - generic [ref=f1e497]:
+                - generic [ref=f1e498]: "271.7"
+                - 'generic "Nov 2011: 271.7 km" [ref=f1e500]'
+                - generic [ref=f1e501]: Nov 2011
+              - generic [ref=f1e502]:
+                - generic [ref=f1e503]: "157.4"
+                - 'generic "Dec 2011: 157.4 km" [ref=f1e505]'
+                - generic [ref=f1e506]: Dec 2011
+              - generic [ref=f1e507]:
+                - generic [ref=f1e508]: "239.3"
+                - 'generic "Jan 2012: 239.3 km" [ref=f1e510]'
+                - generic [ref=f1e511]: Jan 2012
+              - generic [ref=f1e512]:
+                - generic [ref=f1e513]: "310.3"
+                - 'generic "Feb 2012: 310.3 km" [ref=f1e515]'
+                - generic [ref=f1e516]: Feb 2012
+              - generic [ref=f1e517]:
+                - generic [ref=f1e518]: "415.7"
+                - 'generic "Mar 2012: 415.7 km" [ref=f1e520]'
+                - generic [ref=f1e521]: Mar 2012
+              - generic [ref=f1e522]:
+                - generic [ref=f1e523]: "184.9"
+                - 'generic "Apr 2012: 184.9 km" [ref=f1e525]'
+                - generic [ref=f1e526]: Apr 2012
+              - generic [ref=f1e527]:
+                - generic [ref=f1e528]: "124.3"
+                - 'generic "May 2012: 124.3 km" [ref=f1e530]'
+                - generic [ref=f1e531]: May 2012
+              - generic [ref=f1e532]:
+                - generic [ref=f1e533]: "114.6"
+                - 'generic "Jun 2012: 114.6 km" [ref=f1e535]'
+                - generic [ref=f1e536]: Jun 2012
+              - generic [ref=f1e537]:
+                - generic [ref=f1e538]: "178.4"
+                - 'generic "Jul 2012: 178.4 km" [ref=f1e540]'
+                - generic [ref=f1e541]: Jul 2012
+              - generic [ref=f1e542]:
+                - generic [ref=f1e543]: "150.2"
+                - 'generic "Aug 2012: 150.2 km" [ref=f1e545]'
+                - generic [ref=f1e546]: Aug 2012
+              - generic [ref=f1e547]:
+                - generic [ref=f1e548]: "191.5"
+                - 'generic "Sep 2012: 191.5 km" [ref=f1e550]'
+                - generic [ref=f1e551]: Sep 2012
+              - generic [ref=f1e552]:
+                - generic [ref=f1e553]: "140.2"
+                - 'generic "Oct 2012: 140.2 km" [ref=f1e555]'
+                - generic [ref=f1e556]: Oct 2012
+              - generic [ref=f1e557]:
+                - generic [ref=f1e558]: "130.5"
+                - 'generic "Nov 2012: 130.5 km" [ref=f1e560]'
+                - generic [ref=f1e561]: Nov 2012
+              - generic [ref=f1e562]:
+                - generic [ref=f1e563]: "84.8"
+                - 'generic "Dec 2012: 84.8 km" [ref=f1e565]'
+                - generic [ref=f1e566]: Dec 2012
+              - generic [ref=f1e567]:
+                - generic [ref=f1e568]: "21.6"
+                - 'generic "Jan 2013: 21.6 km" [ref=f1e570]'
+                - generic [ref=f1e571]: Jan 2013
+          - paragraph [ref=f1e572]: Daily displacement connects the last good fixes on consecutive UTC days. Missing days have no displacement value.
+        - generic [ref=f1e133]:
+          - button "Play" [ref=f1e134] [cursor=pointer]
+          - generic [ref=f1e135]: Jan 2013
+          - generic [ref=f1e136]:
+            - generic [ref=f1e137]: Oct 2010
+            - slider "Last observation month in view" [ref=f1e138]: "27"
+            - generic [ref=f1e139]: Jan 2013
+    - complementary "Dora assistant" [ref=f1e142]:
+      - generic "Move assistant. Drag to either side to dock, or use arrow keys." [ref=f1e143]:
+        - generic [ref=f1e147]:
+          - strong [ref=f1e148]: Dora
+          - paragraph [ref=f1e149]: Drag to either side to dock
+        - generic [aria-hidden] [ref=f1e150]: ⠿
+        - button "Dock assistant to the right" [ref=f1e151] [cursor=pointer]
+        - button "Minimize assistant" [expanded] [ref=f1e154] [cursor=pointer]: −
+        - button "Close assistant" [ref=f1e155] [cursor=pointer]: ×
+      - generic [ref=f1e156]:
+        - button "History 1" [ref=f1e173] [cursor=pointer]:
+          - text: History
+          - generic [ref=f1e158]: "1"
+        - button "New chat" [ref=f1e159] [cursor=pointer]
+        - status [ref=f1e160]: Saved on this device
+      - generic [ref=f1e161]: What data coverage and sources are available for the selected wildebeest study?
+      - log [ref=f1e162]:
+        - article [ref=f1e174]:
+          - generic [ref=f1e175]:
+            - generic [ref=f1e176]: YOU
+            - time [ref=f1e177]: 02:18 AM
+          - paragraph [ref=f1e178]: What data coverage and sources are available for the selected wildebeest study? Give observation dates, count, and limits; do not run an analysis.
+        - article [ref=f1e190]:
+          - generic [ref=f1e191]:
+            - generic [ref=f1e192]: Dora
+            - time [ref=f1e193]: 02:18 AM
+          - generic [ref=f1e194]:
+            - paragraph [ref=f1e195]:
+              - strong [ref=f1e196]: "Selected study:"
+              - text: white-bearded wildebeest (
+              - emphasis [ref=f1e197]: Connochaetes taurinus
+              - text: ), "Comparison of movement strategies of three populations of white-bearded wildebeest". The dataset is
+              - code [ref=f1e198]: movebank_repository--movebank-data-repository--ease2-global-1km--study-208413731
+              - text: ", version 2. I ran no analysis."
+            - paragraph [ref=f1e199]:
+              - strong [ref=f1e200]: Observations
+            - list [ref=f1e201]:
+              - listitem [ref=f1e202]:
+                - strong [ref=f1e203]: "Dates:"
+                - text: 2010-10-15 13:00 UTC to 2013-01-15 14:00 UTC. Monthly aggregates run from 2010-10 to 2013-01.
+              - listitem [ref=f1e204]:
+                - strong [ref=f1e205]: "Count:"
+                - text: 100,961 GPS fixes. The monthly fix totals sum to the same number.
+              - listitem [ref=f1e206]:
+                - strong [ref=f1e207]: "Daily records:"
+                - text: 6,557. The summary grain is the last good fix per animal per UTC day.
+              - listitem [ref=f1e208]:
+                - strong [ref=f1e209]: "Animals:"
+                - text: 12 tracked in the first months, falling to 3 by 2012-12 and 2013-01.
+              - listitem [ref=f1e210]:
+                - strong [ref=f1e211]: "Fixes per month:"
+                - text: about 5,000–5,700 in late 2010 and 2011, down to 608 in 2013-01.
+              - listitem [ref=f1e212]:
+                - strong [ref=f1e213]: "Area:"
+                - text: bbox lon 36.78 to 37.12, lat −1.87 to −1.33 (Kenya).
+              - listitem [ref=f1e214]:
+                - strong [ref=f1e215]: "Variables:"
+                - text: none are attached to this dataset. Rainfall or vegetation would have to come from other layers.
+            - paragraph [ref=f1e216]:
+              - strong [ref=f1e217]: Source and rights
+            - list [ref=f1e218]:
+              - listitem [ref=f1e219]:
+                - strong [ref=f1e220]: "Source:"
+                - text: "Movebank Data Repository, study 208413731:"
+                - link "https://datarepository.movebank.org/handle/10255/move.1095" [ref=f1e221] [cursor=pointer]:
+                  - /url: https://datarepository.movebank.org/handle/10255/move.1095
+              - listitem [ref=f1e222]:
+                - strong [ref=f1e223]: "Raw file:"
+                - code [ref=f1e224]: 10255/move.1095/White-bearded wildebeest in Kenya-gps.csv
+              - listitem [ref=f1e225]:
+                - strong [ref=f1e226]: "License:"
+                - text: CC0 1.0. Reuse and retention are allowed.
+              - listitem [ref=f1e227]:
+                - strong [ref=f1e228]: "Citation:"
+                - text: Stabach JA et al. 2022.
+                - emphasis [ref=f1e229]: Front Ecol Evol
+                - text: . doi:10.3389/fevo.2022.846171
+            - paragraph [ref=f1e230]:
+              - strong [ref=f1e231]: Environmental layers in the workspace
+            - list [ref=f1e232]:
+              - listitem [ref=f1e233]:
+                - strong [ref=f1e234]: CHIRPS rainfall
+                - text: (
+                - code [ref=f1e235]: chirps--chirps-v2.0-daily-p05--ease2-global-1km
+                - text: ", v150): the listed daily files cover only 2011-02-01 to 2011-03-31 and 2019-04-01 to 2019-07-01. Only Feb–Mar 2011 overlaps the wildebeest period. The rest of 2010–2013 has no rainfall data here. That is missing evidence, not zero rain."
+              - listitem [ref=f1e236]:
+                - strong [ref=f1e237]: MODIS NDVI/EVI
+                - text: (
+                - code [ref=f1e238]: modis_mod13q1--mod13q1-061--ease2-global-1km
+                - text: ", v29): it nominally spans 2011-01-17 to 2020-03-04. The listed source tiles for 2011 cover only January–March, so I can't confirm vegetation coverage for the rest of the wildebeest period. The layer's bbox also spans a much larger area than the study."
+              - listitem [ref=f1e239]:
+                - strong [ref=f1e240]: Sentinel-2
+                - text: (
+                - code [ref=f1e241]: sentinel2--sentinel-2-l2a--ease2-global-1km
+                - text: ", v1): one scene on 2019-04-01 in Connecticut. It doesn't overlap the wildebeest study in time or place."
+            - paragraph [ref=f1e242]:
+              - strong [ref=f1e243]: Limits
+            - list [ref=f1e244]:
+              - listitem [ref=f1e245]: The track thins out after mid-2012 as animals drop out.
+              - listitem [ref=f1e246]: Any rainfall or vegetation comparison is limited to the early 2011 overlap unless more data is retrieved.
+            - paragraph [ref=f1e247]: I can fetch CHIRPS rainfall and MODIS NDVI for the study bbox, 2010-10-15 to 2013-01-15. Retrieval takes at most one year per call, so this would need several calls. Do you want me to go ahead?
+          - paragraph [ref=f1e248]:
+            - link "Movebank Data Repository" [ref=f1e249] [cursor=pointer]:
+              - /url: https://datarepository.movebank.org/handle/10255/move.1095
+          - group [ref=f1e250]:
+            - generic "Pipeline timings · 13.7s" [ref=f1e251] [cursor=pointer]
+        - article [ref=f1e252]:
+          - generic [ref=f1e253]:
+            - generic [ref=f1e254]: YOU
+            - time [ref=f1e255]: 02:19 AM
+          - paragraph [ref=f1e256]: Analyze the selected wildebeest movement from 2011-02-01 to 2011-03-31. Compute the daily displacement pattern and make a time-series graph in Charts. Cite data and state sample limits.
+        - article [ref=f1e268]:
+          - generic [ref=f1e269]:
+            - generic [ref=f1e270]: Dora
+            - time [ref=f1e271]: 02:19 AM
+          - generic [ref=f1e272]:
+            - paragraph [ref=f1e273]:
+              - text: I analyzed daily displacement for 2011-02-01 to 2011-03-31. The time-series line chart, "Daily median displacement", is in the
+              - strong [ref=f1e274]: Charts tab
+              - text: .
+            - paragraph [ref=f1e275]:
+              - strong [ref=f1e276]: Overall result (animal-days)
+            - list [ref=f1e277]:
+              - listitem [ref=f1e278]:
+                - strong [ref=f1e279]: "Valid values:"
+                - text: 550 animal-day displacements. A further 11 of the 561 rows had no value and were excluded, not treated as zero.
+              - listitem [ref=f1e280]:
+                - strong [ref=f1e281]: "Mean:"
+                - text: 1.03 km per day.
+              - listitem [ref=f1e282]:
+                - strong [ref=f1e283]: "Median:"
+                - text: 0.50 km per day.
+              - listitem [ref=f1e284]:
+                - strong [ref=f1e285]: "Spread:"
+                - text: SD 1.38 km, interquartile range 0.20–1.30 km, range 0.001–12.36 km. The mean is above the median because a few long-distance days skew the distribution.
+            - paragraph [ref=f1e286]:
+              - strong [ref=f1e287]: Pattern in the chart
+              - text: The chart line is the median across animals for each day.
+            - list [ref=f1e288]:
+              - listitem [ref=f1e289]:
+                - strong [ref=f1e290]: "February:"
+                - text: daily medians are mostly 0.3–1.4 km. The highest are 2.11 km on Feb 7, 1.41 km on Feb 8 and 1.37 km on Feb 5.
+              - listitem [ref=f1e291]:
+                - strong [ref=f1e292]: "March:"
+                - text: medians are generally lower, mostly below 0.8 km. There is one spike of 4.01 km on Mar 11.
+              - listitem [ref=f1e293]:
+                - strong [ref=f1e294]: "End of March:"
+                - text: medians fall to about 0.13–0.21 km on Mar 29–31.
+              - listitem [ref=f1e295]:
+                - strong [ref=f1e296]: "Mar 8–9:"
+                - text: these dates are absent from the series.
+              - listitem [ref=f1e297]:
+                - strong [ref=f1e298]: "Mar 10:"
+                - text: it has no value.
+            - paragraph [ref=f1e299]: I can't tell from this analysis what caused any of these changes. No rainfall or vegetation data was used.
+            - paragraph [ref=f1e300]:
+              - strong [ref=f1e301]: Data and citation
+            - list [ref=f1e302]:
+              - listitem [ref=f1e303]:
+                - strong [ref=f1e304]: "Dataset:"
+                - code [ref=f1e305]: movebank_repository--movebank-data-repository--ease2-global-1km--study-208413731
+                - text: ", version 2."
+              - listitem [ref=f1e306]:
+                - strong [ref=f1e307]: "Source:"
+                - text: Movebank Data Repository, study 208413731,
+                - link "https://datarepository.movebank.org/handle/10255/move.1095" [ref=f1e308] [cursor=pointer]:
+                  - /url: https://datarepository.movebank.org/handle/10255/move.1095
+              - listitem [ref=f1e309]:
+                - strong [ref=f1e310]: "License:"
+                - text: CC0 1.0.
+              - listitem [ref=f1e311]:
+                - strong [ref=f1e312]: "Citation:"
+                - text: Stabach JA et al. 2022.
+                - emphasis [ref=f1e313]: Front Ecol Evol
+                - text: . doi:10.3389/fevo.2022.846171
+              - listitem [ref=f1e314]:
+                - strong [ref=f1e315]: "Recipe and method:"
+                - code [ref=f1e316]: wildebeest_daily_displacement_2011_02_03
+                - text: v1, trend v1.
+            - paragraph [ref=f1e317]:
+              - strong [ref=f1e318]: Sample limits
+            - list [ref=f1e319]:
+              - listitem [ref=f1e320]:
+                - strong [ref=f1e321]: "Records:"
+                - text: the window holds 561 animal-day records from 11 tracked animals. That is 305 in February and 256 in March, matching the monthly summary. The monthly summary also shows 4,678 raw fixes in February and 3,825 in March.
+              - listitem [ref=f1e322]:
+                - strong [ref=f1e323]: "Daily grain:"
+                - text: each animal-day uses the last good fix of each UTC day. Displacement is measured between those daily fixes. It is not the total distance travelled within a day.
+              - listitem [ref=f1e324]:
+                - strong [ref=f1e325]: "Chart values:"
+                - text: each chart point is a median across animals, so it doesn't show differences between individuals. March has fewer records (256 versus 305).
+              - listitem [ref=f1e326]:
+                - strong [ref=f1e327]: "Missing data:"
+                - text: missing days or values are missing evidence, not zero movement.
+              - listitem [ref=f1e328]:
+                - strong [ref=f1e329]: "Scope:"
+                - text: the results describe these collared animals only. They are not a population estimate.
+          - paragraph [ref=f1e330]:
+            - link "Movebank Data Repository" [ref=f1e331] [cursor=pointer]:
+              - /url: https://datarepository.movebank.org/handle/10255/move.1095
+          - group [ref=f1e332]:
+            - generic "Pipeline timings · 44.1s" [ref=f1e333] [cursor=pointer]
+          - button "View analysis in Charts" [ref=f1e334] [cursor=pointer]
+      - generic [ref=f1e164]:
+        - generic [ref=f1e165]: Ask Dora about this workspace
+        - generic [ref=f1e166]:
+          - textbox "Ask Dora about this workspace" [ref=f1e167]:
+            - /placeholder: Ask Dora about the observations…
+          - generic [ref=f1e168]:
+            - button "Import geographic data" [ref=f1e169] [cursor=pointer]: +
+            - generic [ref=f1e170]: movebank_repository · Jan 2013
+            - button "Send question" [ref=f1e171] [cursor=pointer]: ↑
+        - paragraph [ref=f1e172]: Dora is connected · local imports remain on this device.

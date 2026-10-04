@@ -6,6 +6,7 @@ A missing displacement stays missing. It is never filled with zero.
 
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 
 from contracts.models import ColumnSpec, FeatureArtifact, QuerySpec
@@ -90,10 +91,16 @@ def prepare_frame(frame: pd.DataFrame, artifact: FeatureArtifact, query: QuerySp
         raise PrepareError("invalid_timestamps", "event_time contains values that are not timestamps")
     frame = frame.copy()
     frame[event_time] = parsed_time
+    for role in ("vegetation_valid_from", "vegetation_valid_until"):
+        if role in roles:
+            column = roles[role].name
+            parsed = pd.to_datetime(frame[column], utc=True, errors="coerce", format="mixed")
+            if (frame[column].notna() & parsed.isna()).any():
+                raise PrepareError("invalid_timestamps", f"{column} contains invalid timestamps")
+            frame[column] = parsed
 
-    for role in ("longitude", "latitude", "daily_displacement", "rainfall", "vegetation_index"):
-        column = roles.get(role)
-        if column is None or column.name not in frame.columns:
+    for role, column in roles.items():
+        if column.type not in {"number", "integer"}:
             continue
         numeric = pd.to_numeric(frame[column.name], errors="coerce")
         original = frame[column.name]
@@ -105,6 +112,10 @@ def prepare_frame(frame: pd.DataFrame, artifact: FeatureArtifact, query: QuerySp
             raise PrepareError("invalid_values", f"{column.name} has a longitude outside -180 to 180")
         if role == "latitude" and numeric.notna().any() and ((numeric < -90) | (numeric > 90)).any():
             raise PrepareError("invalid_values", f"{column.name} has a latitude outside -90 to 90")
+        nonfinite = numeric.notna() & ~np.isfinite(numeric)
+        if nonfinite.any():
+            warnings.append(f"{int(nonfinite.sum())} non-finite values in {column.name} were treated as missing.")
+            frame[column.name] = numeric.mask(nonfinite)
         if role == "daily_displacement":
             negative = int((numeric < 0).sum())
             if negative:
@@ -132,16 +143,18 @@ def prepare_frame(frame: pd.DataFrame, artifact: FeatureArtifact, query: QuerySp
         if frame.empty:
             raise PrepareError("no_rows_for_species", "no feature rows match the requested species")
 
-    # Grain is one row per animal per UTC day. A second fix on that day is an error,
-    # not an average, because averaging here would hide a join mistake.
     if entity is not None:
-        frame["_day"] = frame[event_time].dt.floor("D")
-        if frame.duplicated([entity, "_day"]).any():
+        if frame[entity].isna().any():
+            raise PrepareError("invalid_grain", "animal ids must not be null")
+        fix_grain = query.analysis_method == "residence_time" and artifact.sampling_grain == "animal_fix"
+        frame["_grain_time"] = frame[event_time] if fix_grain else frame[event_time].dt.floor("D")
+        if frame.duplicated([entity, "_grain_time"]).any():
             raise PrepareError(
                 "invalid_grain",
-                "feature table has more than one row for the same animal on the same day",
+                "feature table has more than one row for the same animal "
+                + ("at the same timestamp" if fix_grain else "on the same day"),
             )
-        frame = frame.drop(columns=["_day"])
+        frame = frame.drop(columns=["_grain_time"])
     if artifact.coverage is None:
         warnings.append("Feature coverage was not provided, so species and time coverage were not verified.")
     return frame, warnings

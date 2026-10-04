@@ -285,7 +285,7 @@ class HabitatRecipeCatalog:
         search.variables = as_list(filters.get("variables")) or None
         search.tags_all = [Tag(key=key, value=str(value)) for key, value in tags.items()] or None
         datasets = [
-            dataset for dataset in self.search(search)
+            dataset for dataset in self.search(search, query)
             if (not families or dataset.family in families)
             and (not source_ids or dataset.metadata["source_id"] in source_ids)
         ]
@@ -318,7 +318,7 @@ class HabitatRecipeCatalog:
         """Lexical stand-in: the catalog has no embedding index. Scores are the share of query words found."""
         words = set(re.findall(r"[a-z0-9]+", text.lower()))
         scored = []
-        for dataset in self.search(self.filters(query)):
+        for dataset in self.search(self.filters(query), query):
             found = words & set(re.findall(r"[a-z0-9]+", searchable_text(dataset)))
             if found:
                 scored.append((len(found) / len(words), dataset))
@@ -329,7 +329,11 @@ class HabitatRecipeCatalog:
                           scores={dataset.key: score for score, dataset in page})
 
     def authorize(self, dataset: DatasetVersion, query: QuerySpec) -> bool:
-        return dataset.access_scope in self.allowed_scopes
+        selected_source = query.extensions.get("vegetation_source_id")
+
+        return (dataset.access_scope in self.allowed_scopes
+                and (dataset.family != VEGETATION or not selected_source
+                     or dataset.metadata["source_id"] == selected_source))
 
     def readable(self, dataset: DatasetVersion) -> bool:
         return dataset.key in self.bindings
@@ -347,10 +351,12 @@ class HabitatRecipeCatalog:
             end=query.time_range.end,
         )
 
-    def search(self, filters: SearchFilters) -> list[DatasetVersion]:
+    def search(self, filters: SearchFilters, query: QuerySpec) -> list[DatasetVersion]:
         datasets = []
         for match in self.catalog.search_datasets(filters):
             for dataset in to_recipe_datasets(match.dataset):
+                if not self.authorize(dataset, query):
+                    continue
                 self.bindings[dataset.key] = binding(dataset, self.schema)
                 datasets.append(dataset)
 

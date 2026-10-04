@@ -1,0 +1,88 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - button "Show or hide sidebar" [expanded] [ref=e3] [cursor=pointer]
+    - strong [ref=e10]: Dora
+    - generic [ref=e11]: Workspace / Public catalog
+    - generic [ref=e12]:
+      - status [ref=e13]: Connecting
+      - button "↻ Refresh" [ref=e14] [cursor=pointer]
+      - button "↓ Export data" [disabled] [ref=e15]
+  - main [ref=e16]:
+    - complementary "Workspace objects" [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e22]:
+          - strong [ref=e23]: Dora workspace
+          - generic [ref=e24]: Public catalog
+        - button "Close sidebar" [ref=e25] [cursor=pointer]: ×
+      - button "Import data Local" [ref=e26] [cursor=pointer]:
+        - text: Import data
+        - generic [ref=e29]: Local
+      - searchbox "Find workspace objects" [ref=e33]
+      - navigation "Data, visualizations, and analysis" [ref=e34]:
+        - group [ref=e35]:
+          - generic "Workspace ›" [ref=e36] [cursor=pointer]
+          - button "Observation map" [ref=e37] [cursor=pointer]
+          - button "Observation records" [ref=e41] [cursor=pointer]
+          - button "Analysis charts" [ref=e45] [cursor=pointer]
+        - group [ref=e49]:
+          - generic "Catalog 0 ›" [ref=e50] [cursor=pointer]:
+            - text: Catalog
+            - generic [ref=e51]: "0"
+            - text: ›
+          - paragraph [ref=e52]: Loading the public catalog…
+        - group [ref=e53]:
+          - generic "Analysis ›" [ref=e54] [cursor=pointer]
+          - button "Dataset overview" [ref=e55] [cursor=pointer]
+          - button "Sources and provenance" [ref=e59] [cursor=pointer]
+      - generic [ref=e63]:
+        - button "Ask Dora AI" [ref=e64] [cursor=pointer]:
+          - text: Ask Dora
+          - generic [ref=e67]: AI
+        - generic [ref=e70]:
+          - text: Public observations
+          - generic [ref=e71]: Waiting for observations
+    - region "Exploration workspace" [ref=e72]:
+      - generic [ref=e73]:
+        - generic [ref=e74]: Dora workspace / Workspace
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - heading "Observation map" [level=1] [ref=e77]
+            - paragraph [ref=e78]: Select a dataset from the public catalog.
+          - generic [ref=e79]:
+            - button "Esri World Topographic Map" [ref=e80] [cursor=pointer]
+            - button "Zoom to dataset coverage" [ref=e83] [cursor=pointer]
+      - generic "Visualization views" [ref=e86]:
+        - button "Map" [ref=e87] [cursor=pointer]
+        - button "Table" [ref=e88] [cursor=pointer]
+        - button "Charts" [ref=e89] [cursor=pointer]
+        - button "Overview" [ref=e90] [cursor=pointer]
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - application "Esri World Topographic Map with ecological observations" [ref=e93]:
+            - generic:
+              - generic: 3000 km
+              - generic:
+                - generic [ref=e96]:
+                  - button "Zoom in" [ref=e97] [cursor=pointer]: +
+                  - button "Zoom out" [ref=e98] [cursor=pointer]: −
+                - generic [ref=e99]:
+                  - text: "Sources:"
+                  - link "Esri" [ref=e100] [cursor=pointer]:
+                    - /url: https://goto.arcgisonline.com/maps/World_Topo_Map
+                  - text: ", HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), ©"
+                  - link "OpenStreetMap" [ref=e101] [cursor=pointer]:
+                    - /url: https://www.openstreetmap.org/copyright
+                  - text: contributors, and the GIS User Community
+          - generic:
+            - strong: Public observations
+            - paragraph: No observations loaded
+          - generic [ref=e102]: Last good fix per animal and UTC day
+        - status [ref=e105]:
+          - paragraph [ref=e106]: Loading observations from the backend…
+        - generic [ref=e107]:
+          - button "Play" [disabled] [ref=e108]
+          - generic [ref=e109]: No dates
+          - generic [ref=e110]:
+            - generic [ref=e111]: No dates
+            - slider "Last observation month in view" [disabled] [ref=e112]: "0"
+            - generic [ref=e113]: No dates

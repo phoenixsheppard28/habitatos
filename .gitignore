@@ -18,3 +18,4 @@ web/.env.local
 web/*.tsbuildinfo
 web/vite.config.js
 web/vite.config.d.ts
+backups/

@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=2.0",
     "pandas>=2.2",
     "planetary-computer>=1.0.0",
+    "plotly>=7.1.0",
     "psycopg[binary]>=3.2,<4",
     "pyarrow>=18",
     "pydantic>=2.10,<3",
@@ -19,6 +20,7 @@ dependencies = [
     "rasterio>=1.4",
     "scikit-learn>=1.4",
     "shapely>=2.0,<3",
+    "statsmodels>=0.15.0",
 ]
 
 [project.scripts]

@@ -456,3 +456,66 @@ def test_species_constraints_filter_rows_not_just_catalog(scenarios):
     recipe, query, datasets = parsed(s)
     with pytest.raises(RecipeError, match="species column"):
         validate_recipe(recipe, query, datasets)
+
+
+def test_vegetation_scopes_follow_renamed_filters_and_track_keys(scenarios):
+    from vegetation_fixture import vegetation_scenario
+
+    recipe, query, datasets = parsed(vegetation_scenario(scenarios[0]))
+    bindings = {key: TableBinding("public", "observations", {c.name: c.name for c in dataset.columns})
+                for key, dataset in datasets.items()}
+    compiler = SQLCompiler(bindings)
+    plan = compiler.compile(recipe, query, datasets, materialize=True)
+
+    assert plan.cell_scopes == {"veg": ["fixes"]}
+    assert plan.index_scopes == {"veg": ["ndvi"]}
+    assert [stage.name for stage in plan.stages[:2]] == ["fixes", "veg"]
+    assert plan.stages[1].input_context["selected_indices"] == ["ndvi"]
+    assert compiler.compile(recipe, query, datasets).index_scopes == {}
+
+
+def test_vegetation_scopes_do_not_remove_a_background_branch(scenarios):
+    from recipe.models import Select
+    from vegetation_fixture import vegetation_scenario
+
+    recipe, query, datasets = parsed(vegetation_scenario(scenarios[0]))
+    recipe.steps.insert(0, Select(id="background", operation="select", input="veg", columns={"index_name": "index_name"}))
+    bindings = {key: TableBinding("public", "observations", {c.name: c.name for c in dataset.columns})
+                for key, dataset in datasets.items()}
+    plan = SQLCompiler(bindings).compile(recipe, query, datasets, materialize=True)
+
+    assert plan.cell_scopes == {}
+    assert plan.index_scopes == {}
+
+
+def test_index_pushdown_preserves_different_filtered_branches(scenarios):
+    from recipe.models import Select
+    from vegetation_fixture import vegetation_scenario
+
+    recipe, query, datasets = parsed(vegetation_scenario(scenarios[0]))
+    recipe.steps.insert(0, Filter(id="evi_branch", operation="filter", input="veg",
+                                 predicates=[{"column": "index_name", "operator": "eq", "value": "evi"}]))
+    recipe.steps.insert(1, Select(id="evi_values", operation="select", input="evi_branch", columns={"evi": "index_value"}))
+    bindings = {key: TableBinding("public", "observations", {c.name: c.name for c in dataset.columns})
+                for key, dataset in datasets.items()}
+    plan = SQLCompiler(bindings).compile(recipe, query, datasets, materialize=True)
+
+    assert plan.cell_scopes == {}
+    assert plan.index_scopes == {"veg": ["evi", "ndvi"]}
+
+
+def test_residence_recipe_keeps_unmatched_fixes_and_composite_validity(scenarios):
+    from vegetation_fixture import vegetation_scenario
+
+    recipe, query, datasets = parsed(vegetation_scenario(scenarios[0]))
+    recipe.steps[2].type = "inner"
+
+    with pytest.raises(RecipeError, match="left joins"):
+        validate_recipe(recipe, query, datasets)
+
+    recipe.steps[2].type = "left"
+    recipe.steps[-1].columns.pop("vegetation_valid_until")
+    recipe.output.columns = [column for column in recipe.output.columns if column.name != "vegetation_valid_until"]
+
+    with pytest.raises(RecipeError, match="observed_until"):
+        validate_recipe(recipe, query, datasets)

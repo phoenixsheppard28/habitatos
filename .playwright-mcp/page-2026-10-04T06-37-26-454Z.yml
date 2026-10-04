@@ -1,0 +1,196 @@
+- generic [ref=f3e1]:
+  - banner [ref=f3e2]:
+    - button "Show or hide sidebar" [expanded] [ref=f3e3] [cursor=pointer]
+    - strong [ref=f3e10]: Dora
+    - generic [ref=f3e11]: Workspace / Public catalog
+    - generic [ref=f3e12]:
+      - status [ref=f3e13]: Connecting
+      - button "↻ Refresh" [ref=f3e14] [cursor=pointer]
+      - button "↓ Export data" [disabled] [ref=f3e15]
+  - main [ref=f3e16]:
+    - complementary "Workspace objects" [ref=f3e17]:
+      - generic [ref=f3e18]:
+        - generic [ref=f3e22]:
+          - strong [ref=f3e23]: Dora workspace
+          - generic [ref=f3e24]: Public catalog
+        - button "Close sidebar" [ref=f3e25] [cursor=pointer]: ×
+      - button "Import data Local" [ref=f3e26] [cursor=pointer]:
+        - text: Import data
+        - generic [ref=f3e29]: Local
+      - searchbox "Find workspace objects" [ref=f3e33]
+      - navigation "Data, visualizations, and analysis" [ref=f3e34]:
+        - group [ref=f3e35]:
+          - generic "Workspace ›" [ref=f3e36] [cursor=pointer]
+          - button "Observation map" [ref=f3e37] [cursor=pointer]
+          - button "Observation records" [ref=f3e41] [cursor=pointer]
+          - button "Analysis charts" [ref=f3e45] [cursor=pointer]
+        - group [ref=f3e49]:
+          - generic "Catalog 5 ›" [ref=f3e50] [cursor=pointer]:
+            - text: Catalog
+            - generic [ref=f3e51]: "5"
+            - text: ›
+          - generic [ref=f3e52]:
+            - button "Comparison of movement strategies of three populations of white-bearded wildebeest Connochaetes taurinus" [ref=f3e53] [cursor=pointer]:
+              - generic [ref=f3e56]:
+                - text: Comparison of movement strategies of three populations of white-bearded wildebeest
+                - generic [ref=f3e57]: Connochaetes taurinus
+            - button "Study \"American black bear movement ecology in Connecticut\" Ursus americanus" [ref=f3e58] [cursor=pointer]:
+              - generic [ref=f3e61]:
+                - text: Study "American black bear movement ecology in Connecticut"
+                - generic [ref=f3e62]: Ursus americanus
+            - button "CHIRPS v2.0 daily rainfall per 1 km cell rainfall_mm" [active] [pressed] [ref=f3e63] [cursor=pointer]:
+              - generic [ref=f3e66]:
+                - text: CHIRPS v2.0 daily rainfall per 1 km cell
+                - generic [ref=f3e67]: rainfall_mm
+            - button "MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell evi, ndvi" [ref=f3e68] [cursor=pointer]:
+              - generic [ref=f3e71]:
+                - text: MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell
+                - generic [ref=f3e72]: evi, ndvi
+            - button "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition mndwi, ndmi, ndvi" [ref=f3e73] [cursor=pointer]:
+              - generic [ref=f3e76]:
+                - text: Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition
+                - generic [ref=f3e77]: mndwi, ndmi, ndvi
+          - paragraph [ref=f3e78]: Loading the public catalog…
+        - group [ref=f3e79]:
+          - generic "Analysis ›" [ref=f3e80] [cursor=pointer]
+          - button "Dataset overview" [ref=f3e81] [cursor=pointer]
+          - button "Sources and provenance" [ref=f3e85] [cursor=pointer]
+      - generic [ref=f3e89]:
+        - button "Ask Dora AI" [ref=f3e90] [cursor=pointer]:
+          - text: Ask Dora
+          - generic [ref=f3e93]: AI
+        - generic [ref=f3e96]:
+          - text: Public observations
+          - generic [ref=f3e97]: Waiting for observations
+    - region "Exploration workspace" [ref=f3e98]:
+      - generic [ref=f3e99]:
+        - generic [ref=f3e100]: Dora workspace / Analysis
+        - generic [ref=f3e102]:
+          - heading "Analysis charts" [level=1] [ref=f3e373]
+          - paragraph [ref=f3e104]: Analysis results from Dora and the selected dataset summary.
+      - generic "Visualization views" [ref=f3e112]:
+        - button "Map" [ref=f3e113] [cursor=pointer]
+        - button "Table" [ref=f3e114] [cursor=pointer]
+        - button "Charts" [ref=f3e115] [cursor=pointer]
+        - button "Overview" [ref=f3e116] [cursor=pointer]
+      - generic [ref=f3e118]:
+        - region "Selected workspace object" [ref=f3e374]:
+          - generic [ref=f3e613]:
+            - heading "Requested analyses" [level=2] [ref=f3e614]
+            - paragraph [ref=f3e615]: Ask Dora for an analysis. Results appear here with their original dates and evidence.
+          - button "Ask Dora for a chart" [ref=f3e616] [cursor=pointer]
+          - article [ref=f3e617]:
+            - heading "Daily displacement pattern of the selected wildebeest from 2011-02-01 to 2011-03-31, as a time series" [level=2] [ref=f3e618]
+            - paragraph [ref=f3e619]: Completed analysis · 2026-10-04T06:19:37Z · trend@1 · movebank_repository--movebank-data-repository--ease2-global-1km--study-208413731@2
+            - paragraph [ref=f3e620]: "Daily displacement: n=550, mean 1.026403, median 0.503733 km."
+            - generic [ref=f3e621]:
+              - heading "Daily median displacement" [level=3] [ref=f3e622]
+              - paragraph [ref=f3e623]: Missing values have no marks. Lines stop at missing days.
+              - region "Daily median displacement" [ref=f3e624]:
+                - img "Daily median displacement. Date (UTC); Daily median displacement (km)." [ref=f3e625]:
+                  - generic [ref=f3e626]: "-0.263"
+                  - generic [ref=f3e627]: "0.902"
+                  - generic [ref=f3e628]: "2.066"
+                  - generic [ref=f3e629]: "3.231"
+                  - generic [ref=f3e630]: "4.396"
+                  - 'generic "Observed · 2011-02-01: 0.6241 km" [ref=f3e631]'
+                  - 'generic "Observed · 2011-02-02: 0.7486 km" [ref=f3e632]'
+                  - 'generic "Observed · 2011-02-03: 0.6702 km" [ref=f3e633]'
+                  - 'generic "Observed · 2011-02-04: 0.7782 km" [ref=f3e634]'
+                  - 'generic "Observed · 2011-02-05: 1.3662 km" [ref=f3e635]'
+                  - 'generic "Observed · 2011-02-06: 0.2257 km" [ref=f3e636]'
+                  - 'generic "Observed · 2011-02-07: 2.1061 km" [ref=f3e637]'
+                  - 'generic "Observed · 2011-02-08: 1.4068 km" [ref=f3e638]'
+                  - 'generic "Observed · 2011-02-09: 0.5096 km" [ref=f3e639]'
+                  - 'generic "Observed · 2011-02-10: 0.6995 km" [ref=f3e640]'
+                  - 'generic "Observed · 2011-02-11: 0.4983 km" [ref=f3e641]'
+                  - 'generic "Observed · 2011-02-12: 0.4759 km" [ref=f3e642]'
+                  - 'generic "Observed · 2011-02-13: 1.0115 km" [ref=f3e643]'
+                  - 'generic "Observed · 2011-02-14: 0.5191 km" [ref=f3e644]'
+                  - 'generic "Observed · 2011-02-15: 0.6461 km" [ref=f3e645]'
+                  - 'generic "Observed · 2011-02-16: 0.835 km" [ref=f3e646]'
+                  - 'generic "Observed · 2011-02-17: 1.2196 km" [ref=f3e647]'
+                  - 'generic "Observed · 2011-02-18: 0.8354 km" [ref=f3e648]'
+                  - 'generic "Observed · 2011-02-19: 0.5211 km" [ref=f3e649]'
+                  - 'generic "Observed · 2011-02-20: 0.355 km" [ref=f3e650]'
+                  - 'generic "Observed · 2011-02-21: 0.6692 km" [ref=f3e651]'
+                  - 'generic "Observed · 2011-02-22: 0.6459 km" [ref=f3e652]'
+                  - 'generic "Observed · 2011-02-23: 0.4442 km" [ref=f3e653]'
+                  - 'generic "Observed · 2011-02-24: 0.932 km" [ref=f3e654]'
+                  - 'generic "Observed · 2011-02-25: 0.3071 km" [ref=f3e655]'
+                  - 'generic "Observed · 2011-02-26: 0.3387 km" [ref=f3e656]'
+                  - 'generic "Observed · 2011-02-27: 0.481 km" [ref=f3e657]'
+                  - 'generic "Observed · 2011-02-28: 0.2775 km" [ref=f3e658]'
+                  - 'generic "Observed · 2011-03-01: 0.3459 km" [ref=f3e659]'
+                  - 'generic "Observed · 2011-03-02: 0.3727 km" [ref=f3e660]'
+                  - 'generic "Observed · 2011-03-03: 0.479 km" [ref=f3e661]'
+                  - 'generic "Observed · 2011-03-04: 0.4869 km" [ref=f3e662]'
+                  - 'generic "Observed · 2011-03-05: 0.3258 km" [ref=f3e663]'
+                  - 'generic "Observed · 2011-03-06: 0.161 km" [ref=f3e664]'
+                  - 'generic "Observed · 2011-03-07: 0.4639 km" [ref=f3e665]'
+                  - 'generic "Observed · 2011-03-11: 4.0075 km" [ref=f3e666]'
+                  - 'generic "Observed · 2011-03-12: 0.4281 km" [ref=f3e667]'
+                  - 'generic "Observed · 2011-03-13: 1.024 km" [ref=f3e668]'
+                  - 'generic "Observed · 2011-03-14: 0.6612 km" [ref=f3e669]'
+                  - 'generic "Observed · 2011-03-15: 0.2742 km" [ref=f3e670]'
+                  - 'generic "Observed · 2011-03-16: 0.2736 km" [ref=f3e671]'
+                  - 'generic "Observed · 2011-03-17: 0.7877 km" [ref=f3e672]'
+                  - 'generic "Observed · 2011-03-18: 0.6505 km" [ref=f3e673]'
+                  - 'generic "Observed · 2011-03-19: 0.7008 km" [ref=f3e674]'
+                  - 'generic "Observed · 2011-03-20: 0.5522 km" [ref=f3e675]'
+                  - 'generic "Observed · 2011-03-21: 0.3282 km" [ref=f3e676]'
+                  - 'generic "Observed · 2011-03-22: 0.6176 km" [ref=f3e677]'
+                  - 'generic "Observed · 2011-03-23: 0.4404 km" [ref=f3e678]'
+                  - 'generic "Observed · 2011-03-24: 0.315 km" [ref=f3e679]'
+                  - 'generic "Observed · 2011-03-25: 0.4562 km" [ref=f3e680]'
+                  - 'generic "Observed · 2011-03-26: 0.4096 km" [ref=f3e681]'
+                  - 'generic "Observed · 2011-03-27: 0.6896 km" [ref=f3e682]'
+                  - 'generic "Observed · 2011-03-28: 0.1954 km" [ref=f3e683]'
+                  - 'generic "Observed · 2011-03-29: 0.1251 km" [ref=f3e684]'
+                  - 'generic "Observed · 2011-03-30: 0.2111 km" [ref=f3e685]'
+                  - 'generic "Observed · 2011-03-31: 0.1667 km" [ref=f3e686]'
+                  - generic "2011-02-01" [ref=f3e688]
+                  - generic "2011-03-01" [ref=f3e689]
+                  - generic "2011-03-31" [ref=f3e690]
+                  - generic [ref=f3e691]: Date (UTC)
+                  - generic [ref=f3e692]: Daily median displacement (km)
+              - generic [ref=f3e693]: Observed
+              - group [ref=f3e696]:
+                - generic "View chart data" [ref=f3e697] [cursor=pointer]
+            - group [ref=f3e698]:
+              - generic "Limitations and warnings" [ref=f3e699] [cursor=pointer]
+        - generic [ref=f3e133]:
+          - button "Play" [disabled] [ref=f3e134]
+          - generic [ref=f3e135]: No dates
+          - generic [ref=f3e136]:
+            - generic [ref=f3e137]: No dates
+            - slider "Last observation month in view" [disabled] [ref=f3e138]: "0"
+            - generic [ref=f3e139]: No dates
+    - complementary "Dora assistant" [ref=f3e140]:
+      - generic "Move assistant. Drag to either side to dock, or use arrow keys." [ref=f3e141]:
+        - generic [ref=f3e145]:
+          - strong [ref=f3e146]: Dora
+          - paragraph [ref=f3e147]: Drag to either side to dock
+        - generic [aria-hidden] [ref=f3e148]: ⠿
+        - button "Dock assistant to the right" [ref=f3e149] [cursor=pointer]
+        - button "Minimize assistant" [expanded] [ref=f3e152] [cursor=pointer]: −
+        - button "Close assistant" [ref=f3e153] [cursor=pointer]: ×
+      - generic [ref=f3e154]:
+        - button "History 3" [ref=f3e155] [cursor=pointer]:
+          - text: History
+          - generic [ref=f3e156]: "3"
+        - button "New chat" [ref=f3e157] [cursor=pointer]
+        - status [ref=f3e158]: Saved on this device
+      - generic [ref=f3e159]: New conversation
+      - log [ref=f3e160]:
+        - paragraph [ref=f3e611]: Ask about dataset coverage, analyze observations, or request data for a region and date range.
+      - generic [ref=f3e211]:
+        - generic [ref=f3e212]: Ask Dora about this workspace
+        - generic [ref=f3e213]:
+          - textbox "Ask Dora about this workspace" [ref=f3e214]:
+            - /placeholder: Ask Dora about the observations…
+          - generic [ref=f3e215]:
+            - button "Import geographic data" [ref=f3e216] [cursor=pointer]: +
+            - generic [ref=f3e217]: chirps · No dates
+            - button "Send question" [ref=f3e218] [cursor=pointer]: ↑
+        - paragraph [ref=f3e219]: Dora is connected · local imports remain on this device.

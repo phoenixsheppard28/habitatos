@@ -7,7 +7,6 @@ import pytest
 
 from habitat import web_assistant
 from habitat.web import ChatRequest
-from habitat.web_charts import chart_specs
 from support import movement_request
 
 
@@ -212,6 +211,32 @@ def test_identical_failed_preparation_is_not_executed_twice(assistant, monkeypat
     assert result["answer"] == "Preparation failed."
 
 
+def test_retrieved_satellite_source_is_preserved_for_preparation(assistant, monkeypatch):
+    responses, _ = assistant
+    payload = {"question": "Bear residence time", "analysis_method": "residence_time"}
+    responses.extend([tool_response("retrieve", {"source_id": "sentinel2"}),
+                      tool_response("prepare", payload), text_response("Preparation failed.")])
+    monkeypatch.setattr(web_assistant, "retrieve", Mock(return_value={"published": [], "status": "ok"}))
+    prepare = Mock(return_value={"status": "error"})
+    monkeypatch.setattr(web_assistant, "prepare", prepare)
+
+    web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Use Sentinel-2"}]))
+
+    prepare.assert_called_once_with({**payload, "vegetation_source_id": "sentinel2"})
+
+
+def test_preparation_query_preserves_source_method_and_gap_limit():
+    query = web_assistant.QueryContext.model_validate({
+        "question": "Time spent in greener places", "bbox": [-73.37, 41.49, -72.59, 42.06],
+        "start": "2019-02-20", "end": "2020-02-19", "vegetation_source_id": "modis_mod13q1",
+        "analysis_method": "residence_time", "max_tracking_gap_hours": 4,
+    }).query()
+
+    assert query["extensions"]["vegetation_source_id"] == "modis_mod13q1"
+    assert query["analysis_method"] == "residence_time"
+    assert query["max_tracking_gap_hours"] == 4
+
+
 def test_analysis_results_reach_the_browser_without_the_map_or_model(assistant, monkeypatch):
     responses, calls = assistant
     responses.extend([
@@ -232,12 +257,11 @@ def test_analysis_results_reach_the_browser_without_the_map_or_model(assistant, 
         "map": {"type": "FeatureCollection", "features": []}, "model_reference": None,
     }
     second = {**result, "result_id": "comparison", "question": "Compare wet and dry windows", "status": "partial"}
-    charts = chart_specs(result)
     analyze = Mock(side_effect=[
         {"analysis_id": "first", "prepared_id": "a" * 32, "status": "ok", "warnings": [],
-         "output": {"result": result, "model_artifact": None}, "charts": charts},
+         "output": {"result": result, "model_artifact": None}},
         {"analysis_id": "second", "prepared_id": "a" * 32, "status": "partial", "warnings": ["One gap."],
-         "output": {"result": second, "model_artifact": None}, "charts": chart_specs(second)},
+         "output": {"result": second, "model_artifact": None}},
     ])
     monkeypatch.setattr(web_assistant, "analyze", analyze)
 
@@ -248,7 +272,7 @@ def test_analysis_results_reach_the_browser_without_the_map_or_model(assistant, 
     assert response["analyses"][0]["result"]["timeline"] == result["timeline"]
     assert response["analyses"][1]["warnings"] == ["One gap."]
     assert response["analyses"][0]["result"]["evidence"] == result["evidence"]
-    assert response["analyses"][0]["charts"] == charts
+    assert response["analyses"][0]["charts"] == []
     assert "map" not in response["analyses"][0]["result"]
     assert "model_reference" not in response["analyses"][0]["result"]
     assert "Charts tab" in calls[0]["system"]
@@ -281,8 +305,8 @@ def test_tool_limit_preserves_completed_analysis_charts(assistant, monkeypatch):
     assert response["analyses"][0]["analysis_id"] == "completed"
 
 
-def test_real_analysis_produces_chart_specs_in_the_chat_response(assistant, tmp_path, monkeypatch):
-    responses, calls = assistant
+@pytest.fixture
+def prepared(assistant, tmp_path, monkeypatch):
     request, store = movement_request(tmp_path)
     prepared_id = "a" * 32
     directory = tmp_path / "web" / prepared_id
@@ -290,26 +314,91 @@ def test_real_analysis_produces_chart_specs_in_the_chat_response(assistant, tmp_
     (directory / "prepared.json").write_text(json.dumps({"query": request["input"]["query"], "recipe": {}}))
     monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, anthropic_api_key="test"))
     monkeypatch.setattr(web_assistant, "RecipeArtifactReader", lambda *args: store)
+    monkeypatch.setattr(web_assistant, "uuid4", lambda: SimpleNamespace(hex="b" * 32))
 
     def handoff(query, recipe, request_id):
         return {**request, "request_id": request_id, "query_id": query["query_id"],
                 "input": {**request["input"], "query": query}}
 
     monkeypatch.setattr(web_assistant, "analysis_request", handoff)
+    return prepared_id
+
+
+def test_plot_code_runs_on_the_prepared_table_and_the_figure_reaches_the_browser(assistant, prepared):
+    responses, calls = assistant
+    code = "fig = px.scatter(df, x='rain_mm', y='km_moved', title='Movement and rainfall')"
     responses.extend([
-        tool_response("analyze", {"prepared_id": prepared_id, "question": "Chart movement and rainfall"}),
-        text_response("Movement and rainfall charts are ready."),
+        tool_response("analyze", {"prepared_id": prepared, "question": "Is movement related to rainfall?"}),
+        tool_response("plot", {"analysis_id": "b" * 32, "title": "Movement and rainfall", "code": code}),
+        text_response("The chart is in the Charts tab."),
     ])
 
     response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Chart movement and rainfall"}]))
 
-    analysis = response["analyses"][0]
-    assert analysis["result"]["question"] == "Chart movement and rainfall"
-    assert [chart["kind"] for chart in analysis["charts"]] == ["bar", "line"]
-    timeline = analysis["charts"][1]
-    assert [point["y"] for point in timeline["series"][0]["points"]] == [None, 7, 4, 7]
-    assert timeline["y_axis"]["unit"] == "km"
-    assert analysis["result"]["evidence"]["datasets"] == [{"dataset_id": "dataset-movement", "version": "1"}]
+    chart = response["analyses"][0]["charts"][0]
+    assert chart["title"] == "Movement and rainfall"
+    assert chart["code"] == code
+    assert chart["figure"]["data"][0]["type"] == "scatter"
+    assert chart["figure"]["layout"]["template"]["layout"]["colorway"][0] == "#387c78"
+    tool_result = json.loads(calls[2]["messages"][-1]["content"][0]["content"])
+    assert tool_result == {"status": "ok", "chart_id": "b" * 32, "figure": {
+        "title": "Movement and rainfall", "traces": [{"type": "scatter", "mode": "markers"}]}}
+
+
+def test_plot_errors_return_the_traceback_so_the_model_can_fix_the_code(assistant, prepared):
+    responses, calls = assistant
+    responses.extend([
+        tool_response("analyze", {"prepared_id": prepared, "question": "Chart movement"}),
+        tool_response("plot", {"analysis_id": "b" * 32, "title": "Movement", "code": "fig = px.scatter(df, x='missing')"}),
+        text_response("The chart failed."),
+    ])
+
+    response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Chart movement"}]))
+
+    assert response["analyses"][0]["charts"] == []
+    tool_result = json.loads(calls[2]["messages"][-1]["content"][0]["content"])
+    assert tool_result["status"] == "error"
+    assert "missing" in tool_result["error"]
+    assert 'File "<plot>"' in tool_result["error"]
+
+
+def test_plot_needs_an_analysis_from_the_same_turn(assistant):
+    responses, calls = assistant
+    responses.extend([
+        tool_response("plot", {"analysis_id": "c" * 32, "title": "Movement", "code": "fig = go.Figure()"}),
+        text_response("Analyze first."),
+    ])
+
+    web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Chart movement"}]))
+
     tool_result = json.loads(calls[1]["messages"][-1]["content"][0]["content"])
-    assert tool_result["charts"][1]["title"] == timeline["title"]
-    assert "series" not in tool_result["charts"][1]
+    assert "Call analyze first" in tool_result["error"]
+
+
+def test_statistics_tables_and_method_selection_reach_the_browser(assistant, tmp_path, monkeypatch):
+    responses, calls = assistant
+    request, store = movement_request(tmp_path)
+    prepared_id = "c" * 32
+    directory = tmp_path / "web" / prepared_id
+    directory.mkdir(parents=True)
+    (directory / "prepared.json").write_text(json.dumps({"query": request["input"]["query"], "recipe": {}}))
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path, anthropic_api_key="test"))
+    monkeypatch.setattr(web_assistant, "RecipeArtifactReader", lambda *args: store)
+    monkeypatch.setattr(web_assistant, "analysis_request", lambda query, recipe, request_id: {
+        **request, "request_id": request_id, "query_id": query["query_id"], "input": {**request["input"], "query": query},
+    })
+    responses.extend([
+        tool_response("analyze", {"prepared_id": prepared_id, "question": "Show rainfall statistics",
+                                  "analysis": {"method": "statistics", "variables": ["rain_mm"]}}),
+        text_response("The statistics table is in Charts."),
+    ])
+
+    response = web_assistant.answer(ChatRequest(messages=[{"role": "user", "content": "Show rainfall statistics"}]))
+
+    analysis = response["analyses"][0]
+    assert analysis["charts"] == []
+    assert analysis["result"]["artifact_versions"]["method"] == "statistics@1"
+    assert analysis["result"]["tables"][0]["title"] == "Descriptive statistics"
+    assert analysis["result"]["metrics"]["variables"]["rainfall"]["n"] == 7
+    tool = next(tool for tool in calls[0]["tools"] if tool["name"] == "analyze")
+    assert "analysis" in tool["input_schema"]["properties"]

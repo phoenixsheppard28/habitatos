@@ -4,6 +4,7 @@ from datetime import date
 from typing import Literal
 from uuid import uuid4
 
+import pandas as pd
 import psycopg
 from pydantic import BaseModel, Field, model_validator
 from recipe.artifacts import LocalArtifactStore
@@ -13,16 +14,17 @@ from recipe.service import RecipeService
 
 from analysis.service import run as run_analysis
 from analysis.store import ArtifactStore
-from contracts.models import ComparisonWindow, ForecastRequest
+from contracts.charts import Chart
+from contracts.models import AnalysisOptions, ComparisonWindow, ForecastRequest
 from habitat.catalog.store import PostgresCatalog
 from habitat.config import settings
 from habitat.db import database_url
 from habitat.llm import CATALOG_MODEL, FETCH_MODEL, client
 from habitat.pipeline import build_request, run as run_pipeline
+from habitat.plots import PlotError, figure_summary, render_figure
 from habitat.recipe_inputs import FAMILIES, SEARCH_FILTERS, HabitatRecipeCatalog, executor
 from habitat.sources import SOURCES
 from habitat.web import catalog, connection, dataset_features, public_dataset
-from habitat.web_charts import chart_specs
 from workflow.recipe_handoff import RecipeArtifactReader, analysis_request
 
 
@@ -32,6 +34,9 @@ class QueryContext(BaseModel):
     start: date
     end: date
     species: list[str] = Field(default_factory=list, max_length=20)
+    vegetation_source_id: Literal["sentinel2", "modis_mod13q1"] | None = None
+    analysis_method: Literal["movement", "residence_time"] = "movement"
+    max_tracking_gap_hours: float = Field(default=6, gt=0, le=168)
 
     @model_validator(mode="after")
     def valid_region_and_dates(self):
@@ -48,7 +53,9 @@ class QueryContext(BaseModel):
                 "access_scope": "public", "species": self.species,
                 "region": {"type": "Polygon", "coordinates": [[[west, south], [east, south], [east, north],
                                                                [west, north], [west, south]]]},
-                "time_range": {"start": f"{self.start}T00:00:00Z", "end": f"{self.end}T23:59:59Z"}}
+                 "time_range": {"start": f"{self.start}T00:00:00Z", "end": f"{self.end}T23:59:59Z"},
+                 "analysis_method": self.analysis_method, "max_tracking_gap_hours": self.max_tracking_gap_hours,
+                 "extensions": {"vegetation_source_id": self.vegetation_source_id}}
 
 
 class RetrievalContext(QueryContext):
@@ -75,6 +82,20 @@ class AnalysisContext(BaseModel):
     task_type: Literal["historical", "forecast"] = "historical"
     forecast: ForecastRequest | None = None
     comparison_windows: list[ComparisonWindow] | None = None
+    analysis: AnalysisOptions = Field(default_factory=AnalysisOptions)
+    analysis_method: Literal["movement", "residence_time"] | None = None
+    max_tracking_gap_hours: float | None = Field(default=None, gt=0, le=168)
+
+
+class PlotContext(BaseModel):
+    analysis_id: str = Field(pattern="^[0-9a-f]{32}$",
+                             description="An analysis_id that analyze returned in this turn. The chart joins it.")
+    title: str = Field(min_length=1, max_length=200)
+    code: str = Field(min_length=1, max_length=20_000, description=(
+        "Python that builds a Plotly figure from the prepared table df (pandas DataFrame) and assigns it to fig. "
+        "pd, np, px (plotly.express) and go (plotly.graph_objects) are preloaded. Imports are limited to numpy, "
+        "pandas, scipy, sklearn, statsmodels, plotly, math, statistics, datetime, itertools and collections. "
+        "No files or network."))
 
 
 def generate_plan(*, instructions, context, schema):
@@ -83,7 +104,15 @@ def generate_plan(*, instructions, context, schema):
     prompt = (
         "Return the structured answer with the answer tool. Use only registered operations and supplied datasets. "
         "Movement analysis needs the animal_daily_movement family, with entity_id, day, longitude, latitude, "
-        "species and daily_displacement_km. Never fabricate missing measurements or coverage. "
+        "species and daily_displacement_km. For analysis_method=residence_time, use animal_locations fixes, "
+        "not daily movement or time buckets. Preserve every fix timestamp, entity_id, longitude, latitude, "
+        "cell_id and species. Filter fixes to quality_flag=ok. Filter vegetation to index_name=ndvi and join "
+        "backward by cell_id and fix time with an explicit composite lookback. Use left joins and retain "
+        "fixes without vegetation, so missing measurements do not disappear between consecutive fixes. Preserve the vegetation "
+        "observed_at and observed_until columns as vegetation_valid_from and vegetation_valid_until for "
+        "residence analysis. Analysis excludes expired composites. Use cell_id joins when both inputs "
+        "provide cell_id. Never fabricate "
+        "missing measurements or coverage. Respect query.extensions.vegetation_source_id when supplied. "
         "In select.columns and right_columns, keys are output names and values are source columns. "
         "Family columns and units: " + json.dumps({name: {column.name: column.unit for column in family.columns}
                                                  for name, family in FAMILIES.items()})
@@ -102,7 +131,7 @@ def generate_plan(*, instructions, context, schema):
     raise ValueError("The planner returned no typed decision.")
 
 
-MAX_TOOL_ROUNDS = 10
+MAX_TOOL_ROUNDS = 14
 
 
 class EligibleEvidence:
@@ -159,18 +188,49 @@ def analyze(payload):
     analysis_id = uuid4().hex
     query = {**record["query"], "query_id": analysis_id, "question": context.question,
              "task_type": context.task_type,
+             "analysis": context.analysis.model_dump(mode="json"),
              "forecast": context.forecast.model_dump(mode="json") if context.forecast else None,
              "comparison_windows": [window.model_dump(mode="json") for window in context.comparison_windows]
-             if context.comparison_windows else None}
+              if context.comparison_windows else None}
+    if context.analysis_method is not None:
+        query["analysis_method"] = context.analysis_method
+    if context.max_tracking_gap_hours is not None:
+        query["max_tracking_gap_hours"] = context.max_tracking_gap_hours
     request = analysis_request(query, record["recipe"], request_id=analysis_id)
     reader = RecipeArtifactReader(LocalArtifactStore(directory / "recipe"), "public",
                                   ArtifactStore(directory / "analysis" / analysis_id))
     result = run_analysis(request, store=reader)
 
     return {"analysis_id": analysis_id, "prepared_id": context.prepared_id, "status": result["status"],
-            "output": result.get("output"), "warnings": result.get("warnings"), "error": result.get("error"),
-            "charts": chart_specs((result.get("output") or {}).get("result") or {})
-            if result["status"] in {"ok", "partial"} else []}
+            "output": result.get("output"), "warnings": result.get("warnings"), "error": result.get("error")}
+
+
+def prepared_table(prepared_id):
+    directory = prepared_directory(prepared_id)
+    record = json.loads((directory / "prepared.json").read_text())
+    artifact = analysis_request(record["query"], record["recipe"], request_id=prepared_id)["input"]["feature_artifact"]
+    reader = RecipeArtifactReader(LocalArtifactStore(directory / "recipe"), "public", None)
+    frame = reader.read_dataset(artifact["storage"])
+
+    for column in artifact["columns"]:
+        if column.get("role") in {"event_time", "vegetation_valid_from", "vegetation_valid_until"}:
+            frame[column["name"]] = pd.to_datetime(frame[column["name"]], utc=True, errors="coerce", format="mixed")
+    return frame
+
+
+def plot(payload, analysis):
+    context = PlotContext.model_validate(payload)
+    if analysis is None:
+        return {"status": "error", "error": "No analysis in this turn has this analysis_id. Call analyze first."}
+
+    try:
+        figure = render_figure(prepared_table(analysis["prepared_id"]), context.code)
+    except PlotError as error:
+        return {"status": "error", "error": str(error), "hint": "Fix the code and call plot again."}
+    chart = Chart(chart_id=uuid4().hex, title=context.title, figure=figure, code=context.code)
+    analysis["charts"].append(chart.model_dump(mode="json"))
+
+    return {"status": "ok", "chart_id": chart.chart_id, "figure": figure_summary(figure)}
 
 
 def retrieve(payload):
@@ -231,8 +291,18 @@ def answer_with_tools(request):
          "input_schema": QueryContext.model_json_schema()},
         {"name": "analyze", "description": "Analysis stage: run one validated analysis on a prepared table. Call it "
          "as many times as needed with the same prepared_id, each with its own question, task type, comparison "
-         "windows or forecast settings. It does not change the prepared table.",
+         "windows or forecast settings. Select analysis.method and numeric variables by column name or role. "
+         "Use correlation for relationships, distribution for histograms or box plots, statistics for descriptive "
+         "tables, trend for time series, and comparison for date windows. "
+         "analyze computes numbers only. Draw charts with plot.",
          "input_schema": AnalysisContext.model_json_schema()},
+        {"name": "plot", "description": "Chart stage: run Python plotting code on the prepared table of an analysis "
+         "and show the Plotly figure in the Charts tab. Choose the chart that answers the question: for example "
+         "scatter with OLS or LOWESS trendlines, binned means with error bars, faceted or colored by animal, "
+         "histograms, box or violin plots, time series, heatmaps, or model diagnostics from sklearn. Label axes "
+         "with units. Plot only the table data and values computed from it. Aggregate or sample tables above a "
+         "few thousand points. On an error, read the traceback, fix the code and call plot again.",
+         "input_schema": PlotContext.model_json_schema()},
     ]
     messages = [message.model_dump() for message in request.messages]
     updated = False
@@ -241,6 +311,7 @@ def answer_with_tools(request):
     analyses = []
     assistant = client()
     prepared_results = {}
+    vegetation_source_id = None
     for round_index in range(MAX_TOOL_ROUNDS):
         with stage("assistant", "Choose the next action or write the answer", model=FETCH_MODEL, round=round_index + 1):
             response = assistant.messages.create(
@@ -248,14 +319,28 @@ def answer_with_tools(request):
                 system="You are Dora, an ecological workspace assistant. Answer from real catalog metadata and "
             "tool results. Do not invent observations, rainfall, forecast results or successful actions. Distinguish "
             "missing evidence from zero. Cite dataset IDs, versions and source URLs. Explain incompatible dates "
-            "or regions before comparing layers. Use summarize_dataset for numerical summaries. For scientific "
+             "or regions before comparing layers. Use summarize_dataset for monthly database aggregates. For scientific "
             "questions, call prepare once to build the analysis table, then call analyze with its prepared_id. "
-            "For requests for charts, plots, trends or comparisons, use prepare and analyze. Successful analysis "
-            "results appear automatically in the Charts tab, including timelines and supported comparisons. "
-            "Mention the Charts tab after a successful analysis. Never invent chart data in your written answer. "
+            "For requests for charts, plots, trends or comparisons, use prepare, analyze, then plot. Match "
+             "analysis.method and analysis.variables to the user's question and the prepared columns. "
+             "Relationships need correlation, not a median split. Every successful analysis needs at least one "
+             "plot call whose chart answers the user's question directly, for example a scatter of the two "
+             "related variables with a trendline, not a summary of something else. "
+             "Use only methods supported by the analyze schema. Explain unsupported methods. "
+            "Mention the Charts tab after a successful plot. Never invent chart data in your written answer. "
             "Run further analyses on the same prepared_id instead of preparing again. Prepare again only when "
-            "the region, dates, species or required variables change. Do not repeat an identical failed prepare call. "
+            "the region, dates, species, sampling grain or required variables change. Do not repeat an identical failed prepare call. "
             "Preparation repairs invalid plans internally. If preparation still fails, explain the actual error. "
+            "RESOURCE_LIMIT counts scoped metric rows, not raw imagery or the total stored series. Use its "
+            "error.details to explain the limit, region, dates and selected indices. Unrelated regions in a "
+            "shared series are excluded by preparation. An already_present retrieval reuses observations; "
+            "it does not shrink a series. Do not suggest another download or satellite as a row-limit fix. "
+            "Always set vegetation_source_id in prepare when the user chooses MODIS or Sentinel-2, including "
+            "choices from earlier messages. For time spent, dwell time, residence, or greener-place use, "
+            "set analysis_method=residence_time in prepare and analyze, with analysis.method=auto. "
+            "Use timestamped fixes and NDVI, "
+            "not daily displacement as a substitute. Explain the tracking gap threshold and distinguish "
+            "observed time allocation from habitat preference. "
             "Do not narrow explicit user dates unless the user agrees. Check all workspace datasets for the variables, species, region and dates "
             "needed by the question, not just the selected dataset. If relevant data is missing, empty, or a tool "
             "returns insufficient_data, offer to retrieve the missing data and "
@@ -297,10 +382,13 @@ def answer_with_tools(request):
                                                              "sources", "grain", "truncated")}
                     citations.extend(snapshot["sources"])
                 elif call.name == "prepare":
-                    key = json.dumps(call.input, sort_keys=True)
+                    payload = dict(call.input)
+                    if vegetation_source_id and not payload.get("vegetation_source_id"):
+                        payload["vegetation_source_id"] = vegetation_source_id
+                    key = json.dumps(payload, sort_keys=True)
                     if key not in prepared_results:
                         with stage("preparation", "Prepare the analysis table"):
-                            prepared_results[key] = prepare(call.input)
+                            prepared_results[key] = prepare(payload)
                     output = prepared_results[key]
                 elif call.name == "analyze":
                     with stage("analysis", "Run the validated analysis"):
@@ -310,14 +398,19 @@ def answer_with_tools(request):
                         analyses.append({
                             "analysis_id": output["analysis_id"], "prepared_id": output["prepared_id"],
                             "status": output["status"], "warnings": output.get("warnings") or [],
-                            "charts": output.get("charts") or [],
+                            "charts": [],
                             "result": {key: result[key] for key in
                                        ("result_id", "question", "created_at", "status", "findings", "metrics",
-                                        "timeline", "evidence", "limitations", "artifact_versions") if key in result},
+                                         "timeline", "tables", "evidence", "limitations", "artifact_versions") if key in result},
                         })
-                    output = {**output, "charts": [{key: chart[key] for key in ("chart_id", "title", "kind")}
-                                                   for chart in output.get("charts") or []]}
+                elif call.name == "plot":
+                    analysis = next((item for item in analyses
+                                     if item["analysis_id"] == call.input.get("analysis_id")), None)
+                    with stage("plot", "Draw the chart"):
+                        output = plot(call.input, analysis)
                 elif call.name == "retrieve":
+                    if call.input.get("source_id") in {"sentinel2", "modis_mod13q1"}:
+                        vegetation_source_id = call.input["source_id"]
                     with stage("retrieval", "Fetch, normalize and publish source data"):
                         output = retrieve(call.input)
                     updated = updated or bool(output["published"])

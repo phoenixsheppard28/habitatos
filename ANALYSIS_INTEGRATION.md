@@ -84,6 +84,32 @@ Recipe gives an artifact URI in the form `artifact://features-<sha>/1`.
 
 The fetch outcomes `appended` and `already_present` are usable. Other outcomes stop the job.
 
+### 2.6 Residence time and bounded vegetation inputs
+
+Set `analysis_method` to `residence_time` for questions about time spent in greener places.
+Use `animal_locations` with original timestamps, coordinates, animal identifiers, and matched NDVI values.
+Daily movement summaries cannot supply residence time.
+Use left joins to retain fixes without vegetation measurements.
+MODIS outputs must include the start and end timestamps of each matched composite.
+
+The handoff derives `sampling_grain` from the validated recipe.
+Residence analysis rejects daily summaries and duplicate timestamps for the same animal.
+Each valid interval assigns half its duration to each endpoint.
+The default `max_tracking_gap_hours` is six hours.
+Longer gaps, missing measurements, and expired composites contribute no time.
+The method does not extrapolate before the first fix or after the last fix.
+Results include animal-hours, greenness shares, excluded durations, and a bar chart.
+The greenness threshold is the median vegetation value at unique fixes within usable intervals.
+These results describe observed time allocation, not habitat preference.
+
+Preparation restricts compatible vegetation joins to cells used by the selected animal tracks.
+Preparation also applies safe index filters before materialization.
+Background branches retain their required cells and indices.
+The row limit remains 100,000 rows per stage.
+Limit errors include the dataset version, region, dates, selected indices, and a lower bound for the row count.
+Set `vegetation_source_id` to `sentinel2` or `modis_mod13q1` to enforce the selected satellite source.
+Another download does not reduce the size of an existing shared series.
+
 ## 3. Verification
 
 | Check | Result |

@@ -7,6 +7,7 @@ Measurements get an Analysis role from their lineage to a Stage 2 family. See AN
 from datetime import datetime, timezone
 
 from recipe.errors import RecipeError
+from recipe.validation import animal_sampling_grain
 
 from analysis.store import ArtifactStore, StorageError
 from habitat.recipe_inputs import RAINFALL, VEGETATION
@@ -15,6 +16,8 @@ SHARED_ROLES = frozenset({"entity_id", "longitude", "latitude", "cell_id", "spec
 MEASUREMENT_ROLES = {
     (RAINFALL, "rainfall_mm"): "rainfall",
     (VEGETATION, "index_value"): "vegetation_index",
+    (VEGETATION, "observed_at"): "vegetation_valid_from",
+    (VEGETATION, "observed_until"): "vegetation_valid_until",
 }
 
 
@@ -31,7 +34,15 @@ def analysis_request(query: dict, recipe_response: dict, *, request_id: str, bou
         "input_dataset_refs": catalog_refs(inputs.values()),
         "columns": [analysis_column(column, recipe["output"]["time_column"], families) for column in artifact["columns"]],
         "coverage": feature_coverage(query, inputs.values()),
+        "sampling_grain": animal_sampling_grain(recipe, families),
     }
+    composite_aliases = {alias for alias, dataset in inputs.items()
+                         if dataset["metadata"].get("source_id") == "modis_mod13q1"}
+    for column, original in zip(feature_artifact["columns"], artifact["columns"]):
+        if column["role"] in {"vegetation_valid_from", "vegetation_valid_until"}:
+            aliases = {source.split(".", 1)[0] for source in original.get("derived_from") or []}
+            if not aliases <= composite_aliases:
+                column["role"] = None
     return {
         "contract_version": "1.0",
         "request_id": request_id,
@@ -68,9 +79,10 @@ def analysis_role(column: dict, time_column: str, families: dict[str, str]) -> s
         return role
 
     lineage = column.get("derived_from") or []
-    if role == "measurement" and len(lineage) == 1:
+    if len(lineage) == 1:
         alias, source_column = lineage[0].split(".", 1)
-        return MEASUREMENT_ROLES.get((families.get(alias), source_column))
+        if role == "measurement" or column.get("type") == "timestamp":
+            return MEASUREMENT_ROLES.get((families.get(alias), source_column))
 
     return None
 

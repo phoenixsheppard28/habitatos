@@ -1,0 +1,146 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - button "Show or hide sidebar" [expanded] [ref=e3] [cursor=pointer]
+    - strong [ref=e10]: Dora
+    - generic [ref=e11]: Workspace / Public catalog
+    - generic [ref=e12]:
+      - status [ref=e13]: Connected
+      - button "↻ Refresh" [ref=e14] [cursor=pointer]
+      - button "↓ Export data" [ref=e15] [cursor=pointer]
+  - main [ref=e16]:
+    - complementary "Workspace objects" [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e22]:
+          - strong [ref=e23]: Dora workspace
+          - generic [ref=e24]: Public catalog
+        - button "Close sidebar" [ref=e25] [cursor=pointer]: ×
+      - button "Import data Local" [ref=e26] [cursor=pointer]:
+        - text: Import data
+        - generic [ref=e29]: Local
+      - searchbox "Find workspace objects" [ref=e33]
+      - navigation "Data, visualizations, and analysis" [ref=e34]:
+        - group [ref=e35]:
+          - generic "Workspace ›" [ref=e36] [cursor=pointer]
+          - button "Observation map" [ref=e37] [cursor=pointer]
+          - button "Observation records" [ref=e41] [cursor=pointer]
+          - button "Analysis charts" [ref=e45] [cursor=pointer]
+        - group [ref=e49]:
+          - generic "Catalog 5 ›" [ref=e114] [cursor=pointer]:
+            - text: Catalog
+            - generic [ref=e51]: "5"
+            - text: ›
+          - generic [ref=e115]:
+            - button "Comparison of movement strategies of three populations of white-bearded wildebeest Connochaetes taurinus" [pressed] [ref=e116] [cursor=pointer]:
+              - generic [ref=e119]:
+                - text: Comparison of movement strategies of three populations of white-bearded wildebeest
+                - generic [ref=e120]: Connochaetes taurinus
+            - button "Study \"American black bear movement ecology in Connecticut\" Ursus americanus" [ref=e121] [cursor=pointer]:
+              - generic [ref=e124]:
+                - text: Study "American black bear movement ecology in Connecticut"
+                - generic [ref=e125]: Ursus americanus
+            - button "CHIRPS v2.0 daily rainfall per 1 km cell rainfall_mm" [ref=e126] [cursor=pointer]:
+              - generic [ref=e129]:
+                - text: CHIRPS v2.0 daily rainfall per 1 km cell
+                - generic [ref=e130]: rainfall_mm
+            - button "MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell evi, ndvi" [ref=e131] [cursor=pointer]:
+              - generic [ref=e134]:
+                - text: MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell
+                - generic [ref=e135]: evi, ndvi
+            - button "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition mndwi, ndmi, ndvi" [ref=e136] [cursor=pointer]:
+              - generic [ref=e139]:
+                - text: Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition
+                - generic [ref=e140]: mndwi, ndmi, ndvi
+          - paragraph [ref=e52]: Select a dataset. The map shows one published dataset at a time.
+        - group [ref=e53]:
+          - generic "Analysis ›" [ref=e54] [cursor=pointer]
+          - button "Dataset overview" [ref=e55] [cursor=pointer]
+          - button "Sources and provenance" [ref=e59] [cursor=pointer]
+      - generic [ref=e63]:
+        - button "Ask Dora AI" [ref=e64] [cursor=pointer]:
+          - text: Ask Dora
+          - generic [ref=e67]: AI
+        - generic [ref=e70]:
+          - text: Public observations
+          - generic [ref=e71]: movebank_repository · version 2
+    - region "Exploration workspace" [ref=e72]:
+      - generic [ref=e73]:
+        - generic [ref=e74]: Dora workspace / Workspace
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - heading "Observation map" [level=1] [ref=e77]
+            - paragraph [ref=e78]: Comparison of movement strategies of three populations of white-bearded wildebeest
+          - generic [ref=e79]:
+            - button "Esri World Topographic Map" [ref=e80] [cursor=pointer]
+            - button "Zoom to dataset coverage" [ref=e83] [cursor=pointer]
+      - generic "Visualization views" [ref=e86]:
+        - button "Map" [ref=e87] [cursor=pointer]
+        - button "Table" [ref=e88] [cursor=pointer]
+        - button "Charts" [ref=e89] [cursor=pointer]
+        - button "Overview" [ref=e90] [cursor=pointer]
+        - generic [ref=e141]: Dataset version 2
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - application "Esri World Topographic Map with ecological observations" [ref=e93]:
+            - generic:
+              - generic: 10 km
+              - generic:
+                - generic [ref=e96]:
+                  - button "Zoom in" [ref=e97] [cursor=pointer]: +
+                  - button "Zoom out" [ref=e98] [cursor=pointer]: −
+                - generic [ref=e99]:
+                  - text: "Sources:"
+                  - link "Esri" [ref=e100] [cursor=pointer]:
+                    - /url: https://goto.arcgisonline.com/maps/World_Topo_Map
+                  - text: ", HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), ©"
+                  - link "OpenStreetMap" [ref=e101] [cursor=pointer]:
+                    - /url: https://www.openstreetmap.org/copyright
+                  - text: contributors, and the GIS User Community
+          - generic:
+            - strong: Connochaetes taurinus
+            - paragraph: 6,557 loaded observations through Jan 2013
+          - generic [ref=e102]: Last good fix per animal and UTC day
+        - generic [ref=e107]:
+          - button "Play" [ref=e108] [cursor=pointer]
+          - generic [ref=e109]: Jan 2013
+          - generic [ref=e110]:
+            - generic [ref=e111]: Oct 2010
+            - slider "Last observation month in view" [ref=e112]: "27"
+            - generic [ref=e113]: Jan 2013
+    - complementary "Dora assistant" [ref=e143]:
+      - generic "Move assistant. Drag to either side to dock, or use arrow keys." [ref=e144]:
+        - generic [ref=e148]:
+          - strong [ref=e149]: Dora
+          - paragraph [ref=e150]: Drag to either side to dock
+        - generic [aria-hidden] [ref=e151]: ⠿
+        - button "Dock assistant to the right" [ref=e152] [cursor=pointer]
+        - button "Minimize assistant" [expanded] [ref=e155] [cursor=pointer]: −
+        - button "Close assistant" [ref=e156] [cursor=pointer]: ×
+      - generic [ref=e157]:
+        - button "History 5" [ref=e179] [cursor=pointer]:
+          - text: History
+          - generic [ref=e159]: "5"
+        - button "New chat" [ref=e160] [cursor=pointer]
+        - status [ref=e161]: Saved on this device
+      - generic [ref=e162]: simulate transport error
+      - log [ref=e163]:
+        - article [ref=e180]:
+          - generic [ref=e181]:
+            - generic [ref=e182]: YOU
+            - time [ref=e183]: 02:44 AM
+          - paragraph [ref=e184]: simulate transport error
+        - article [ref=e185]:
+          - generic [ref=e186]:
+            - generic [ref=e187]: Dora
+            - time [ref=e188]: 02:44 AM
+          - paragraph [ref=e190]: Simulated pipeline failure
+      - generic [ref=e169]:
+        - generic [ref=e170]: Ask Dora about this workspace
+        - generic [ref=e171]:
+          - textbox "Ask Dora about this workspace" [active] [ref=e172]:
+            - /placeholder: Ask Dora about the observations…
+            - text: simulate transport error
+          - generic [ref=e173]:
+            - button "Import geographic data" [ref=e174] [cursor=pointer]: +
+            - generic [ref=e175]: movebank_repository · Jan 2013
+            - button "Send question" [ref=e176] [cursor=pointer]: ↑
+        - paragraph [ref=e177]: Local imports remain on this device.

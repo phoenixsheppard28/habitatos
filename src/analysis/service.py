@@ -27,6 +27,8 @@ from analysis.overlap import route_overlap
 from analysis.windows import window_comparison
 from analysis.prepare import PrepareError, bind_roles, coverage_problem, missing_roles, prepare_frame, scope_allows
 from analysis.report import render_report
+from analysis.residence import residence_summary
+from analysis.requested import requested_summary, select_analysis
 from analysis.store import StorageError
 from contracts.models import AnalysisRequest
 
@@ -77,10 +79,28 @@ def run(request: dict, *, store, seed: int = 0) -> dict:
     except PrepareError as exc:
         return _error(request, exc.code, exc.message, False)
 
-    required, analysis_mode = _required_roles(query, roles)
+    options = None
+    measurement_roles = dict(roles)
+    for column in artifact.columns:
+        if column.role is None and column.type in {"number", "integer"}:
+            measurement_roles.setdefault(column.name, column)
+
+    if query.task_type == "historical":
+        try:
+            options = select_analysis(query, measurement_roles)
+        except PrepareError as exc:
+            return _insufficient(request, exc.code, exc.message, {})
+        except ValidationError as exc:
+            return _error(request, "invalid_request", _validation_message(exc), False)
+
+    if options and options.method in {"correlation", "distribution", "statistics", "trend"}:
+        roles = measurement_roles
+        required, analysis_mode = ["event_time", *options.variables], "requested"
+    else:
+        required, analysis_mode = _required_roles(query, roles)
     absent = missing_roles(roles, required)
     displacement = roles.get("daily_displacement")
-    if analysis_mode in {"movement", "displacement"} and displacement is not None and not displacement.unit:
+    if (analysis_mode in {"movement", "displacement"} or options and "daily_displacement" in options.variables) and displacement is not None and not displacement.unit:
         absent.append("daily_displacement.unit")
     if absent:
         return _insufficient(
@@ -89,6 +109,10 @@ def run(request: dict, *, store, seed: int = 0) -> dict:
             "The feature table is missing roles this method needs: " + ", ".join(absent) + ".",
             {"missing_roles": absent},
         )
+
+    if analysis_mode == "residence_time" and artifact.sampling_grain != "animal_fix":
+        return _insufficient(request, "fix_grain_required",
+                             "Residence time requires original timestamped animal fixes, not daily summaries.", {})
 
     if query.task_type == "forecast":
         if query.forecast is None:
@@ -137,9 +161,13 @@ def run(request: dict, *, store, seed: int = 0) -> dict:
             return _insufficient(request, outcome["code"], outcome["message"], outcome["metrics"])
         return _finish_forecast(request, parsed, outcome, warnings, seed, store)
 
+    if analysis_mode == "requested":
+        return _finish_requested(request, parsed, frame, roles, warnings, options)
     if analysis_mode == "environment":
         return _finish_environment(request, parsed, frame, roles, warnings)
-    return _finish_historical(request, parsed, frame, roles, warnings)
+    if analysis_mode == "residence_time":
+        return _finish_residence(request, parsed, frame, roles, warnings)
+    return _finish_historical(request, parsed, frame, roles, warnings, options)
 
 
 def _required_roles(query, roles: dict) -> tuple[list[str], str]:
@@ -148,6 +176,8 @@ def _required_roles(query, roles: dict) -> tuple[list[str], str]:
         if target == CELL_USE_METHOD:
             return ["entity_id", "event_time", "cell_id"], "cell_use"
         return list(FORECAST_ROLES), "displacement"
+    if query.analysis_method == "residence_time":
+        return ["entity_id", "event_time", "longitude", "latitude", "vegetation_index"], "residence_time"
     if all(role in roles for role in MOVEMENT_ROLES):
         return list(MOVEMENT_ROLES), "movement"
     if any(role in roles for role in ("entity_id", "longitude", "latitude", "daily_displacement")):
@@ -156,6 +186,23 @@ def _required_roles(query, roles: dict) -> tuple[list[str], str]:
     if environment and "event_time" in roles:
         return ["event_time", *environment], "environment"
     return list(MOVEMENT_ROLES), "movement"
+
+
+def _finish_residence(request, parsed, frame, roles, warnings):
+    summary = residence_summary(frame, roles, parsed.input.query.max_tracking_gap_hours)
+    if summary["status"] == "insufficient_data":
+        return _insufficient(request, "no_residence_intervals", summary["message"], summary["metrics"])
+
+    result = _result(parsed, status="complete", findings=summary["findings"], metrics=summary["metrics"],
+                     limitations=summary["limitations"], method="residence_time@1",
+                     map_payload={"type": "FeatureCollection", "features": []},
+                     timeline={"series": []}, model_reference=None)
+    spec = _spec(parsed, "residence_time", "1", target=None, horizon=None, baseline=None, seed=None,
+                 parameters={"max_tracking_gap_hours": parsed.input.query.max_tracking_gap_hours,
+                             "allocation_method": "half of each interval to each endpoint"})
+
+    return _ok(request, "ok", {"analysis_spec": spec, "result": result, "model_artifact": None},
+               [*warnings, *summary["warnings"]])
 
 
 def _finish_environment(request, parsed, frame, roles, warnings):
@@ -176,9 +223,27 @@ def _finish_environment(request, parsed, frame, roles, warnings):
     return _ok(request, "ok", {"analysis_spec": spec, "result": result, "model_artifact": None}, warnings)
 
 
-def _finish_historical(request, parsed, frame, roles, warnings):
+def _finish_requested(request, parsed, frame, roles, warnings, options):
+    try:
+        summary = requested_summary(frame, roles, options)
+    except PrepareError as exc:
+        return _insufficient(request, exc.code, exc.message, {})
+
+    result = _result(parsed, status="complete", findings=summary["findings"], metrics=summary["metrics"],
+                     limitations=summary["limitations"], method=f"{options.method}@1", map_payload=summary["map"],
+                     timeline=summary["timeline"], model_reference=None, sample_limitation="entity_id" in roles)
+    result["tables"] = summary["tables"]
+    spec = _spec(parsed, options.method, "1", target=None, horizon=None, baseline=None, seed=None,
+                 parameters=options.model_dump())
+
+    return _ok(request, "ok", {"analysis_spec": spec, "result": result, "model_artifact": None},
+               [*warnings, *summary["warnings"]])
+
+
+def _finish_historical(request, parsed, frame, roles, warnings, options):
     summary = movement_summary(frame, roles)
     metrics = dict(summary["metrics"])
+    metrics["analysis"] = options.model_dump()
     findings = list(summary["findings"])
     limitations = list(summary["limitations"])
     revisits = revisit_summary(frame, roles)
@@ -186,7 +251,11 @@ def _finish_historical(request, parsed, frame, roles, warnings):
         findings.extend(revisits["findings"])
         metrics.update(revisits["metrics"])
         warnings.extend(revisits["warnings"])
-    habitat = habitat_summary(frame, roles)
+    habitat_roles = roles
+    if options.method == "comparison" and options.variables:
+        habitat_roles = {role: column for role, column in roles.items()
+                         if role not in {"rainfall", "vegetation_index"} or role in options.variables}
+    habitat = habitat_summary(frame, habitat_roles)
     findings.extend(habitat["findings"])
     if habitat["metrics"]:
         metrics["habitat"] = habitat["metrics"]
@@ -501,4 +570,3 @@ def _dependency_versions() -> dict:
     import sklearn
 
     return {"scikit-learn": sklearn.__version__}
-

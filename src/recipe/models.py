@@ -89,6 +89,8 @@ class QuerySpec(Model):
     species: list[str] = Field(default_factory=list)
     forecast_cutoff: datetime | None = None
     extensions: dict[str, Any] = Field(default_factory=dict)
+    analysis_method: Literal["movement", "residence_time"] = "movement"
+    max_tracking_gap_hours: float = Field(default=6, gt=0, le=168)
 
     @model_validator(mode="after")
     def valid_query(self):

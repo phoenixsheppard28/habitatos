@@ -119,6 +119,31 @@ def test_tags_and_source_filters(memory_catalog):
     assert [d.family for d in by_source.datasets] == [VEGETATION]
 
 
+def test_selected_satellite_source_applies_to_metadata_semantic_and_authorization(memory_catalog):
+    memory_catalog.register_dataset(habitat_dataset("modis_mod13q1--mod13q1-061--ease2-global-1km",
+                                                    "cell_observations", ["ndvi", "evi"]))
+    catalog = HabitatRecipeCatalog(memory_catalog, allowed_scopes={"public"})
+    selected = query(extensions={"vegetation_source_id": "sentinel2"})
+
+    metadata = catalog.search_metadata({}, query=selected, limit=10)
+    semantic = catalog.search_semantic("modis sentinel2 ndvi", query=selected, limit=10)
+
+    assert {dataset.metadata["source_id"] for dataset in metadata.datasets if dataset.family == VEGETATION} == {"sentinel2"}
+    assert {dataset.metadata["source_id"] for dataset in semantic.datasets if dataset.family == VEGETATION} == {"sentinel2"}
+    assert any(dataset.family == ANIMAL_LOCATIONS for dataset in metadata.datasets)
+    modis = to_recipe_dataset(memory_catalog.records[-1])
+    assert not catalog.authorize(modis, selected)
+
+
+def test_unavailable_selected_source_does_not_fall_back(memory_catalog):
+    catalog = HabitatRecipeCatalog(memory_catalog, allowed_scopes={"public"})
+
+    page = catalog.search_metadata({"family": VEGETATION},
+                                   query=query(extensions={"vegetation_source_id": "modis_mod13q1"}), limit=10)
+
+    assert page.datasets == []
+
+
 def test_unsupported_filters_fail_explicitly(memory_catalog):
     catalog = HabitatRecipeCatalog(memory_catalog, allowed_scopes={"public"})
 

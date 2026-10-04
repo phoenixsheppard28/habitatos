@@ -11,6 +11,30 @@ from .models import (
 NUMERIC = {"number", "integer"}
 
 
+def animal_sampling_grain(recipe, families):
+    steps = {step["id"]: step for step in recipe["steps"]}
+
+    def origin(name, column):
+        if name in families:
+            if families[name] == "animal_locations" and column == "observed_at":
+                return "animal_fix"
+            if families[name] == "animal_daily_movement" and column == "day":
+                return "animal_day"
+            return None
+        step = steps[name]
+        if step["operation"] == "select":
+            return origin(step["input"], step["columns"][column])
+        if step["operation"] == "filter":
+            return origin(step["input"], column)
+        if step["operation"] in {"join", "asof_join", "spatial_join", "window_aggregate"}:
+            if column in step["right_columns"]:
+                return origin(step["right"], step["right_columns"][column])
+            return origin(step["left"], column)
+        return None
+
+    return origin(recipe["output"]["step"], recipe["output"]["time_column"])
+
+
 def fail(message, code="INVALID_RECIPE"):
     raise RecipeError(code, message)
 
@@ -164,6 +188,26 @@ def validate_recipe(recipe: RecipeSpec, query: QuerySpec,
             fail(f"declared output type/unit differs from calculation: {name}")
         if inferred.nullable and not c.nullable:
             fail(f"output {name} can be null and must declare nullable=true")
+
+    if query.analysis_method == "residence_time":
+        if any(isinstance(step, (Join, AsOfJoin, SpatialJoin)) and step.type != "left" for step in recipe.steps):
+            fail("residence_time requires left joins to retain fixes with missing environmental measurements")
+        families = {alias: datasets[ref.key].family for alias, ref in recipe.inputs.items()}
+        if animal_sampling_grain(recipe.model_dump(), families) != "animal_fix":
+            fail("residence_time requires original animal fix timestamps, not daily movement or time buckets")
+        required = {"entity_id", "longitude", "latitude"}
+        if not required <= {c.role for c in out.values()}:
+            fail("residence_time requires animal ids and fix coordinates")
+        vegetation = [alias for alias, family in families.items() if family == "vegetation_observations"]
+        if not any(c.role == "measurement" and c.derived_from == [f"{alias}.index_value"]
+                   for c in out.values() for alias in vegetation):
+            fail("residence_time requires a vegetation index matched to each fix")
+        for alias in vegetation:
+            if datasets[recipe.inputs[alias].key].metadata.get("source_id") == "modis_mod13q1":
+                for name in ("observed_at", "observed_until"):
+                    if not any(c.derived_from == [f"{alias}.{name}"] for c in out.values()):
+                        fail(f"MODIS residence_time requires the matched vegetation {name}")
+
     return schemas
 
 

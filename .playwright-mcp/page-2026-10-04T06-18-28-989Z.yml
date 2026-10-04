@@ -1,0 +1,149 @@
+- generic [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - button "Show or hide sidebar" [expanded] [ref=f1e3] [cursor=pointer]
+    - strong [ref=f1e10]: Dora
+    - generic [ref=f1e11]: Workspace / Public catalog
+    - generic [ref=f1e12]:
+      - status [ref=f1e13]: Connected
+      - button "↻ Refresh" [ref=f1e14] [cursor=pointer]
+      - button "↓ Export data" [ref=f1e15] [cursor=pointer]
+  - main [ref=f1e16]:
+    - complementary "Workspace objects" [ref=f1e17]:
+      - generic [ref=f1e18]:
+        - generic [ref=f1e22]:
+          - strong [ref=f1e23]: Dora workspace
+          - generic [ref=f1e24]: Public catalog
+        - button "Close sidebar" [ref=f1e25] [cursor=pointer]: ×
+      - button "Import data Local" [ref=f1e26] [cursor=pointer]:
+        - text: Import data
+        - generic [ref=f1e29]: Local
+      - searchbox "Find workspace objects" [ref=f1e33]
+      - navigation "Data, visualizations, and analysis" [ref=f1e34]:
+        - group [ref=f1e35]:
+          - generic "Workspace ›" [ref=f1e36] [cursor=pointer]
+          - button "Observation map" [ref=f1e37] [cursor=pointer]
+          - button "Observation records" [ref=f1e41] [cursor=pointer]
+          - button "Analysis charts" [ref=f1e45] [cursor=pointer]
+        - group [ref=f1e49]:
+          - generic "Catalog 5 ›" [ref=f1e50] [cursor=pointer]:
+            - text: Catalog
+            - generic [ref=f1e51]: "5"
+            - text: ›
+          - generic [ref=f1e52]:
+            - button "Comparison of movement strategies of three populations of white-bearded wildebeest Connochaetes taurinus" [pressed] [ref=f1e53] [cursor=pointer]:
+              - generic [ref=f1e56]:
+                - text: Comparison of movement strategies of three populations of white-bearded wildebeest
+                - generic [ref=f1e57]: Connochaetes taurinus
+            - button "Study \"American black bear movement ecology in Connecticut\" Ursus americanus" [ref=f1e58] [cursor=pointer]:
+              - generic [ref=f1e61]:
+                - text: Study "American black bear movement ecology in Connecticut"
+                - generic [ref=f1e62]: Ursus americanus
+            - button "CHIRPS v2.0 daily rainfall per 1 km cell rainfall_mm" [ref=f1e63] [cursor=pointer]:
+              - generic [ref=f1e66]:
+                - text: CHIRPS v2.0 daily rainfall per 1 km cell
+                - generic [ref=f1e67]: rainfall_mm
+            - button "MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell evi, ndvi" [ref=f1e68] [cursor=pointer]:
+              - generic [ref=f1e71]:
+                - text: MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell
+                - generic [ref=f1e72]: evi, ndvi
+            - button "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition mndwi, ndmi, ndvi" [ref=f1e73] [cursor=pointer]:
+              - generic [ref=f1e76]:
+                - text: Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition
+                - generic [ref=f1e77]: mndwi, ndmi, ndvi
+          - paragraph [ref=f1e78]: Select a dataset. The map shows one published dataset at a time.
+        - group [ref=f1e79]:
+          - generic "Analysis ›" [ref=f1e80] [cursor=pointer]
+          - button "Dataset overview" [ref=f1e81] [cursor=pointer]
+          - button "Sources and provenance" [ref=f1e85] [cursor=pointer]
+      - generic [ref=f1e89]:
+        - button "Ask Dora AI" [ref=f1e90] [cursor=pointer]:
+          - text: Ask Dora
+          - generic [ref=f1e93]: AI
+        - generic [ref=f1e96]:
+          - text: Public observations
+          - generic [ref=f1e97]: movebank_repository · version 2
+    - region "Exploration workspace" [ref=f1e98]:
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]: Dora workspace / Workspace
+        - generic [ref=f1e101]:
+          - generic [ref=f1e102]:
+            - heading "Observation map" [level=1] [ref=f1e103]
+            - paragraph [ref=f1e104]: Comparison of movement strategies of three populations of white-bearded wildebeest
+          - generic [ref=f1e105]:
+            - button "Esri World Topographic Map" [ref=f1e106] [cursor=pointer]
+            - button "Zoom to dataset coverage" [ref=f1e109] [cursor=pointer]
+      - generic "Visualization views" [ref=f1e112]:
+        - button "Map" [ref=f1e113] [cursor=pointer]
+        - button "Table" [ref=f1e114] [cursor=pointer]
+        - button "Charts" [ref=f1e115] [cursor=pointer]
+        - button "Overview" [ref=f1e116] [cursor=pointer]
+        - generic [ref=f1e140]: Dataset version 2
+      - generic [ref=f1e117]:
+        - generic [ref=f1e118]:
+          - application "Esri World Topographic Map with ecological observations" [ref=f1e119]:
+            - generic:
+              - generic: 10 km
+              - generic:
+                - generic [ref=f1e122]:
+                  - button "Zoom in" [ref=f1e123] [cursor=pointer]: +
+                  - button "Zoom out" [ref=f1e124] [cursor=pointer]: −
+                - generic [ref=f1e125]:
+                  - text: "Sources:"
+                  - link "Esri" [ref=f1e126] [cursor=pointer]:
+                    - /url: https://goto.arcgisonline.com/maps/World_Topo_Map
+                  - text: ", HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), ©"
+                  - link "OpenStreetMap" [ref=f1e127] [cursor=pointer]:
+                    - /url: https://www.openstreetmap.org/copyright
+                  - text: contributors, and the GIS User Community
+          - generic:
+            - strong: Connochaetes taurinus
+            - paragraph: 6,557 loaded observations through Jan 2013
+          - generic [ref=f1e128]: Last good fix per animal and UTC day
+        - generic [ref=f1e133]:
+          - button "Play" [ref=f1e134] [cursor=pointer]
+          - generic [ref=f1e135]: Jan 2013
+          - generic [ref=f1e136]:
+            - generic [ref=f1e137]: Oct 2010
+            - slider "Last observation month in view" [ref=f1e138]: "27"
+            - generic [ref=f1e139]: Jan 2013
+    - complementary "Dora assistant" [ref=f1e142]:
+      - generic "Move assistant. Drag to either side to dock, or use arrow keys." [ref=f1e143]:
+        - generic [ref=f1e147]:
+          - strong [ref=f1e148]: Dora
+          - paragraph [ref=f1e149]: Drag to either side to dock
+        - generic [aria-hidden] [ref=f1e150]: ⠿
+        - button "Dock assistant to the right" [ref=f1e151] [cursor=pointer]
+        - button "Minimize assistant" [expanded] [ref=f1e154] [cursor=pointer]: −
+        - button "Close assistant" [ref=f1e155] [cursor=pointer]: ×
+      - generic [ref=f1e156]:
+        - button "History 1" [ref=f1e173] [cursor=pointer]:
+          - text: History
+          - generic [ref=f1e158]: "1"
+        - button "New chat" [disabled] [ref=f1e159]
+        - status [ref=f1e160]: Saved on this device
+      - generic [ref=f1e161]: What data coverage and sources are available for the selected wildebeest study?
+      - log [ref=f1e162]:
+        - article [ref=f1e174]:
+          - generic [ref=f1e175]:
+            - generic [ref=f1e176]: YOU
+            - time [ref=f1e177]: 02:18 AM
+          - paragraph [ref=f1e178]: What data coverage and sources are available for the selected wildebeest study? Give observation dates, count, and limits; do not run an analysis.
+        - status [ref=f1e179]:
+          - generic [ref=f1e180]: Dora
+          - paragraph [ref=f1e183]: Choose the next action or write the answer · 6s elapsed
+          - list [ref=f1e184]:
+            - listitem [ref=f1e185]: Process the question
+            - listitem [ref=f1e186]: "Done: Read workspace catalog · 0.0s"
+            - listitem [ref=f1e187]: "Done: Choose the next action or write the answer · 2.1s"
+            - listitem [ref=f1e188]: "Done: Read dataset summary · 0.0s"
+            - listitem [ref=f1e189]: Choose the next action or write the answer
+      - generic [ref=f1e164]:
+        - generic [ref=f1e165]: Ask Dora about this workspace
+        - generic [ref=f1e166]:
+          - textbox "Ask Dora about this workspace" [active] [ref=f1e167]:
+            - /placeholder: Ask Dora about the observations…
+          - generic [ref=f1e168]:
+            - button "Import geographic data" [ref=f1e169] [cursor=pointer]: +
+            - generic [ref=f1e170]: movebank_repository · Jan 2013
+            - button "Send question" [disabled] [ref=f1e171]: ↑
+        - paragraph [ref=f1e172]: Choose the next action or write the answer · 6s elapsed

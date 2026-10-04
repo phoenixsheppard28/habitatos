@@ -90,20 +90,12 @@ export interface ChatResponse {
   analyses?: WorkspaceAnalysis[];
 }
 
-export interface ChartSpec {
-  schema_version: '1.0';
+export interface Chart {
+  schema_version: string;
   chart_id: string;
   title: string;
-  kind: 'line' | 'bar' | 'scatter';
-  x_axis: { label: string; type: 'category' | 'temporal' | 'numeric' };
-  y_axis: { label: string; unit?: string | null };
-  series: {
-    name: string;
-    points: { x: string | number; y: number | null; note?: string | null }[];
-    style?: 'solid' | 'dashed';
-  }[];
-  description?: string | null;
-  max_gap?: number | null;
+  figure: { data: Record<string, unknown>[]; layout: Record<string, unknown> };
+  code: string;
 }
 
 export interface WorkspaceAnalysis {
@@ -111,7 +103,7 @@ export interface WorkspaceAnalysis {
   prepared_id: string;
   status: 'ok' | 'partial';
   warnings: string[];
-  charts: ChartSpec[];
+  charts: Chart[];
   result: {
     result_id: string;
     question: string;
@@ -120,6 +112,7 @@ export interface WorkspaceAnalysis {
     findings: string[];
     metrics?: Record<string, unknown>;
     timeline?: unknown;
+    tables?: { title: string; columns: string[]; rows: (string | number | null)[][] }[];
     evidence: {
       datasets?: { dataset_id: string; version: string | number }[];
       rights?: { attribution?: string | null } | null;

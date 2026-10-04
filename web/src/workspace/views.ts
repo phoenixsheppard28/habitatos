@@ -343,7 +343,7 @@ export class WorkspaceViews {
       content.append(
         node(
           'p',
-          'No requested analyses yet. Ask for movement trends, environmental trends, or a date-window comparison.',
+          'No requested analyses yet. Ask for correlations, descriptive statistics, distributions, trends, or date-window comparisons.',
           'content-note',
         ),
       );

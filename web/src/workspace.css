@@ -880,45 +880,17 @@ tbody tr:hover {
   margin-top: 24px;
 }
 .analysis-chart {
-  display: block;
-  width: 100%;
-  min-width: 600px;
-  height: auto;
+  width: min(100%, 1000px);
+  height: 460px;
   margin-top: 12px;
 }
-.analysis-chart-scroll {
+.analysis-code {
   overflow-x: auto;
-}
-.analysis-chart text {
-  font-family: inherit;
-  font-size: 12px;
-  fill: var(--muted);
-}
-.analysis-gridline {
-  stroke: var(--line);
-}
-.analysis-axis {
-  stroke: #aebbc7;
-}
-.analysis-line {
-  fill: none;
-  stroke-width: 2;
-}
-.analysis-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.analysis-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.analysis-legend i {
-  width: 20px;
-  border-top: 3px solid;
+  padding: 12px;
+  border-radius: 6px;
+  background: #f6f7f9;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre;
 }
 .analysis-data {
   margin-top: 16px;

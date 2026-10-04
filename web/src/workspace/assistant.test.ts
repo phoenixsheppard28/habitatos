@@ -7,6 +7,8 @@ import type { WorkspacePanels } from './panels';
 import { WorkspaceStore } from './store';
 import { WorkspaceViews } from './views';
 
+vi.mock('plotly.js-dist-min', () => ({ newPlot: vi.fn() }));
+
 beforeEach(() => {
   localStorage.clear();
   document.body.innerHTML = new DOMParser().parseFromString(
@@ -94,7 +96,7 @@ describe('assistant analysis workflow', () => {
     expect(store.state.analyses).toEqual([movementAnalysis]);
   });
 
-  it('shows all analyses with the latest first and preserves their requested dates', () => {
+  it('shows all analyses with the latest first and keeps the chart of each analysis', () => {
     const { store } = workspace();
     const second = {
       ...movementAnalysis,
@@ -107,7 +109,7 @@ describe('assistant analysis workflow', () => {
     expect(
       [...document.querySelectorAll('.analysis-result h2')].map((heading) => heading.textContent),
     ).toEqual([second.result.question, movementAnalysis.result.question]);
-    expect(document.querySelector('.analysis-result tbody')?.textContent).toContain('2024-01-07');
+    expect(document.querySelectorAll('.analysis-result .analysis-plot')).toHaveLength(2);
     store.addAnalyses([second]);
     expect(store.state.analyses).toHaveLength(2);
   });

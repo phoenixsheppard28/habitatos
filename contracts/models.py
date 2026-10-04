@@ -67,6 +67,12 @@ class ForecastRequest(APIModel):
     scenario: dict[str, Any] | None = None
 
 
+class AnalysisOptions(APIModel):
+    method: Literal["auto", "summary", "trend", "correlation", "distribution", "statistics", "comparison"] = "auto"
+    variables: list[str] = Field(default_factory=list, max_length=8,
+                                 description="Numeric column names or roles from the prepared table, in axis order.")
+
+
 class QuerySpec(APIModel):
     query_id: str
     question: str
@@ -76,7 +82,11 @@ class QuerySpec(APIModel):
     time_range: TimeRange
     forecast: ForecastRequest | None = None
     comparison_windows: list[ComparisonWindow] | None = None
+    analysis: AnalysisOptions = Field(default_factory=AnalysisOptions)
     access_scope: str
+    analysis_method: Literal["movement", "residence_time"] = "movement"
+    max_tracking_gap_hours: float = Field(default=6, gt=0, le=168)
+    extensions: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def two_windows(self) -> "QuerySpec":
@@ -157,6 +167,7 @@ class FeatureArtifact(APIModel):
     validation_report_ref: str | None = None
     coverage: dict[str, Any] | None = None
     rights: Rights | None = None
+    sampling_grain: Literal["animal_fix", "animal_day"] | None = None
 
 
 class AnalysisInput(APIModel):

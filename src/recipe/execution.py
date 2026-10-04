@@ -276,7 +276,7 @@ class SupabaseExecutor:
     connection_factory supplies an authorized backend connection. Catalog
     authorization and trusted bindings are required separately by the service.
     """
-    version = "recipe-supabase-2"
+    version = "recipe-supabase-3"
 
     def __init__(self, connection_factory, bindings, *, postgis_schema="extensions",
                  max_rows=100_000, statement_timeout_ms=30_000):
@@ -288,7 +288,7 @@ class SupabaseExecutor:
         from psycopg.rows import dict_row
         plan = self.compiler.compile(recipe, query, datasets, materialize=True)
         report = {"steps": {}, "checks": [], "warnings": [], "compiler_version": plan.version,
-                  "cell_scopes": plan.cell_scopes}
+                  "cell_scopes": plan.cell_scopes, "index_scopes": plan.index_scopes}
         try:
             with self.connection_factory() as connection:
                 with connection.transaction():
@@ -311,7 +311,11 @@ class SupabaseExecutor:
                                                plan.params, prepare=False)
                                 count = cursor.rowcount
                                 if count > self.max_rows:
-                                    raise RecipeError("RESOURCE_LIMIT", preparation.limit_check.name)
+                                    details = {"stage": preparation.name, "max_rows": self.max_rows,
+                                               "row_count_lower_bound": count, "row_count_is_exact": False,
+                                               "completed_stage_rows": dict(report["steps"]),
+                                               **preparation.input_context}
+                                    raise RecipeError("RESOURCE_LIMIT", preparation.limit_check.name, details=details)
                                 report["checks"].append(preparation.limit_check.name)
                                 report["steps"][f"{preparation.name}: row count"] = count
                                 for columns in preparation.indexes:

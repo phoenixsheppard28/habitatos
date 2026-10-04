@@ -169,6 +169,9 @@ def recipe_request(request: dict) -> dict:
             "region": query["region"],
             "species": query["species"],
             "forecast_cutoff": forecast["cutoff"] if forecast else None,
+            "analysis_method": query.get("analysis_method", "movement"),
+            "max_tracking_gap_hours": query.get("max_tracking_gap_hours", 6),
+            "extensions": query.get("extensions", {}),
         }},
     }
 

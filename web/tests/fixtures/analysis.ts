@@ -1,4 +1,4 @@
-import type { ChartSpec, WorkspaceAnalysis } from '../../src/workspace/types';
+import type { Chart, WorkspaceAnalysis } from '../../src/workspace/types';
 import charts from './charts.json';
 
 export const movementAnalysis: WorkspaceAnalysis = {
@@ -6,7 +6,7 @@ export const movementAnalysis: WorkspaceAnalysis = {
   prepared_id: 'a'.repeat(32),
   status: 'ok',
   warnings: [],
-  charts: [charts[0] as ChartSpec],
+  charts: [charts[0] as Chart],
   result: {
     result_id: 'movement-result',
     question: 'Chart daily movement for the tracked animals',

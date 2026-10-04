@@ -1,0 +1,195 @@
+- generic [ref=f2e1]:
+  - banner [ref=f2e2]:
+    - button "Show or hide sidebar" [expanded] [ref=f2e3] [cursor=pointer]
+    - strong [ref=f2e10]: Dora
+    - generic [ref=f2e11]: Workspace / Public catalog
+    - generic [ref=f2e12]:
+      - status [ref=f2e13]: Connected
+      - button "↻ Refresh" [ref=f2e14] [cursor=pointer]
+      - button "↓ Export data" [ref=f2e15] [cursor=pointer]
+  - main [ref=f2e16]:
+    - complementary "Workspace objects" [ref=f2e17]:
+      - generic [ref=f2e18]:
+        - generic [ref=f2e22]:
+          - strong [ref=f2e23]: Dora workspace
+          - generic [ref=f2e24]: Public catalog
+        - button "Close sidebar" [ref=f2e25] [cursor=pointer]: ×
+      - button "Import data Local" [ref=f2e26] [cursor=pointer]:
+        - text: Import data
+        - generic [ref=f2e29]: Local
+      - searchbox "Find workspace objects" [ref=f2e33]
+      - navigation "Data, visualizations, and analysis" [ref=f2e34]:
+        - group [ref=f2e35]:
+          - generic "Workspace ›" [ref=f2e36] [cursor=pointer]
+          - button "Observation map" [ref=f2e37] [cursor=pointer]
+          - button "Observation records" [ref=f2e41] [cursor=pointer]
+          - button "Analysis charts" [ref=f2e45] [cursor=pointer]
+        - group [ref=f2e49]:
+          - generic "Catalog 5 ›" [ref=f2e50] [cursor=pointer]:
+            - text: Catalog
+            - generic [ref=f2e51]: "5"
+            - text: ›
+          - generic [ref=f2e52]:
+            - button "Comparison of movement strategies of three populations of white-bearded wildebeest Connochaetes taurinus" [ref=f2e53] [cursor=pointer]:
+              - generic [ref=f2e56]:
+                - text: Comparison of movement strategies of three populations of white-bearded wildebeest
+                - generic [ref=f2e57]: Connochaetes taurinus
+            - button "Study \"American black bear movement ecology in Connecticut\" Ursus americanus" [pressed] [ref=f2e58] [cursor=pointer]:
+              - generic [ref=f2e61]:
+                - text: Study "American black bear movement ecology in Connecticut"
+                - generic [ref=f2e62]: Ursus americanus
+            - button "CHIRPS v2.0 daily rainfall per 1 km cell rainfall_mm" [ref=f2e63] [cursor=pointer]:
+              - generic [ref=f2e66]:
+                - text: CHIRPS v2.0 daily rainfall per 1 km cell
+                - generic [ref=f2e67]: rainfall_mm
+            - button "MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell evi, ndvi" [ref=f2e68] [cursor=pointer]:
+              - generic [ref=f2e71]:
+                - text: MODIS Terra MOD13Q1 16-day NDVI and EVI per 1 km cell
+                - generic [ref=f2e72]: evi, ndvi
+            - button "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition mndwi, ndmi, ndvi" [ref=f2e73] [cursor=pointer]:
+              - generic [ref=f2e76]:
+                - text: Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition
+                - generic [ref=f2e77]: mndwi, ndmi, ndvi
+          - paragraph [ref=f2e78]: Select a dataset. The map shows one published dataset at a time.
+        - group [ref=f2e79]:
+          - generic "Analysis ›" [ref=f2e80] [cursor=pointer]
+          - button "Dataset overview" [ref=f2e81] [cursor=pointer]
+          - button "Sources and provenance" [ref=f2e85] [cursor=pointer]
+      - generic [ref=f2e89]:
+        - button "Ask Dora AI" [ref=f2e90] [cursor=pointer]:
+          - text: Ask Dora
+          - generic [ref=f2e93]: AI
+        - generic [ref=f2e96]:
+          - text: Public observations
+          - generic [ref=f2e97]: movebank_repository · version 2
+    - region "Exploration workspace" [ref=f2e98]:
+      - generic [ref=f2e99]:
+        - generic [ref=f2e100]: Dora workspace / Workspace
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]:
+            - heading "Observation map" [level=1] [ref=f2e103]
+            - paragraph [ref=f2e104]: Study "American black bear movement ecology in Connecticut"
+          - generic [ref=f2e105]:
+            - button "Esri World Topographic Map" [ref=f2e106] [cursor=pointer]
+            - button "Zoom to dataset coverage" [ref=f2e109] [cursor=pointer]
+      - generic "Visualization views" [ref=f2e112]:
+        - button "Map" [ref=f2e113] [cursor=pointer]
+        - button "Table" [ref=f2e114] [cursor=pointer]
+        - button "Charts" [ref=f2e115] [cursor=pointer]
+        - button "Overview" [ref=f2e116] [cursor=pointer]
+        - generic [ref=f2e117]: Dataset version 2
+      - generic [ref=f2e118]:
+        - generic [ref=f2e119]:
+          - application "Esri World Topographic Map with ecological observations" [ref=f2e120]:
+            - generic:
+              - generic: 20 km
+              - generic:
+                - generic [ref=f2e124]:
+                  - button "Zoom in" [ref=f2e125] [cursor=pointer]: +
+                  - button "Zoom out" [ref=f2e126] [cursor=pointer]: −
+                - generic [ref=f2e127]:
+                  - text: "Sources:"
+                  - link "Esri" [ref=f2e128] [cursor=pointer]:
+                    - /url: https://goto.arcgisonline.com/maps/World_Topo_Map
+                  - text: ", HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), ©"
+                  - link "OpenStreetMap" [ref=f2e129] [cursor=pointer]:
+                    - /url: https://www.openstreetmap.org/copyright
+                  - text: contributors, and the GIS User Community
+          - generic:
+            - strong: Ursus americanus
+            - paragraph: 12,713 loaded observations through Apr 2021
+          - generic [ref=f2e130]: Last good fix per animal and UTC day
+        - generic [ref=f2e133]:
+          - button "Play" [ref=f2e134] [cursor=pointer]
+          - generic [ref=f2e135]: Apr 2021
+          - generic [ref=f2e136]:
+            - generic [ref=f2e137]: Feb 2019
+            - slider "Last observation month in view" [ref=f2e138]: "26"
+            - generic [ref=f2e139]: Apr 2021
+    - complementary "Dora assistant" [ref=f2e140]:
+      - generic "Move assistant. Drag to either side to dock, or use arrow keys." [ref=f2e141]:
+        - generic [ref=f2e145]:
+          - strong [ref=f2e146]: Dora
+          - paragraph [ref=f2e147]: Drag to either side to dock
+        - generic [aria-hidden] [ref=f2e148]: ⠿
+        - button "Dock assistant to the right" [ref=f2e149] [cursor=pointer]
+        - button "Minimize assistant" [expanded] [ref=f2e152] [cursor=pointer]: −
+        - button "Close assistant" [ref=f2e153] [cursor=pointer]: ×
+      - generic [ref=f2e154]:
+        - button "History 3" [ref=f2e182] [cursor=pointer]:
+          - text: History
+          - generic [ref=f2e156]: "3"
+        - button "New chat" [disabled] [ref=f2e157]
+        - status [ref=f2e158]: Saved on this device
+      - generic [ref=f2e159]: Forecast next-day displacement of tracked American black bears in Connecticut af
+      - log [ref=f2e160]:
+        - article [ref=f2e183]:
+          - generic [ref=f2e184]:
+            - generic [ref=f2e185]: YOU
+            - time [ref=f2e186]: 02:22 AM
+          - paragraph [ref=f2e187]: Forecast next-day displacement of tracked American black bears in Connecticut after 2021-03-31, using only observations available by that cutoff. Show an observed-versus-predicted graph, held-out evaluation, baseline, uncertainty and limitations. Do not invent a route if evidence is insufficient.
+        - article [ref=f2e197]:
+          - generic [ref=f2e198]:
+            - generic [ref=f2e199]: Dora
+            - time [ref=f2e200]: 02:22 AM
+          - generic [ref=f2e201]:
+            - paragraph [ref=f2e202]: I can't produce this forecast with the tools available here. Forecasting needs a model that has been trained and evaluated on held-out data, and these tools only run validated historical analyses. I haven't run anything, and I won't make up predictions, a route, an error metric, or uncertainty bands.
+            - paragraph [ref=f2e203]:
+              - strong [ref=f2e204]: What the workspace has
+            - list [ref=f2e205]:
+              - listitem [ref=f2e206]:
+                - strong [ref=f2e207]: "Bear GPS fixes:"
+                - code [ref=f2e208]: movebank_repository--movebank-data-repository--ease2-global-1km--study-2564825948
+                - text: (v2). It covers
+                - emphasis [ref=f2e209]: Ursus americanus
+                - text: in Connecticut, with 154,888 fixes from 2019-02-20 to 2021-04-13. The raw file is
+                - code [ref=f2e210]: 10255/move.3609/American black bear movement ecology in Connecticut.csv
+                - text: .
+              - listitem [ref=f2e211]:
+                - strong [ref=f2e212]: "Data after your cutoff:"
+                - text: The fixes run about two weeks past 2021-03-31 (to 2021-04-13). A held-out test would be possible in principle, but that window is short.
+              - listitem [ref=f2e213]:
+                - strong [ref=f2e214]: "Environmental layers:"
+                - text: These don't line up well with the bear data.
+                - list [ref=f2e215]:
+                  - listitem [ref=f2e216]:
+                    - text: CHIRPS rainfall (
+                    - code [ref=f2e217]: chirps--chirps-v2.0-daily-p05--ease2-global-1km
+                    - text: ", v150) has listed files only for 2011-02/03 and 2019-04 to 2019-06, so it doesn't cover the bear period."
+                  - listitem [ref=f2e218]:
+                    - text: MODIS NDVI (
+                    - code [ref=f2e219]: modis_mod13q1--mod13q1-061--ease2-global-1km
+                    - text: ", v29) has a stated range of 2011-01-17 to 2020-03-04, so it ends before the cutoff."
+                  - listitem [ref=f2e220]:
+                    - text: Sentinel-2 (
+                    - code [ref=f2e221]: sentinel2--sentinel-2-l2a--ease2-global-1km
+                    - text: ", v1) has a single scene, from 2019-04-01."
+            - paragraph [ref=f2e222]:
+              - strong [ref=f2e223]: What I can do instead
+              - text: "These are historical analyses that use only data up to 2021-03-31. I can run them on the bear dataset:"
+            - list [ref=f2e224]:
+              - listitem [ref=f2e225]: Descriptive statistics and the distribution of daily displacement. These would serve as a naive baseline for any later forecast, such as "tomorrow equals today" or the historical median.
+              - listitem [ref=f2e226]: A displacement trend over time, such as the seasonal pattern before the cutoff.
+              - listitem [ref=f2e227]: A comparison of the windows before and after 2021-03-31 (the 2021-04-01 to 04-13 fixes) to see how much displacement changes.
+            - paragraph [ref=f2e228]: Do you want me to run any of these? If you do, tell me which, and I'll use the 2019-02-20 to 2021-03-31 range unless you say otherwise.
+          - group [ref=f2e229]:
+            - generic "Pipeline timings · 11.0s" [ref=f2e230] [cursor=pointer]
+        - article [ref=f2e231]:
+          - generic [ref=f2e232]:
+            - generic [ref=f2e233]: YOU
+            - time [ref=f2e234]: 02:22 AM
+          - paragraph [ref=f2e235]: Yes. Compare daily displacement for tracked bears in 2021-03-01 to 2021-03-31 against 2021-04-01 to 2021-04-13. Use a before/after bar chart, give counts and uncertainty, and do not call it a forecast.
+        - status [ref=f2e236]:
+          - generic [ref=f2e237]: Dora
+          - paragraph [ref=f2e240]: Read the workspace catalog · 17s elapsed
+          - list
+      - generic [ref=f2e172]:
+        - generic [ref=f2e173]: Ask Dora about this workspace
+        - generic [ref=f2e174]:
+          - textbox "Ask Dora about this workspace" [active] [ref=f2e175]:
+            - /placeholder: Ask Dora about the observations…
+          - generic [ref=f2e176]:
+            - button "Import geographic data" [ref=f2e177] [cursor=pointer]: +
+            - generic [ref=f2e178]: movebank_repository · Apr 2021
+            - button "Send question" [disabled] [ref=f2e179]: ↑
+        - paragraph [ref=f2e180]: Read the workspace catalog · 17s elapsed

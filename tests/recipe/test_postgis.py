@@ -48,6 +48,9 @@ def database(scenarios, request):
         scenario["recipe"]["inputs"] = dict(reversed(list(scenario["recipe"]["inputs"].items())))
         scenario["recipe"]["steps"].pop(0)
         scenario["recipe"]["steps"][0]["left"] = "tracking"
+    elif variant == "vegetation":
+        from vegetation_fixture import vegetation_scenario
+        vegetation_scenario(scenarios[0])
     import psycopg
     from psycopg import sql
     from psycopg.types.json import Jsonb
@@ -78,6 +81,74 @@ def database(scenarios, request):
     finally:
         with psycopg.connect(dsn) as connection:
             connection.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
+
+
+@pytest.mark.parametrize("database", ["vegetation"], indirect=True)
+def test_vegetation_pushdown_clears_input_limit_without_changing_results(database, scenarios, tmp_path):
+    import psycopg
+    from analysis.service import run
+    from analysis.store import ArtifactStore
+    from recipe.artifacts import LocalArtifactStore
+    from recipe.validation import validate_recipe
+    from workflow.recipe_handoff import RecipeArtifactReader, analysis_request
+
+    dsn, bindings, _ = database
+    scenario = scenarios[0]
+    recipe = RecipeSpec.model_validate(scenario["recipe"])
+    query = QuerySpec.model_validate(scenario["query"])
+    datasets = {dataset.key: dataset for raw in scenario["datasets"] if (dataset := DatasetVersion.model_validate(raw))}
+    expected, _ = FixtureExecutor(FixtureCatalog(scenario).read).execute(recipe, query, datasets)
+    backend = SupabaseExecutor(lambda: psycopg.connect(dsn), bindings, postgis_schema=POSTGIS_SCHEMA, max_rows=3)
+
+    rows, report = backend.execute(recipe, query, datasets)
+
+    assert rows == expected
+    assert [row["greenness"] for row in rows] == [0.2, 0.8, 0.4]
+    assert report["steps"]["veg: row count"] == 3
+    assert report["cell_scopes"] == {"veg": ["fixes"]}
+    assert report["index_scopes"] == {"veg": ["ndvi"]}
+
+    inferred = validate_recipe(recipe, query, datasets)[recipe.output.step]
+    for column in recipe.output.columns:
+        column.role = inferred[column.name].role
+        column.derived_from = inferred[column.name].derived_from
+    store = LocalArtifactStore(tmp_path / "recipe")
+    saved = store.publish("ab" * 32, recipe, rows, report)
+    prepared = {"output": {"recipe": recipe.model_dump(mode="json"), "feature_artifact": saved["artifact"]},
+                "extensions": {"recipe_context": {"source_datasets": [dataset.model_dump(mode="json") for dataset in datasets.values()]}}}
+    analysis_query = {**query.model_dump(mode="json"), "species": ["bear"]}
+    handoff = analysis_request(analysis_query, prepared, request_id="residence")
+    result = run(handoff, store=RecipeArtifactReader(store, "public", ArtifactStore(tmp_path / "analysis")))
+
+    assert handoff["input"]["feature_artifact"]["sampling_grain"] == "animal_fix"
+    assert result["status"] == "ok", result.get("error")
+    assert result["output"]["result"]["metrics"]["residence"]["tracked_hours"] == 1
+
+
+@pytest.mark.parametrize("database", ["vegetation"], indirect=True)
+def test_limit_details_describe_scoped_input_and_lower_bound(database, scenarios):
+    import psycopg
+    from recipe.models import Select
+
+    dsn, bindings, _ = database
+    scenario = scenarios[0]
+    recipe = RecipeSpec.model_validate(scenario["recipe"])
+    recipe.steps.insert(0, Select(id="background", operation="select", input="veg", columns={"index_name": "index_name"}))
+    query = QuerySpec.model_validate(scenario["query"])
+    datasets = {dataset.key: dataset for raw in scenario["datasets"] if (dataset := DatasetVersion.model_validate(raw))}
+
+    with pytest.raises(RecipeError, match="veg: input row limit") as error:
+        SupabaseExecutor(lambda: psycopg.connect(dsn), bindings, postgis_schema=POSTGIS_SCHEMA,
+                         max_rows=3).execute(recipe, query, datasets)
+
+    details = error.value.as_dict()["details"]
+    assert details["max_rows"] == 3
+    assert details["row_count_lower_bound"] == 4
+    assert details["row_count_is_exact"] is False
+    assert details["dataset_id"] == "vegetation"
+    assert details["dataset_version"] == "1"
+    assert details["region"] == scenario["query"]["region"]
+    assert details["selected_indices"] is None
 
 
 @pytest.mark.parametrize("index", [0, 1])

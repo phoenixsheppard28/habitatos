@@ -5,36 +5,13 @@ x-app: &app
   build:
     context: .
   environment: &app-environment
-    HABITAT_DATABASE_URL: "host=db port=5432 dbname=habitat user=habitat"
-    PGPASSWORD: ${HABITAT_POSTGRES_PASSWORD:-habitat-local}
+    HABITAT_DATABASE_URL: ${HABITAT_DATABASE_URL:?Set HABITAT_DATABASE_URL to the Supabase connection string in .env}
     HABITAT_DATA_DIR: /app/data
 
 services:
-  db:
-    build:
-      context: .
-      dockerfile: docker/postgres.Dockerfile
-    environment:
-      POSTGRES_DB: habitat
-      POSTGRES_USER: habitat
-      POSTGRES_PASSWORD: ${HABITAT_POSTGRES_PASSWORD:-habitat-local}
-    command: ["postgres", "-c", "search_path=public,extensions"]
-    volumes:
-      - database:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U habitat -d habitat"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
-    restart: unless-stopped
-
   migrate:
     <<: *app
     command: ["python", "-m", "habitat.migrate"]
-    depends_on:
-      db:
-        condition: service_healthy
     restart: "no"
 
   app:
@@ -51,8 +28,6 @@ services:
     volumes:
       - artifacts:/app/data
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       classifier:
@@ -85,6 +60,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  database:
   artifacts:
   classifier-models:
