@@ -91,7 +91,7 @@ class CatalogAssistant:
             "properties": {
                 "families": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ["animal_locations", "occurrences", "cell_observations"]},
+                    "items": {"type": "string", "enum": ["animal_locations", "occurrences", "cell_observations", "point_events"]},
                 },
                 "species_names": {"type": "array", "items": {"type": "string"}},
                 "start": nullable_date,

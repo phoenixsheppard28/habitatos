@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from habitat.contracts import RawManifest
 from habitat.grid import Grid, parse_cell_id, transformer
 from habitat.normalize.rows import ANIMAL_ENTITIES, ANIMAL_LOCATIONS, CELL_OBSERVATIONS, NormalizedBatch
+from habitat.normalize.rows import POINT_EVENTS
 
 
 class BatchRecord(BaseModel):
@@ -338,11 +339,40 @@ def summarize_animal_locations(connection: psycopg.Connection, version: SeriesVe
     )
 
 
+def summarize_point_events(connection: psycopg.Connection, version: SeriesVersion) -> SeriesSummary:
+    """The event types are the variables of a point_events dataset, so catalog search can filter on them."""
+    parameters = version_parameters(version)
+    start, end, row_count, event_types = connection.execute(
+        f"""
+        SELECT min(time_start), max(time_end), count(*), coalesce(array_agg(DISTINCT event_type), '{{}}')
+        FROM point_events
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        """,
+        parameters,
+    ).fetchone()
+    taxa = connection.execute(
+        f"""
+        SELECT DISTINCT gbif_taxon_key, taxon_name
+        FROM point_events
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+          AND gbif_taxon_key IS NOT NULL AND taxon_name IS NOT NULL
+        ORDER BY gbif_taxon_key
+        """,
+        parameters,
+    ).fetchall()
+
+    return SeriesSummary(
+        start, end, row_count, sorted(event_types), distinct_cell_ids(connection, POINT_EVENTS, version),
+        [tuple(t) for t in taxa],
+    )
+
+
 FamilySummary = Callable[[psycopg.Connection, SeriesVersion], SeriesSummary]
 
 FAMILY_SUMMARIES: dict[str, FamilySummary] = {
     CELL_OBSERVATIONS: summarize_cell_observations,
     ANIMAL_LOCATIONS: summarize_animal_locations,
+    POINT_EVENTS: summarize_point_events,
 }
 
 

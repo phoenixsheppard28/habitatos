@@ -294,6 +294,40 @@ ANIMAL_ENTITIES_SCHEMA = pa.schema(
     ]
 )
 
+POINT_EVENTS_SCHEMA = pa.schema(
+    [
+        pa.field("source_record_id", pa.string(), nullable=False),
+        pa.field("dataset_id", pa.string(), nullable=False),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("source_item_id", pa.string(), nullable=False),
+        pa.field("processing_version", pa.string(), nullable=False),
+        pa.field("product_status", pa.string(), nullable=False),
+        pa.field("mapping_version", pa.string(), nullable=False),
+        pa.field("event_type", pa.string(), nullable=False),
+        pa.field("occurrence_status", pa.string(), nullable=False),
+        pa.field("sampling_design", pa.string(), nullable=False),
+        pa.field("taxon_name", pa.string(), nullable=True),
+        pa.field("gbif_taxon_key", pa.int64(), nullable=True),
+        pa.field("time_start", UTC_TIMESTAMP, nullable=False),
+        pa.field("time_end", UTC_TIMESTAMP, nullable=False),
+        pa.field("time_precision", pa.string(), nullable=False),
+        pa.field("available_at", UTC_TIMESTAMP, nullable=False),
+        pa.field("longitude", pa.float64(), nullable=False),
+        pa.field("latitude", pa.float64(), nullable=False),
+        pa.field("cell_id", pa.string(), nullable=False),
+        pa.field("coordinate_uncertainty_m", pa.float64(), nullable=True),
+        pa.field("individual_count", pa.int32(), nullable=True),
+        pa.field("value", pa.float64(), nullable=True),
+        pa.field("unit", pa.string(), nullable=True),
+        pa.field("basis", pa.string(), nullable=False),
+        pa.field("method", pa.string(), nullable=True),
+        pa.field("origin_record_id", pa.string(), nullable=True),
+        pa.field("license", pa.string(), nullable=True),
+        pa.field("quality_flag", pa.string(), nullable=False),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
 
 class AnimalEntity(BaseModel):
     entity_id: str
