@@ -66,9 +66,8 @@ def normalize_gbif_occurrence(
 ) -> NormalizedBatch:
     """GBIF occurrence search pages to point_events. See docs/ingestion/EVENTS.md section 4."""
     assets = manifest.extensions.assets
-    pages = [
-        json.loads(store.open(manifest, name).read_text()) for name in sorted(assets) if name.startswith(PAGE_ASSET_PREFIX)
-    ]
+    page_assets = [name for name in sorted(assets) if name.startswith(PAGE_ASSET_PREFIX)]
+    pages = [json.loads(store.open(manifest, name).read_text()) for name in page_assets]
     datasets = json.loads(store.open(manifest, DATASETS_ASSET).read_text()) if DATASETS_ASSET in assets else {}
     records = [record for page in pages for record in page["results"]]
 
