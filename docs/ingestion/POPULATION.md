@@ -1,10 +1,11 @@
 # Animal populations over time
 
-Status: proposal.
+Status: implemented (P1).
 
 This document defines the family `population_counts` and its reference table `count_areas`.
 It also proposes an optional reference table `species_traits`.
 All shared rules are in [README.md](README.md). This document follows them.
+Section 11 lists what is implemented, the decisions of the implementation, and what is deferred.
 
 ## 1. Purpose
 
@@ -97,14 +98,14 @@ Row 1 and row 2 are in two comparability groups, because the methods differ.
 Limits:
 
 - A county is much larger than Athi-Kaputiei. Kajiado county is 21,851 km². Recipe must not assign a county total to one park.
-- The source has no county geometry. The normalizer takes the geometry from a boundary source. Use geoBoundaries KEN ADM1 (license and download path not verified). Store the boundary source in `count_areas.geometry_source`.
+- The source has no county geometry. The normalizer takes the geometry from a boundary source. Use geoBoundaries KEN ADM1. The geoBoundaries API gives its license as Public Domain. Store the boundary source in `count_areas.geometry_source`.
 - Some species names are groups, for example "Sheep and goats". Such a row gets `gbif_taxon_key = null` and `quality_flag = taxon_unresolved`.
 
 ### 4.2 `literature_counts` (P1)
 
 Many key values exist only in PDF reports and papers. Examples are the Nairobi NP ground counts in Ogutu et al. 2013 (DOI `10.2174/1874839201307010011`) and the TAWIRI wildebeest censuses.
 
-- A person types each value into `data/literature_counts/<citation_key>.csv`. One file per publication.
+- A person types each value into `reference/literature_counts/<citation_key>.csv`. One file per publication.
 - Each row has the canonical columns of `population_counts` and also `page` and `table_or_figure`.
 - A value read from a figure gets `attributes.read_from_figure = true` and `quality_flag = digitized_from_figure`.
 - The connector copies the file into the archive. It does not use the network.
@@ -201,7 +202,7 @@ The agent never writes rows. The agent only proposes the mapping. The validator 
 
 ### 5.1 Tables
 
-Use the next free migration number, for example `010_population_counts.sql`.
+The migration is `013_population_counts.sql`, as README.md gives.
 
 ```sql
 -- area_id is namespaced by source, for example ke_county:2 or lpd:1234.
@@ -485,7 +486,7 @@ Write one normalizer per source in `src/habitat/normalize/sources/<source>.py`. 
 - **Agent mapping.** A wrong mapping can pass all checks, for example a swap of two numeric columns. Human approval is mandatory.
 - **IUCN trend.** A trend class is not a number. This design does not store it in `population_counts`. Open question: store it in `species_traits` with the assessment year, or drop it.
 - **Livestock taxa.** Cattle in Kenya are often zebu. The fixed name table must state the taxon choice.
-- **Migration number.** Other topic documents also add migrations. Agree on the order before the first merge.
+- **Migration number.** README.md gives the fixed number 013 to this topic.
 
 ## 10. Build steps
 
@@ -501,3 +502,68 @@ Write one normalizer per source in `src/habitat/normalize/sources/<source>.py`. 
 10. Add `living_planet` and `biotime` with reviewed mapping tables for a Kenya subset.
 11. Add sections to `SOURCES.md` for each source.
 12. Optional: add `species_traits` from AnimalTraits.
+
+## 11. Implementation status (P1)
+
+### 11.1 Implemented
+
+- Migration `013_population_counts.sql`: the tables `count_areas`, `count_area_cells` and `population_counts`, the view `recipe_population_counts`, row level security and grants.
+- `POPULATION_COUNTS_SCHEMA` and `COUNT_AREAS_SCHEMA` in `src/habitat/contracts.py`.
+- `POPULATION_COUNTS` and `COUNT_AREAS` in `src/habitat/normalize/rows.py`.
+- `src/habitat/normalize/population.py`: the vocabularies, the checks, the comparability groups and the quality flags. Each normalizer calls `population_batch`.
+- `src/habitat/area_cells.py`: the cells of an area, with the overlap fraction of each cell. The calculation uses the equal-area grid CRS.
+- `upsert_count_areas` in `REFERENCE_UPSERTS`. It fills `count_area_cells` for a new area and for an area with a new geometry.
+- `summarize_population_counts` in `FAMILY_SUMMARIES`. The catalog footprint is the union of the count areas.
+- `ROW_GRAIN`, the `families` values of `parse_question`, the Recipe descriptor in `recipe_inputs.py`, and `RECIPE_INTEGRATION.md`.
+- `ogutu_kenya_rangelands`: connector, normalizer, fixture and tests.
+- `literature_counts`: file format, validator, connector, normalizer, one example file and tests.
+- Fetch agent: `search_catalog` has the arguments `bbox` and `data_kinds`.
+- Fetch agent: `inspect_source`, `check_access` and `download_dataset` accept `ogutu_kenya_rangelands:<item>` and `literature_counts:<citation_key>`.
+- Live tests in `tests/test_live.py`: the S4 header, the county boundaries, and the GBIF keys of both sources.
+- `SOURCES.md` has a section for each source.
+
+### 11.2 Decisions of the implementation
+
+- **Boundaries.** The connector downloads the simplified geoBoundaries KEN ADM1 file of commit `9469f09` with the S4 file. Both files are in one artifact.
+- **Boundary license.** The geoBoundaries API gives the license of KEN ADM1 as Public Domain, from the RCMRD GeoPortal. Thus the access scope is `public`.
+- **Machakos.** The S4 county "Machakos" has 14,225 km². This is the old Machakos district. Its geometry is the union of the geoBoundaries counties Machakos and Makueni.
+- **County area.** Some rows give a different area for one county, for example 21,851 and 21,852 km² for Kajiado. `area_km2` is the most frequent value.
+- **Area attributes.** `attributes.source_area_km2_values` keeps all source values. `attributes.geometry_area_km2` gives the area of the boundary.
+- **Area differences.** The S4 area of Marsabit is 70,729 km². The boundary gives 75,927 km². Turkana, Tana River and Garissa also differ, by about 3 % to 9 %. A reason can be that the surveys cover a part of the county (not verified).
+- **Survey days.** The S4 file gives only the end day. Rows have `time_start = time_end` and the flag `interval_unknown`, as README.md requires.
+- **Flag order.** `interval_unknown` comes after `zero_count` and before `ok`. Thus no S4 row has the flag `ok`.
+- **Years without a survey.** The file has model values for years without a survey. These rows have no survey code and a date of 1 June. They give only a model row, with `attributes.without_survey = true`.
+- **Record ids.** A row without a survey code uses the date in `source_record_id`, for example `2:d19790601:9:model`.
+- **Survey codes.** The file keeps numeric codes as numbers. The normalizer writes four digits, for example `0703`.
+- **Repeated rows.** The file repeats 21 rows of one county, survey and species with other values, for example survey `0501` in Laikipia. The second row gets the suffix `#2`.
+- **Repeated rows in Recipe.** The current-row rule keeps one of the two rows, the row with the highest `source_record_id`. A person must decide which value is correct.
+- **Taxa.** A fixed table gives the scientific name and the GBIF key of each species name in the file. The normalizer needs no network.
+- **Livestock taxa.** "Cattle" is `Bos taurus`. The GBIF backbone keeps zebu in that species. "Camel" is `Camelus dromedarius`. "Donkey" is `Equus asinus`.
+- **Wildlife taxa.** "Burchell's zebra" is `Equus quagga`. "Oryx" is `Oryx beisa`. "Sheep and goats" has no key and gets `taxon_unresolved`.
+- **no_uncertainty.** "A sample or a model" means the methods `aerial_sample`, `ground_transect` and `model`.
+- **Literature folder.** Git ignores `data/`, and `data/` is the runtime folder. Thus the literature files are in `reference/literature_counts/`.
+- **Literature metadata.** Each CSV file has a metadata file `<citation_key>.json`. It gives the citation, the DOI, the publication date, the license, `reuse_allowed`, `access_scope`, `entered_by` and `checked_by`.
+- **Literature access scope.** The access scope of the item comes from the metadata file. `check_access` reports a non-public file as `restricted`.
+- **Literature source key.** The source key also has the git blob SHA of the metadata file. Thus a change of the license makes a new artifact.
+- **Literature areas.** `area_id` gets the prefix `literature:`. An area with coordinates is a point.
+- **Literature taxa.** A row without `gbif_taxon_key` gets its key from `resolve_taxon`. A name that does not resolve gets `taxon_unresolved`.
+- **Literature validator.** `uv run python -m habitat.normalize.sources.literature_counts <file>` lists all problems of a file. The normalizer quarantines a file with a problem.
+- **Example file.** `ogutu2013_nairobi.csv` has 12 values from pages 22 and 23 of Ogutu et al. 2013. The values are the 1948 Game Department counts of wildebeest and zebra.
+- **Example method.** The paper gives no field method for these counts. Thus the method is `compiled`.
+- **Example areas.** The paper gives no coordinates for the Athi-Kaputiei Plains. These rows have the flag `area_unlocated`.
+- **Example review.** No person has checked the example file. Its access scope is `literature-review`. The article states the license CC BY-NC 3.0.
+- **Footprint.** `SeriesSummary` has a new optional field `footprint_wkt`. `publish_series_version` uses it in place of the union of cells.
+- **Footprint speed.** The union of 500,000 cells takes about 24 s. The PostGIS union of the 20 county areas takes less than 1 s.
+- **Cells.** `count_area_cells.cell_id` has no foreign key to `grid_cells`. The 20 counties have 529,034 cells.
+- **Recipe view.** The view also gives `area_name` and `area_km2`.
+- **Size.** The full S4 file gives 16,601 rows. Normalization takes about 1 s. The append with the cells takes about 7 s.
+
+### 11.3 Deferred
+
+- The P2 sources `living_planet`, `biotime` and `dryad`.
+- The agent mapping proposal and its validator for `dryad` and `zenodo` (section 4.5). The tests of section 8 for the mapping validator apply to the literature validator now.
+- The P3 sources `gbif_sampling_events`, `iucn_redlist`, `ebird_status`, `snapshot_serengeti`, `animal_traits`, `elton_traits` and `pantheria`.
+- The table `species_traits` and the data kind `species_traits` (P3).
+- A Recipe operation that joins an area to cells through `count_area_cells`. The Recipe lane owns this change.
+- A second person must check `ogutu2013_nairobi.csv` and its license. Then the access scope can change to `public`.
+- The TAWIRI and WRTI census values. Enter them through `literature_counts`.

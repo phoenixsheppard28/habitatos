@@ -14,6 +14,8 @@ For the package layout and the data flow, see `MERGE_PLAN.md`.
 | `movebank_study` | `movebank:<study_id>` | study id | 1 CSV | `animal_locations` |
 | `zenodo` | `zenodo:<record_id>` | record id | 1 file | quarantined (no mapping) |
 | `fixture` | `fixture-movement-001`, `fixture-rainfall-001` | fixture id | 1 CSV | quarantined (synthetic) |
+| `ogutu_kenya_rangelands` | `ogutu_kenya_rangelands:10.1371/journal.pone.0163249.s004` | none (one item) | S4 XLSX and county boundaries GeoJSON | `population_counts` |
+| `literature_counts` | `literature_counts:<citation_key>` | citation key | 1 CSV and 1 metadata JSON | `population_counts` |
 
 General limits:
 
@@ -84,6 +86,33 @@ General limits:
 - Synthetic antelope tracks and rainfall cells in `tests/fixtures/`.
 - Use them only for demos and tests. The pipeline quarantines them and never publishes them.
 
+## ogutu_kenya_rangelands
+
+- Provider: PLOS ONE, supporting information S4 of Ogutu et al. 2016, DOI `10.1371/journal.pone.0163249`. License CC-BY-4.0.
+- Content: DRSRS aerial sample survey estimates with standard errors, and model estimates with 95 % prediction limits.
+- Coverage: 20 Kenya rangeland counties, 1977 to 2016, 18 wildlife species and 4 livestock groups.
+- The PLOS URL sends a redirect to a signed Google Cloud Storage URL. The file is about 1.1 MB.
+- The connector also downloads the simplified geoBoundaries KEN ADM1 file of commit `9469f09`. The geoBoundaries API gives its license as Public Domain.
+- The artifact keeps both files. `processing_version` is the SHA-256 of the XLSX file, because PLOS gives no checksum.
+- `available_at` is 2016-09-27, the online publication date from Crossref.
+- One source row gives a survey row (`aerial_sample`) and a model row (`model`). The two rows are in different comparability groups.
+- The file gives only the end day of a survey. The rows have `time_start = time_end` and the flag `interval_unknown`.
+- A county is much larger than a park. Never assign a county value to one park.
+- Details and limits: `docs/ingestion/POPULATION.md`, sections 4.1 and 11.
+
+## literature_counts
+
+- Values that a person types from a paper or a census report. Use it for values that exist only in PDF files.
+- Put one CSV file per publication in `reference/literature_counts/<citation_key>.csv`.
+- Put a metadata file `<citation_key>.json` next to it. It gives the citation, the DOI, the publication date, the license, `reuse_allowed`, `access_scope`, `entered_by` and `checked_by`.
+- Required columns: `record_id`, `area_id`, `area_name`, `area_type`, `taxon_name`, `time_start`, `time_end`, `metric`, `method`, `value`, `unit`, `page`, `table_or_figure`.
+- Optional columns: `area_km2`, `longitude`, `latitude`, `gbif_taxon_key`, `se`, `ci_low`, `ci_high`, `ci_level`, `effort_value`, `effort_unit`, `protocol`, `read_from_figure`, `notes`.
+- Dates are `YYYY-MM-DD`. `metric`, `method`, `unit` and `area_type` use the vocabularies of `docs/ingestion/POPULATION.md`, section 5.3.
+- Check a file before a commit: `uv run python -m habitat.normalize.sources.literature_counts reference/literature_counts/<citation_key>.csv`.
+- The connector uses no network. `processing_version` is the git blob SHA of the CSV file. `available_at` is the publication date.
+- The access scope comes from the metadata file. Use `literature-review` until a second person checks the values and the license. The agent handoff excludes a non-public file.
+- Example: `ogutu2013_nairobi`, with the 1948 wildebeest and zebra counts of Ogutu et al. 2013.
+
 ## Provider references
 
 - [Movebank API](https://github.com/movebank/movebank-api-doc/blob/master/movebank-api.md)
@@ -94,3 +123,5 @@ General limits:
 - [CHIRPS download directory](https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/tifs/p05/)
 - [CHIRPS product documentation](https://chc.ucsb.edu/data/chirps)
 - [Zenodo REST API](https://developers.zenodo.org/)
+- [Ogutu et al. 2016, PLOS ONE](https://doi.org/10.1371/journal.pone.0163249)
+- [geoBoundaries API, KEN ADM1](https://www.geoboundaries.org/api/current/gbOpen/KEN/ADM1/)
