@@ -1,6 +1,7 @@
 import json
 from dataclasses import asdict
 from datetime import date
+from typing import Literal
 from uuid import uuid4
 
 import psycopg
@@ -11,6 +12,7 @@ from recipe.service import RecipeService
 
 from analysis.service import run as run_analysis
 from analysis.store import ArtifactStore
+from contracts.models import ComparisonWindow, ForecastRequest
 from habitat.catalog.store import PostgresCatalog
 from habitat.config import settings
 from habitat.db import database_url
@@ -48,20 +50,29 @@ class QueryContext(BaseModel):
 
 
 class RetrievalContext(QueryContext):
-    source_id: str
+    source_id: str | None = None
     package: str | None = Field(default=None, max_length=300)
 
     @model_validator(mode="after")
     def supported_source(self):
-        source = SOURCES.get(self.source_id)
-        if source is None or source.source_id == "fixture":
+        source = SOURCES.get(self.source_id) if self.source_id else None
+        if self.source_id and (source is None or source.source_id == "fixture"):
             raise ValueError("Select a live source.")
-        if source.needs_item and not self.package:
-            raise ValueError("This source needs a package or study identifier.")
-        if source.needs_area_and_dates and ((self.end - self.start).days > 366
-                                           or (self.bbox[2] - self.bbox[0]) * (self.bbox[3] - self.bbox[1]) > 25):
+
+        # Without a named source the fetch agent can also fetch environmental layers for the area.
+        bounded = source is None or source.needs_area_and_dates
+        if bounded and ((self.end - self.start).days > 366
+                        or (self.bbox[2] - self.bbox[0]) * (self.bbox[3] - self.bbox[1]) > 25):
             raise ValueError("Request at most one year and 25 square degrees per retrieval.")
         return self
+
+
+class AnalysisContext(BaseModel):
+    prepared_id: str = Field(pattern="^[0-9a-f]{32}$")
+    question: str = Field(min_length=1, max_length=4000)
+    task_type: Literal["historical", "forecast"] = "historical"
+    forecast: ForecastRequest | None = None
+    comparison_windows: list[ComparisonWindow] | None = None
 
 
 def generate_plan(*, instructions, context, schema):
@@ -88,6 +99,9 @@ def generate_plan(*, instructions, context, schema):
     raise ValueError("The planner returned no typed decision.")
 
 
+MAX_TOOL_ROUNDS = 10
+
+
 class EligibleEvidence:
     def assess(self, query, requirement, dataset):
         return Assessment("catalog-eligibility", "1", requirement.requirement_id, "primary_evidence", 3,
@@ -95,41 +109,75 @@ class EligibleEvidence:
                           {role: float(role == "primary_evidence") for role in ROLES}, 1, 1)
 
 
-def analyze(payload):
+def prepared_directory(prepared_id):
+    return settings().runs_dir / "web" / prepared_id
+
+
+def prepare(payload):
     context = QueryContext.model_validate(payload)
     query = context.query()
-    request_id = uuid4().hex
-    run_dir = settings().runs_dir / "web" / request_id
+    prepared_id = uuid4().hex
+    directory = prepared_directory(prepared_id)
+
     with psycopg.connect(database_url(), autocommit=True, connect_timeout=10) as database:
         dataset_catalog = HabitatRecipeCatalog(PostgresCatalog(database), allowed_scopes={"public"})
-        store = LocalArtifactStore(run_dir / "recipe")
         service = RecipeService(
             catalog=dataset_catalog, planner=JsonPlanner(generate_plan, search_filters=SEARCH_FILTERS),
             assessor=EligibleEvidence(),
             executor=executor(lambda: psycopg.connect(database_url(), connect_timeout=10), dataset_catalog,
                               max_rows=100_000, statement_timeout_ms=60_000),
-            store=store,
+            store=LocalArtifactStore(directory / "recipe"),
         )
-        prepared = service.run({"contract_version": "1.0", "request_id": request_id,
+        prepared = service.run({"contract_version": "1.0", "request_id": prepared_id,
                                 "query_id": query["query_id"], "access_scope": "public", "input": {"query": query}})
-        if prepared["status"] not in {"ok", "partial"}:
-            return {key: prepared.get(key) for key in ("status", "output", "warnings", "error")}
+    if prepared["status"] not in {"ok", "partial"}:
+        return {key: prepared.get(key) for key in ("status", "output", "warnings", "error")}
 
-        model_store = ArtifactStore(run_dir / "analysis")
-        request = analysis_request(query, prepared, request_id=request_id)
-        result = run_analysis(request, store=RecipeArtifactReader(store, "public", model_store))
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "prepared.json").write_text(json.dumps({"query": query, "recipe": prepared}, default=str))
+    table = analysis_request(query, prepared, request_id=prepared_id)["input"]["feature_artifact"]
 
-    return {"status": result["status"], "output": result.get("output"), "warnings": result.get("warnings"),
-            "error": result.get("error")}
+    return {"prepared_id": prepared_id, "status": prepared["status"], "warnings": prepared["warnings"],
+            "description": prepared["extensions"]["recipe_context"]["description"],
+            "row_count": table.get("row_count"), "coverage": table["coverage"],
+            "input_datasets": table["input_dataset_refs"],
+            "columns": [{key: column[key] for key in ("name", "unit", "role")} for column in table["columns"]]}
+
+
+def analyze(payload):
+    context = AnalysisContext.model_validate(payload)
+    directory = prepared_directory(context.prepared_id)
+    try:
+        record = json.loads((directory / "prepared.json").read_text())
+    except FileNotFoundError:
+        return {"status": "error", "error": "No prepared table has this prepared_id. Call prepare first."}
+
+    analysis_id = uuid4().hex
+    query = {**record["query"], "query_id": analysis_id, "question": context.question,
+             "task_type": context.task_type,
+             "forecast": context.forecast.model_dump(mode="json") if context.forecast else None,
+             "comparison_windows": [window.model_dump(mode="json") for window in context.comparison_windows]
+             if context.comparison_windows else None}
+    request = analysis_request(query, record["recipe"], request_id=analysis_id)
+    reader = RecipeArtifactReader(LocalArtifactStore(directory / "recipe"), "public",
+                                  ArtifactStore(directory / "analysis" / analysis_id))
+    result = run_analysis(request, store=reader)
+
+    return {"analysis_id": analysis_id, "prepared_id": context.prepared_id, "status": result["status"],
+            "output": result.get("output"), "warnings": result.get("warnings"), "error": result.get("error")}
 
 
 def retrieve(payload):
     context = RetrievalContext.model_validate(payload)
     request = build_request(context.source_id, context.bbox, context.start, context.end,
                             context.package, context.question)
-    result = run_pipeline(request, use_agent=False)
+    request.input.query.species = context.species
+    request.input.requirements.species = context.species
+
+    result = run_pipeline(request, use_agent=True)
 
     return {"status": result.status, "warnings": result.warnings,
+            "agent_summary": result.fetch.extensions.get("agent_summary"),
             "outcomes": [asdict(outcome) for outcome in result.outcomes], "published": result.published}
 
 
@@ -147,7 +195,6 @@ def answer(request):
     context["today"] = date.today().isoformat()
     context["available_sources"] = [{"id": source.source_id, "description": source.description,
                                     "data_kinds": sorted(source.data_kinds),
-                                    "needs_package": source.needs_item,
                                     "needs_area_and_dates": source.needs_area_and_dates,
                                     "publishes_observations": source.normalizer is not None}
                                    for source in SOURCES.values() if source.source_id != "fixture"]
@@ -155,40 +202,49 @@ def answer(request):
         {"name": "summarize_dataset", "description": "Read monthly database aggregates and source citations.",
          "input_schema": {"type": "object", "properties": {"dataset_id": {"type": "string"}},
                           "required": ["dataset_id"]}},
-        {"name": "analyze", "description": "Run validated Recipe and Analysis stages on cached observations. "
-         "Use explicit query dates, species, and region. Missing evidence returns insufficient_data.",
-         "input_schema": QueryContext.model_json_schema()},
-        {"name": "retrieve", "description": "Retrieve and normalize real data through a registered connector. "
-         "Use when the user requests retrieval or agrees to your previous retrieval offer, including a short yes. "
-         "Reuse the offered source, region and dates from the conversation. Ask only for required details that "
-         "are still missing. Environmental requests allow at most one year and 25 square degrees per call.",
+        {"name": "retrieve", "description": "Fetch and process real data with the fetch agent. The agent searches "
+         "Movebank and the other registered sources, finds study or package identifiers itself, checks access, "
+         "downloads, normalizes and publishes. Use when the user requests retrieval or agrees to your previous "
+         "retrieval offer, including a short yes. Reuse the offered region, dates and species from the "
+         "conversation. Set source_id or package only as hints, for example when the user names a study. "
+         "Without source_id, or for environmental sources, a call allows at most one year and 25 square degrees.",
          "input_schema": RetrievalContext.model_json_schema()},
+        {"name": "prepare", "description": "Recipe stage: build one analysis table from workspace datasets for a "
+         "question, region, dates and species. Returns a prepared_id with the columns, roles and coverage of "
+         "the table. Missing evidence returns insufficient_data.",
+         "input_schema": QueryContext.model_json_schema()},
+        {"name": "analyze", "description": "Analysis stage: run one validated analysis on a prepared table. Call it "
+         "as many times as needed with the same prepared_id, each with its own question, task type, comparison "
+         "windows or forecast settings. It does not change the prepared table.",
+         "input_schema": AnalysisContext.model_json_schema()},
     ]
     messages = [message.model_dump() for message in request.messages]
     updated = False
     retrieved_dataset_ids = []
     citations = []
     assistant = client()
-    for _ in range(6):
+    for _ in range(MAX_TOOL_ROUNDS):
         response = assistant.messages.create(
             model=FETCH_MODEL, max_tokens=2500,
             system="You are Habitat Watch's ecological workspace assistant. Answer from real catalog metadata and "
             "tool results. Do not invent observations, rainfall, forecast results or successful actions. Distinguish "
             "missing evidence from zero. Cite dataset IDs, versions and source URLs. Explain incompatible dates "
-            "or regions before comparing layers. Use summarize_dataset for numerical summaries, and analyze for "
-            "scientific questions. Check all workspace datasets for the variables, species, region and dates "
+            "or regions before comparing layers. Use summarize_dataset for numerical summaries. For scientific "
+            "questions, call prepare once to build the analysis table, then call analyze with its prepared_id. "
+            "Run further analyses on the same prepared_id instead of preparing again. Prepare again only when "
+            "the region, dates, species or required variables change. Check all workspace datasets for the variables, species, region and dates "
             "needed by the question, not just the selected dataset. If relevant data is missing, empty, or a tool "
-            "returns insufficient_data, offer to retrieve the missing data from a suitable available source and "
+            "returns insufficient_data, offer to retrieve the missing data and "
             "ask whether the user wants you to fetch it. Describe the proposed data, source, region and dates "
             "briefly. Do not end with only a missing-data explanation or tell the user to obtain supported data "
-            "manually. Ask for any missing required region, dates or study/package identifier in that offer. "
+            "manually. Ask for any missing required region or dates in that offer. Retrieval searches for "
+            "studies and packages itself, so never ask the user to find a study or package identifier. "
             "Do not fetch until the user agrees or explicitly requests retrieval. A short yes, go ahead, or "
             "similar agreement to your previous offer is a retrieval request: call retrieve using the details "
-            "already established in the conversation without asking for confirmation again. Choose the "
-            "registered source yourself when the requested measurements identify a suitable connector. "
+            "already established in the conversation without asking for confirmation again. "
             "Never invent study identifiers, regions or dates. Prefer sources that publish observations when "
             "the data must appear in the workspace. After successful retrieval, use the refreshed catalog and "
-            "tool results to continue the original question with summarize_dataset or analyze as appropriate. "
+            "tool results to continue the original question with summarize_dataset, or prepare and analyze. "
             "If retrieval fails or finds no observations, state the actual result and ask for the specific "
             "change needed to retry. When dates are not explicit, the selected dataset's coverage starts the query "
             "and timeline_through limits the query end to that month's last day. Preserve explicit user dates. "
@@ -214,6 +270,8 @@ def answer(request):
                     output = {key: snapshot[key] for key in ("dataset_id", "version", "monthly", "total_records",
                                                              "sources", "grain", "truncated")}
                     citations.extend(snapshot["sources"])
+                elif call.name == "prepare":
+                    output = prepare(call.input)
                 elif call.name == "analyze":
                     output = analyze(call.input)
                 elif call.name == "retrieve":

@@ -26,6 +26,8 @@ def requirements_prompt(req: FetchRequest) -> str:
         f"Region: {query.region}; bounding box: {requirements.bbox}",
         f"Requirement species: {requirements.species}; dates: {requirements.start} .. {requirements.end}",
         f"Required data kinds: {', '.join(requirements.data_kinds) or 'any supported'}",
+        f"Preferred sources: {', '.join(requirements.source_ids) or 'choose suitable sources'}",
+        f"Named package or study: {requirements.package or 'none; search for one'}",
         "Find suitable datasets, check access, download permitted matches, and summarize raw artifacts retrieved.",
     ])
 

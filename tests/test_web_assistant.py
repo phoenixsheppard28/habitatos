@@ -110,3 +110,71 @@ def test_empty_retrieval_does_not_report_a_workspace_update(assistant, monkeypat
 
     assert response["updated"] is False
     assert response["retrieved_dataset_ids"] == []
+
+
+def test_retrieval_always_runs_the_fetch_agent_with_the_species(monkeypatch):
+    run = Mock(return_value=SimpleNamespace(
+        status="ok", warnings=[], outcomes=[], published=["emu"],
+        fetch=SimpleNamespace(extensions={"agent_summary": "Found an emu package."}),
+    ))
+    monkeypatch.setattr(web_assistant, "run_pipeline", run)
+
+    result = web_assistant.retrieve({"question": "Emu movement", "bbox": [137, -32.5, 140, -29.5],
+                                     "start": "2025-10-01", "end": "2026-09-30",
+                                     "species": ["Dromaius novaehollandiae"]})
+
+    request = run.call_args.args[0]
+    assert run.call_args.kwargs == {"use_agent": True}
+    assert request.input.requirements.species == ["Dromaius novaehollandiae"]
+    assert request.input.requirements.package is None
+    assert result["agent_summary"] == "Found an emu package."
+    assert result["published"] == ["emu"]
+
+
+def test_retrieval_without_a_source_keeps_the_area_limit():
+    with pytest.raises(ValueError, match="at most one year"):
+        web_assistant.RetrievalContext.model_validate({"question": "Emus", "bbox": [129, -38, 141, -26],
+                                                       "start": "2025-01-01", "end": "2025-06-01"})
+
+
+def test_many_analyses_reuse_one_prepared_table(tmp_path, monkeypatch):
+    prepared_id = "a" * 32
+    directory = tmp_path / "web" / prepared_id
+    directory.mkdir(parents=True)
+    query = {"query_id": "q", "question": "Prepare emu movement and rainfall", "task_type": "historical"}
+    (directory / "prepared.json").write_text(json.dumps({"query": query, "recipe": {"status": "ok"}}))
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path))
+    handoff = Mock(side_effect=lambda query, recipe, request_id: {"query": query})
+    monkeypatch.setattr(web_assistant, "analysis_request", handoff)
+    run = Mock(return_value={"status": "ok", "output": {}, "warnings": [], "error": None})
+    monkeypatch.setattr(web_assistant, "run_analysis", run)
+
+    first = web_assistant.analyze({"prepared_id": prepared_id, "question": "Does rainfall predict displacement?"})
+    second = web_assistant.analyze({"prepared_id": prepared_id, "question": "Compare wet and dry seasons",
+                                    "comparison_windows": [
+                                        {"name": "wet", "start": "2026-01-01T00:00:00Z",
+                                         "end": "2026-03-31T00:00:00Z"},
+                                        {"name": "dry", "start": "2026-06-01T00:00:00Z",
+                                         "end": "2026-08-31T00:00:00Z"}]})
+
+    queries = [call.args[0] for call in handoff.call_args_list]
+    assert [query["question"] for query in queries] == ["Does rainfall predict displacement?",
+                                                        "Compare wet and dry seasons"]
+    assert queries[0]["comparison_windows"] is None
+    assert [window["name"] for window in queries[1]["comparison_windows"]] == ["wet", "dry"]
+    assert first["analysis_id"] != second["analysis_id"]
+    assert run.call_count == 2
+
+
+def test_analysis_without_a_prepared_table_asks_for_prepare(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_assistant, "settings", lambda: SimpleNamespace(runs_dir=tmp_path))
+
+    result = web_assistant.analyze({"prepared_id": "b" * 32, "question": "Any trend?"})
+
+    assert result["status"] == "error"
+    assert "prepare" in result["error"]
+
+
+def test_analysis_rejects_a_prepared_id_that_is_a_path():
+    with pytest.raises(ValueError):
+        web_assistant.AnalysisContext.model_validate({"prepared_id": "../../etc", "question": "x"})
