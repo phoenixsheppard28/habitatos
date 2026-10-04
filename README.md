@@ -1,6 +1,7 @@
 # Habitat Watch
 
-The new standards-based map workspace lives in [`web/`](web/README.md). It uses React, TypeScript, Vite, OpenLayers, GeoServer, GeoWebCache, and PostGIS. The original static [`preview/`](preview/README.md) remains in place during migration.
+The map workspace lives in [`web/`](web/README.md). It uses Leaflet, standard OpenStreetMap tiles, and Vite.
+The Databricks-style sidebar contains data, visualization, and analysis objects. The UI uses synthetic ecological samples.
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 

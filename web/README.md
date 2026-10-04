@@ -1,8 +1,13 @@
 # Habitat Watch web workspace
 
-This directory replaces the static `preview/` with a React, TypeScript, Vite, and OpenLayers app. The original preview remains available until the React behavior has been accepted.
+This directory contains the main Leaflet UI and its Vite configuration.
+Make all UI changes in this directory.
+The UI uses standard OpenStreetMap tiles and a Databricks-style sidebar for data, visualizations, and analysis objects.
+Start the frontend without GeoServer to explore the synthetic overlays, tables, charts, and summaries.
 
-The browser consumes public, read-only WMS, WMTS, and WFS endpoints. The local bootstrap uses GeoServer's authenticated REST API to publish fixtures, but those credentials never enter the frontend bundle. The sample movement and environmental layers are synthetic and are labelled as samples in the catalog and UI.
+The React/OpenLayers service implementation is in `src/`. Its catalog and adapters support public, read-only WMS, WMTS, and WFS endpoints.
+The main Leaflet UI uses local synthetic fixtures. The main UI does not consume GeoServer services.
+The local bootstrap uses GeoServer's authenticated REST API to publish fixtures.
 
 ## Start GeoServer and the samples
 
@@ -29,7 +34,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Vite proxies `/geoserver` to the local service so WMS, WMTS, and WFS requests are same-origin during development. For a separately hosted service, copy `.env.example` to `.env.local` and set `VITE_GEOSERVER_URL` to its public read-only GeoServer URL.
+Open http://localhost:5173. Vite serves `index.html` and builds the workspace into `dist/`.
+The `/geoserver` proxy supports development of the separate service adapters.
 
 Useful checks:
 
@@ -39,11 +45,37 @@ npm run build
 docker compose --env-file .env.geoserver config
 ```
 
+## Workspace objects
+
+The Databricks-style sidebar contains three sections:
+
+- **Data:** movement, rainfall, vegetation, study boundary, and local imports.
+- **Visualizations:** movement map, location table, and monthly distance chart.
+- **Analysis:** movement overview and a comparison of movement with generated rainfall.
+
+Select an object to open the object. Use the search field to filter objects.
+Use the timeline to select the last month for the map, table, chart, and analysis.
+The map uses Leaflet 1.9.4 and standard OpenStreetMap tiles with contributor attribution.
+
+Open Habitat assistant from the sidebar. Drag the assistant header, or use arrow keys when the header has focus.
+Try “show rainfall”, “hide rainfall”, “show vegetation”, “show August”, or “zoom to the tracks”.
+Press Enter to send a question. Press Shift+Enter to insert a new line.
+
+Add GeoJSON in WGS84 or CSV with `latitude`/`longitude` or `lat`/`lon` columns.
+Files may contain up to 10,000 features and must not exceed 5 MB.
+Imports remain in the browser session. Select an imported feature to inspect attributes.
+Export downloads the synthetic movement locations through the selected month.
+
 ## Architecture
 
+- `index.html` defines the main workspace and object sidebar.
+- `src/sampleMap.js` provides OpenStreetMap, synthetic overlays, point inspection, and the timeline.
+- `src/workspaceObjects.js` provides navigation, search, tables, charts, and calculated summaries.
+- `src/interactions.js` provides assistant commands, file imports, and exports.
+- `src/workspace.css` defines desktop and mobile layouts.
 - `src/catalog/` defines the versioned layer contract and asynchronous catalog provider. Catalog entries contain data and capabilities, never OpenLayers instances.
 - `src/map/adapters/` owns creation, time updates, service errors, and disposal for WMS, WMTS, bounded WFS, and temporary local vectors.
-- `src/App.tsx` connects catalog state to the layer panel, OpenLayers map, timeline, feature inspector, imports, exports, and deterministic assistant.
+- `src/App.tsx` contains the separate React/OpenLayers service workspace.
 - `geoserver/` contains sample PostGIS data, styles, and the trusted local publishing bootstrap.
 - `docs/layer-compatibility.md` records the supported standards path and known gaps.
 
@@ -55,4 +87,7 @@ In production, the Python pipeline will hand an approved dataset to trusted back
 
 ## Current limits
 
-The assistant remains deterministic and sample-oriented. WFS is intentionally bounded by the current map extent and a feature-count cap. The sample WMS time dimension uses full timestamp values; GeoWebCache time behavior depends on its dimension configuration and may create separate cache keys. Production deployments need authentication and authorization at the service or reverse-proxy layer for any non-public data.
+The main UI uses deterministic assistant commands and synthetic records.
+Local imports are map layers. The movement table, chart, and summaries use the built-in sample tracks.
+The rainfall grid is static. Monthly rainfall values in the point records support the comparison table.
+The service adapters limit WFS requests to the current map extent and a feature-count cap.

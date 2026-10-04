@@ -23,6 +23,7 @@ dependencies = [
 
 [project.scripts]
 habitat = "habitat.pipeline:main"
+habitat-web = "habitat.web:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
