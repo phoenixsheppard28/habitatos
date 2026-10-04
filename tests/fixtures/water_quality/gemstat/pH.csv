@@ -1,0 +1,3 @@
+GEMS Station Number,Sample Date,Sample Time,Depth,Parameter Code,Analysis Method Code,Value Flags,Value,Unit,Data Quality,Integrated Value,Remark,License Information
+ARG00003,2018-08-22,10:45,0.25,pH,0,,7.75,---,Fair,,,
+ARG00003,2018-11-15,00:00,0.2,pH,0,,7.16,---,Fair,,,

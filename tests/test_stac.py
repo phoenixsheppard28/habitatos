@@ -41,7 +41,7 @@ def local_scene(tmp_path):
 
     assets = {
         "B03": band("B03", 1500, 10), "B04": band("B04", 2000, 10), "B08": band("B08", 6000, 10),
-        "B11": band("B11", 4000, 20), "SCL": band("SCL", 4, 20, np.uint8),
+        "B11": band("B11", 4000, 20), "SCL": band("SCL", 4, 20, np.uint8), "B05": band("B05", 3000, 20),
     }
     return item(
         "S2B_MSIL2A_20240217T074009_R092_T37MBU_20240217T113157",
@@ -137,7 +137,7 @@ def test_sentinel2_scene_is_one_clipped_artifact_that_normalizes(local_scene, mo
     assert RawManifest.model_validate(manifest.model_dump(mode="json")) == manifest
     assert manifest.storage.uri == f"artifact://{local_scene.id}/1"
     assert manifest.storage.format == SOURCES["sentinel2"].storage_format
-    assert sorted(manifest.extensions.assets.values()) == ["B03.tif", "B04.tif", "B08.tif", "B11.tif", "SCL.tif"]
+    assert sorted(manifest.extensions.assets.values()) == ["B03.tif", "B04.tif", "B05.tif", "B08.tif", "B11.tif", "SCL.tif"]
     assert manifest.extensions.properties["boa_add_offset"] == -1000.0
     assert manifest.extensions.available_at == datetime(2024, 2, 17, 11, 31, 57, tzinfo=UTC)
 
@@ -170,7 +170,7 @@ def test_a_second_fetch_uses_the_cache(local_scene, monkeypatch):
     second = stac.fetch_sentinel2(request, archive).manifests
 
     assert first == second
-    assert len(clips) == 5
+    assert len(clips) == 6
 
 
 def test_already_ingested_scenes_are_not_downloaded(local_scene, monkeypatch):

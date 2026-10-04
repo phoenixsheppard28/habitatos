@@ -32,7 +32,7 @@ SENTINEL2_PRODUCT = "sentinel-2-l2a"
 MODIS_COLLECTION = "modis-13Q1-061"
 MODIS_PRODUCT = "mod13q1-061"
 
-SENTINEL2_ASSETS = {"green": "B03", "red": "B04", "nir": "B08", "swir16": "B11", "scl": "SCL"}
+SENTINEL2_ASSETS = {"green": "B03", "red": "B04", "nir": "B08", "swir16": "B11", "scl": "SCL", "rededge": "B05"}
 MODIS_ASSETS = {
     "ndvi": "250m_16_days_NDVI",
     "evi": "250m_16_days_EVI",
@@ -45,6 +45,7 @@ ASSET_HOSTS = {
     "sentinel2l2a02.blob.core.windows.net",
     "sentinel2l2a03.blob.core.windows.net",
     "modiseuwest.blob.core.windows.net",
+    "deafrica-input-datasets.s3.af-south-1.amazonaws.com",
 }
 
 SENTINEL2_RIGHTS = Rights(

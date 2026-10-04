@@ -7,22 +7,33 @@ from habitat.fetch.connectors import Connector
 from habitat.fetch.connectors.chirps import PRODUCT as CHIRPS_PRODUCT
 from habitat.fetch.connectors.chirps import STORAGE_FORMAT as CHIRPS_FORMAT
 from habitat.fetch.connectors.chirps import fetch_chirps
+from habitat.fetch.connectors.cgls_lwq import PRODUCT as CGLS_LWQ_PRODUCT
+from habitat.fetch.connectors.cgls_lwq import fetch_cgls_lwq
 from habitat.fetch.connectors.fixture import PRODUCT as FIXTURE_PRODUCT
 from habitat.fetch.connectors.fixture import fetch_fixture
+from habitat.fetch.connectors.gemstat import PRODUCT as GEMSTAT_PRODUCT
+from habitat.fetch.connectors.gemstat import STORAGE_FORMAT as GEMSTAT_FORMAT
+from habitat.fetch.connectors.gemstat import fetch_gemstat
 from habitat.fetch.connectors.movebank_repository import PRODUCT as REPOSITORY_PRODUCT
 from habitat.fetch.connectors.movebank_repository import fetch_movebank_repository
 from habitat.fetch.connectors.movebank_study import PRODUCT as STUDY_PRODUCT
 from habitat.fetch.connectors.movebank_study import fetch_movebank_study
 from habitat.fetch.connectors.stac import MODIS_PRODUCT, SENTINEL2_PRODUCT, fetch_modis, fetch_sentinel2
 from habitat.fetch.connectors.stac import STORAGE_FORMAT as STAC_FORMAT
+from habitat.fetch.connectors.wqp import PRODUCT as WQP_PRODUCT
+from habitat.fetch.connectors.wqp import STORAGE_FORMAT as WQP_FORMAT
+from habitat.fetch.connectors.wqp import fetch_wqp
 from habitat.fetch.connectors.zenodo import PRODUCT as ZENODO_PRODUCT
 from habitat.fetch.connectors.zenodo import fetch_zenodo
 from habitat.grid import Grid
 from habitat.normalize.rows import NormalizedBatch
+from habitat.normalize.sources.cgls_lwq import normalize_cgls_lwq
 from habitat.normalize.sources.chirps import normalize_chirps
+from habitat.normalize.sources.gemstat import normalize_gemstat
 from habitat.normalize.sources.modis import normalize_modis
 from habitat.normalize.sources.movebank import normalize_movebank, normalize_movebank_study
 from habitat.normalize.sources.sentinel2 import normalize_sentinel2
+from habitat.normalize.sources.wqp import normalize_wqp
 
 Normalizer = Callable[[RawManifest, ArtifactStore, Grid, BBox | None], NormalizedBatch]
 
@@ -45,8 +56,9 @@ SOURCES: dict[str, Source] = {
     for source in [
         Source(
             "sentinel2", SENTINEL2_PRODUCT,
-            "Sentinel-2 L2A NDVI, MNDWI and NDMI per 1 km cell and acquisition",
-            frozenset({"surface_reflectance", "vegetation_observations", "water_observations"}),
+            "Sentinel-2 L2A NDVI, MNDWI, NDMI, and NDTI and NDCI on water, per 1 km cell and acquisition",
+            frozenset({"surface_reflectance", "vegetation_observations", "water_observations",
+                       "water_quality_observations"}),
             fetch_sentinel2, normalize_sentinel2, STAC_FORMAT, needs_area_and_dates=True,
         ),
         Source(
@@ -84,6 +96,24 @@ SOURCES: dict[str, Source] = {
             "Synthetic demo data for development and tests; never published",
             frozenset({"animal_locations", "rainfall_observations"}),
             fetch_fixture, None, "csv", needs_item=True,
+        ),
+        Source(
+            "wqp", WQP_PRODUCT,
+            "Water-quality samples at USA monitoring stations from the Water Quality Portal (WQX 3.0)",
+            frozenset({"water_quality_samples"}),
+            fetch_wqp, normalize_wqp, WQP_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "gemstat", GEMSTAT_PRODUCT,
+            "Water-quality samples from the open UNEP GEMStat archive (42 countries, no station in Africa)",
+            frozenset({"water_quality_samples"}),
+            fetch_gemstat, normalize_gemstat, GEMSTAT_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "cgls_lwq", CGLS_LWQ_PRODUCT,
+            "Copernicus lake water quality: turbidity and trophic state index per 1 km cell, 10-day composites",
+            frozenset({"water_quality_observations"}),
+            fetch_cgls_lwq, normalize_cgls_lwq, STAC_FORMAT, needs_area_and_dates=True,
         ),
     ]
 }

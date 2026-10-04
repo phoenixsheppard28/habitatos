@@ -69,7 +69,8 @@ def fetch_environment(
 ) -> str:
     """Fetch raw satellite and rainfall files for a WGS84 bbox and inclusive YYYY-MM-DD dates.
 
-    Sources: sentinel2, modis_mod13q1 (Terra), chirps. Includes quality layers. Requires a
+    Sources: sentinel2, modis_mod13q1 (Terra), chirps, cgls_lwq (lake turbidity and trophic state, Africa,
+    lakes over about 50 ha). Includes quality layers. Requires a
     resolved region and dates: never guess them. Default bounds: 1 scene/product,
     3 rainfall days, 2 GiB total, 512 MiB/file. Rasters are clipped to the bbox.
     Discovery alone downloads no data.
@@ -85,6 +86,29 @@ def fetch_environment(
         return json.dumps(failure)
 
 
+@beta_tool
+def fetch_water_quality(
+    bbox: list[float],
+    start: str,
+    end: str,
+    sources: list[str] | None = None,
+    parameters: list[str] | None = None,
+) -> str:
+    """Fetch water-quality samples at monitoring stations for a WGS84 bbox and inclusive YYYY-MM-DD dates.
+
+    Sources: wqp (USA), gemstat (open archive, no African stations).
+    Parameters: names such as ph, turbidity, nitrate_n, total_phosphorus, ecoli, lead; omit for all.
+    Open station data for East Africa is very sparse. Report an empty result as a coverage gap, not an error.
+    Then search_catalog with include_zenodo for published tables.
+    """
+    try:
+        return json.dumps(service.fetch_water_quality(bbox, start, end, sources=sources, parameters=parameters))
+    except ValueError as error:
+        failure = {"status": "error", "message": str(error)}
+        session.record(failure)
+        return json.dumps(failure)
+
+
 FETCH_AGENT_TOOLS = [
     list_downloaded_files,
     search_catalog,
@@ -92,4 +116,5 @@ FETCH_AGENT_TOOLS = [
     check_access,
     download_dataset,
     fetch_environment,
+    fetch_water_quality,
 ]

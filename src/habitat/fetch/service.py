@@ -7,13 +7,15 @@ from habitat.contracts import RawManifest
 from habitat.fetch import session
 from habitat.fetch.catalog import REPOSITORY_PREFIX, search_catalog
 from habitat.fetch.connectors import ConnectorRequest, ConnectorResult, validate_area_and_dates
-from habitat.fetch.connectors import chirps, stac
+from habitat.fetch.connectors import cgls_lwq, chirps, stac
 from habitat.fetch.connectors.fixture import check_fixture_access, get_catalog_entry, inspect_fixture
 from habitat.fetch.connectors.movebank_study import check_movebank_access, inspect_movebank
 from habitat.fetch.connectors.zenodo import check_zenodo_access, inspect_zenodo
+from habitat.normalize.water_quality import VOCABULARY
 from habitat.sources import get_source
 
-ENVIRONMENT_SOURCES = ("sentinel2", "modis_mod13q1", "chirps")
+ENVIRONMENT_SOURCES = ("sentinel2", "modis_mod13q1", "chirps", "cgls_lwq")
+WATER_QUALITY_SOURCES = ("wqp", "gemstat")
 
 
 def resolve_dataset(dataset_id: str) -> tuple[str, str] | None:
@@ -146,11 +148,63 @@ def discover_environment(request: ConnectorRequest, sources: list[str]) -> dict[
                 found += [{"source_id": "chirps", "item": chirps.item_id(request.start + timedelta(d))} for d in range(days)]
             elif source_id == "sentinel2":
                 found += [{"source_id": source_id, "item": i.id} for i in stac.search_sentinel2(request.bbox, start, end)]
+            elif source_id == "cgls_lwq":
+                items = cgls_lwq.search_cgls_lwq(request.bbox, start, end)
+                found += [{"source_id": source_id, "item": i.id} for i in items]
             else:
                 found += [{"source_id": source_id, "item": i.id} for i in stac.search_modis_terra(request.bbox, start, end)]
         except Exception as error:
             warnings.append(f"{source_id}: catalog search failed ({type(error).__name__})")
     return {"status": "discovered" if found else "insufficient_data", "discovered": found, "warnings": warnings}
+
+
+def fetch_water_quality(
+    bbox: list[float],
+    start: str,
+    end: str,
+    *,
+    sources: list[str] | None = None,
+    parameters: list[str] | None = None,
+) -> dict[str, Any]:
+    """Water-quality samples at monitoring stations for one area and an inclusive date range."""
+    sources = list(dict.fromkeys(sources or WATER_QUALITY_SOURCES))
+    unknown = set(sources) - set(WATER_QUALITY_SOURCES)
+    if unknown:
+        raise ValueError(f"sources must be some of {', '.join(WATER_QUALITY_SOURCES)}; got {sorted(unknown)}")
+
+    unknown_parameters = set(parameters or ()) - set(VOCABULARY)
+    if unknown_parameters:
+        raise ValueError(f"parameters must be some of {sorted(VOCABULARY)}; got {sorted(unknown_parameters)}")
+
+    request = ConnectorRequest(
+        bbox=tuple(bbox), start=date.fromisoformat(start), end=date.fromisoformat(end),
+        parameters=tuple(parameters or ()),
+    )
+    validate_area_and_dates(request)
+
+    artifacts, warnings, errors = [], [], []
+    for source_id in sources:
+        result = run_connector(source_id, request)
+        artifacts.extend(result.manifests)
+        warnings.extend(result.warnings)
+        errors.extend(f"{source_id}: {error.message}" for error in result.errors)
+
+    status = ("partial" if warnings or errors else "ok") if artifacts else "insufficient_data"
+    limitations = ["A station describes the water at its own location, not the water upstream of it."]
+    if not artifacts:
+        limitations.append(
+            "No station samples: a coverage gap, not an error. Open station data for East Africa is very sparse."
+        )
+    return {
+        "status": status,
+        "raw_artifacts": [
+            {"artifact_id": a.artifact_id, "source_id": a.extensions.source_id, "storage": a.storage.uri,
+             "coverage": a.coverage.model_dump(mode="json")}
+            for a in artifacts
+        ],
+        "warnings": warnings + errors,
+        "limitations": limitations,
+    }
 
 
 __all__ = [
@@ -160,4 +214,5 @@ __all__ = [
     "download_dataset",
     "list_downloaded_files",
     "fetch_environment",
+    "fetch_water_quality",
 ]

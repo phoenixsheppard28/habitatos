@@ -295,6 +295,58 @@ ANIMAL_ENTITIES_SCHEMA = pa.schema(
 )
 
 
+SITE_OBSERVATIONS_SCHEMA = pa.schema(
+    [
+        pa.field("source_record_id", pa.string(), nullable=False),
+        pa.field("dataset_id", pa.string(), nullable=False),
+        pa.field("site_id", pa.string(), nullable=False),
+        pa.field("time_start", UTC_TIMESTAMP, nullable=False),
+        pa.field("time_end", UTC_TIMESTAMP, nullable=False),
+        pa.field("time_precision", pa.string(), nullable=False),
+        pa.field("available_at", UTC_TIMESTAMP, nullable=False),
+        pa.field("longitude", pa.float64(), nullable=False),
+        pa.field("latitude", pa.float64(), nullable=False),
+        pa.field("cell_id", pa.string(), nullable=True),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("source_item_id", pa.string(), nullable=False),
+        pa.field("processing_version", pa.string(), nullable=False),
+        pa.field("product_status", pa.string(), nullable=False),
+        pa.field("mapping_version", pa.string(), nullable=False),
+        pa.field("parameter", pa.string(), nullable=False),
+        pa.field("fraction", pa.string(), nullable=False),
+        pa.field("value", pa.float64(), nullable=True),
+        pa.field("unit", pa.string(), nullable=False),
+        pa.field("censored", pa.string(), nullable=False),
+        pa.field("detection_limit", pa.float64(), nullable=True),
+        pa.field("detection_limit_type", pa.string(), nullable=True),
+        pa.field("sample_depth_m", pa.float64(), nullable=True),
+        pa.field("method", pa.string(), nullable=True),
+        pa.field("quality_flag", pa.string(), nullable=False),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
+MONITORING_SITES_SCHEMA = pa.schema(
+    [
+        pa.field("site_id", pa.string(), nullable=False),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("local_site_id", pa.string(), nullable=False),
+        pa.field("site_name", pa.string(), nullable=True),
+        pa.field("water_body_type", pa.string(), nullable=False),
+        pa.field("water_body_name", pa.string(), nullable=True),
+        pa.field("longitude", pa.float64(), nullable=False),
+        pa.field("latitude", pa.float64(), nullable=False),
+        pa.field("cell_id", pa.string(), nullable=True),
+        pa.field("coordinate_uncertainty_m", pa.float64(), nullable=True),
+        pa.field("site_feature_id", pa.string(), nullable=True),
+        pa.field("site_feature_distance_m", pa.float64(), nullable=True),
+        pa.field("upstream_area_km2", pa.float64(), nullable=True),
+        pa.field("elevation_m", pa.float64(), nullable=True),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
+
 class AnimalEntity(BaseModel):
     entity_id: str
     source_id: str

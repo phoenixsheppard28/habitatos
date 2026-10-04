@@ -19,18 +19,23 @@ from shapely.geometry import shape
 from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.contracts import DatasetVersion as HabitatDataset
 from habitat.contracts import SearchFilters, Tag
-from habitat.normalize.rows import ANIMAL_LOCATIONS
+from habitat.normalize.rows import ANIMAL_LOCATIONS, SITE_OBSERVATIONS
 
 RAINFALL = "rainfall_observations"
 VEGETATION = "vegetation_observations"
 DAILY_MOVEMENT = "animal_daily_movement"
 DAILY_MOVEMENT_SUFFIX = "--daily-movement"
 VEGETATION_INDICES = frozenset({"ndvi", "evi", "mndwi", "ndmi"})
+WATER_QUALITY = "water_quality_observations"
+WATER_QUALITY_SUFFIX = "--water-quality"
+WATER_QUALITY_VARIABLES = frozenset({"ndti", "ndci", "water_turbidity", "trophic_state_index"})
 POSTGIS_SCHEMA = "extensions"
 
 SEARCH_FILTERS = {
-    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION])}, or a list of them",
-    "variables": f"list of measured variables: rainfall_mm or {sorted(VEGETATION_INDICES)}; any one matches",
+    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION, SITE_OBSERVATIONS,
+                                 WATER_QUALITY])}, or a list of them",
+    "variables": f"list of measured variables: rainfall_mm, {sorted(VEGETATION_INDICES)}, "
+                 f"{sorted(WATER_QUALITY_VARIABLES)} or station parameters such as ph; any one matches",
     "source_id": "source id or list of them, for example chirps, sentinel2, modis_mod13q1, movebank",
     "tags": "object of catalog tag key to value; every pair must match, for example {\"biome\": \"savanna\"}",
 }
@@ -170,12 +175,82 @@ FAMILIES = {
 }
 
 
-def recipe_family(dataset: HabitatDataset) -> str | None:
-    """The Recipe family of a catalog dataset. None when the dataset has no Recipe view (for example elevation)."""
-    if dataset.family == ANIMAL_LOCATIONS:
-        return ANIMAL_LOCATIONS
+FAMILIES[SITE_OBSERVATIONS] = RecipeFamily(
+    name=SITE_OBSERVATIONS,
+    view="recipe_site_observations",
+    row_grain="one row per station sample, parameter, fraction and depth",
+    columns=[
+        *identity_columns(),
+        Column(name="site_id", type="string", nullable=False, role="site_id",
+               description="Monitoring station id, scoped by source, for example wqp:USGS-01646500"),
+        Column(name="water_body_type", type="string", nullable=False,
+               description="river, lake, reservoir, wetland, canal, spring, groundwater or other"),
+        Column(name="site_feature_id", type="string",
+               description="site_features row of the water body of the station, when known"),
+        Column(name="time_start", type="timestamp", nullable=False, role="event_time",
+               description="Sample time, or start of the sample day, UTC"),
+        Column(name="time_end", type="timestamp", nullable=False,
+               description="Sample time, or end of the sample day, UTC"),
+        Column(name="time_precision", type="string", nullable=False, description="instant or day"),
+        Column(name="available_at", type="timestamp", nullable=False, role="available_at",
+               description="When the source published the value; use it for point-in-time joins"),
+        Column(name="longitude", type="number", nullable=False, unit="degree", role="longitude",
+               description="WGS84 longitude of the station"),
+        Column(name="latitude", type="number", nullable=False, unit="degree", role="latitude",
+               description="WGS84 latitude of the station"),
+        Column(name="cell_id", type="string", role="cell_id",
+               description="EASE-Grid 2.0 global 1 km cell that contains the station"),
+        Column(name="parameter", type="string", nullable=False,
+               description="Vocabulary parameter, for example ph, nitrate_n, ecoli or lead"),
+        Column(name="fraction", type="string", nullable=False,
+               description="total, dissolved, suspended or not_applicable"),
+        Column(name="value", type="number", role="measurement",
+               description="Value in the canonical unit; for a censored row, the limit; null when no limit is known"),
+        Column(name="unit", type="string", nullable=False, description="Canonical unit of the parameter"),
+        Column(name="censored", type="string", nullable=False,
+               description="none, left (below the limit) or right (above the range)"),
+        Column(name="detection_limit", type="number", description="Detection or reporting limit, canonical unit"),
+        Column(name="sample_depth_m", type="number", unit="m", description="Sample depth below the surface"),
+        Column(name="product_status", type="string", nullable=False,
+               description="final or preliminary; final replaces preliminary for the same sample"),
+        Column(name="quality_flag", type="string", nullable=False, description="ok, or one specific reason"),
+    ],
+)
 
-    variables = set(dataset.variables)
+FAMILIES[WATER_QUALITY] = RecipeFamily(
+    name=WATER_QUALITY,
+    view="recipe_water_quality_observations",
+    row_grain="one row per 1 km cell, water-quality variable and acquisition or composite",
+    columns=[
+        *identity_columns(),
+        Column(name="source_dataset_id", type="string", nullable=False,
+               description="Catalog dataset id of the satellite series"),
+        *cell_columns(),
+        Column(name="observed_at", type="timestamp", nullable=False, role="event_time",
+               description="Acquisition time, or start of a composite period, UTC"),
+        Column(name="observed_until", type="timestamp", nullable=False,
+               description="Acquisition time, or end of a composite period, UTC"),
+        Column(name="variable", type="string", nullable=False,
+               description=f"One of {sorted(WATER_QUALITY_VARIABLES)}; NDTI and NDCI are relative indices"),
+        Column(name="value", type="number", role="measurement",
+               description="Cell mean over valid water pixels; never mix a relative index with a concentration"),
+        Column(name="std", type="number", description="Cell standard deviation over valid water pixels"),
+        Column(name="unit", type="string", nullable=False, description="index or NTU"),
+        Column(name="pixel_count", type="integer", nullable=False, description="Valid water pixels in the cell"),
+        Column(name="product_status", type="string", nullable=False, description="final or preliminary"),
+        *quality_columns(),
+    ],
+    native_geometry_columns=frozenset({"geometry"}),
+)
+
+
+def recipe_family(dataset: HabitatDataset) -> str | None:
+    """The Recipe family of a catalog dataset. None when the dataset has no Recipe view (for example elevation).
+    Water-quality variables do not count here; `to_recipe_datasets` gives them their own dataset."""
+    if dataset.family in (ANIMAL_LOCATIONS, SITE_OBSERVATIONS):
+        return dataset.family
+
+    variables = set(dataset.variables) - WATER_QUALITY_VARIABLES
     if dataset.family != "cell_observations" or not variables:
         return None
 
@@ -186,13 +261,15 @@ def recipe_family(dataset: HabitatDataset) -> str | None:
 
 
 def to_recipe_datasets(dataset: HabitatDataset) -> list[DatasetVersion]:
-    """Animal fixes also give a derived daily movement dataset, with its own Recipe dataset id."""
+    """Animal fixes also give a derived daily movement dataset, with its own Recipe dataset id. Satellite
+    water-quality variables give a water-quality dataset with its own Recipe dataset id."""
+    water_quality = water_quality_datasets(dataset)
     primary = to_recipe_dataset(dataset)
     if primary is None:
-        return []
+        return water_quality
 
     if primary.family != ANIMAL_LOCATIONS:
-        return [primary]
+        return [primary, *water_quality]
 
     return [primary, daily_movement_dataset(dataset)]
 
@@ -205,6 +282,18 @@ def daily_movement_dataset(dataset: HabitatDataset) -> DatasetVersion:
                        "Last good fix per animal and UTC day, and the distance from the previous day",
         "metadata": {**movement.metadata, "derived_from": derived_from},
     })
+
+
+def water_quality_datasets(dataset: HabitatDataset) -> list[DatasetVersion]:
+    if dataset.family != "cell_observations" or not WATER_QUALITY_VARIABLES & set(dataset.variables):
+        return []
+
+    water_quality = descriptor(dataset, FAMILIES[WATER_QUALITY], dataset.dataset_id + WATER_QUALITY_SUFFIX)
+    derived_from = {"dataset_id": dataset.dataset_id, "version": str(dataset.version)}
+    return [water_quality.model_copy(update={
+        "description": f"Satellite water-quality proxies on water pixels in: {dataset.description}",
+        "metadata": {**water_quality.metadata, "derived_from": derived_from},
+    })]
 
 
 def to_recipe_dataset(dataset: HabitatDataset) -> DatasetVersion | None:
