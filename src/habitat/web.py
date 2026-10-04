@@ -2,8 +2,9 @@ import argparse
 import json
 import logging
 from datetime import date, datetime
-from functools import partial
+from functools import lru_cache, partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from threading import RLock
 from urllib.parse import parse_qs, urlparse
 
 import psycopg
@@ -15,6 +16,7 @@ from habitat.db import database_url
 
 logger = logging.getLogger(__name__)
 FEATURE_LIMIT = 20_000
+snapshot_lock = RLock()
 
 
 def connection():
@@ -52,8 +54,16 @@ def catalog():
 def dataset_features(dataset_id):
     with connection() as database:
         dataset = public_dataset(database, dataset_id)
-        parameters = {"dataset": dataset_id, "version": str(dataset["version"]), "limit": FEATURE_LIMIT}
-        if dataset["family"] == "animal_locations":
+
+    with snapshot_lock:
+        return dataset_snapshot(dataset_id, dataset["version"], dataset["family"])
+
+
+@lru_cache(maxsize=8)
+def dataset_snapshot(dataset_id, version, family):
+    with connection() as database:
+        parameters = {"dataset": dataset_id, "version": str(version), "limit": FEATURE_LIMIT}
+        if family == "animal_locations":
             query = """
                 SELECT entity_id, species, day AS observed_at, last_fix_at, fix_count,
                        longitude, latitude, cell_id, daily_displacement_km,
@@ -67,15 +77,14 @@ def dataset_features(dataset_id):
                          count(daily_displacement_km) AS segments,
                          sum(daily_displacement_km) AS distance_km,
                          avg(daily_displacement_km) AS mean_distance_km"""
-        elif dataset["family"] == "cell_observations":
+        elif family == "cell_observations":
             query = """
                 SELECT o.cell_id, o.time_start AS observed_at, o.time_end AS observed_until,
                        o.variable, o.value, o.unit, o.quality_flag, o.valid_fraction,
                        o.source_item_id AS source_record_id, o.dataset_version, g.geometry
-                FROM current_cell_observations o JOIN grid_cells g USING (cell_id)
-                WHERE o.dataset_id = %(dataset)s AND o.dataset_version <= %(version)s::integer
-                  AND EXISTS (SELECT 1 FROM latest_datasets d WHERE d.dataset_id = o.dataset_id
-                              AND d.access_scope = 'public' AND d.status = 'ready')
+                FROM recipe_cell_observations o JOIN grid_cells g USING (cell_id)
+                WHERE o.dataset_id = %(dataset)s AND o.dataset_version = %(version)s
+                  AND o.access_scope = 'public'
             """
             geometry = "ST_AsGeoJSON(geometry)::jsonb"
             metrics = """count(DISTINCT cell_id) AS cells, avg(value) AS mean_value,
@@ -83,28 +92,39 @@ def dataset_features(dataset_id):
         else:
             raise ValueError("This dataset family has no map adapter.")
 
-        rows = database.execute(
-            f"WITH observations AS ({query}) SELECT {geometry} AS geometry, "
-            "to_jsonb(observations) - 'geometry' - 'longitude' - 'latitude' AS properties "
-            "FROM observations ORDER BY observed_at, source_record_id LIMIT %(limit)s", parameters,
-        ).fetchall()
-        monthly = database.execute(
-            f"WITH observations AS ({query}) SELECT to_char(observed_at, 'YYYY-MM') AS month, "
-            f"count(*) AS records, {metrics} FROM observations GROUP BY 1 ORDER BY 1", parameters,
-        ).fetchall()
+        variable_column = ", variable" if family == "cell_observations" else ""
+        result = database.execute(
+            f"""
+            WITH observations AS MATERIALIZED ({query}),
+            records AS (
+                SELECT {geometry} AS geometry,
+                       to_jsonb(observations) - 'geometry' - 'longitude' - 'latitude' AS properties
+                FROM observations ORDER BY observed_at, source_record_id LIMIT %(limit)s
+            ),
+            monthly AS (
+                SELECT to_char(observed_at, 'YYYY-MM') AS month, count(*) AS records,
+                       {metrics}{variable_column}
+                FROM observations GROUP BY 1{variable_column} ORDER BY 1{variable_column}
+            )
+            SELECT (SELECT jsonb_agg(to_jsonb(records)) FROM records) AS features,
+                   (SELECT jsonb_agg(to_jsonb(monthly)) FROM monthly) AS monthly
+            """, parameters,
+        ).fetchone()
+        rows = result["features"] or []
+        monthly = result["monthly"] or []
         manifests = database.execute(
             "SELECT DISTINCT raw_manifest->'source' AS source, raw_manifest->'rights' AS rights "
             "FROM ingest_batches WHERE series_id = %s AND added_in_version <= %s "
             "AND (superseded_in_version IS NULL OR superseded_in_version > %s)",
-            (dataset_id, dataset["version"], dataset["version"]),
+            (dataset_id, version, version),
         ).fetchall()
 
     total = sum(month["records"] for month in monthly)
     return {"type": "FeatureCollection", "features": [{"type": "Feature", **row} for row in rows],
-            "dataset_id": dataset_id, "version": dataset["version"], "monthly": monthly,
+            "dataset_id": dataset_id, "version": version, "monthly": monthly,
             "total_records": total, "truncated": total > len(rows), "limit": FEATURE_LIMIT,
             "sources": manifests,
-            "grain": "Last good fix per animal and UTC day" if dataset["family"] == "animal_locations"
+            "grain": "Last good fix per animal and UTC day" if family == "animal_locations"
             else "Observation per spatial cell, variable, and acquisition"}
 
 
@@ -123,12 +143,15 @@ class Handler(SimpleHTTPRequestHandler):
     def json_response(self, status, payload):
         body = json.dumps(payload, default=lambda value: value.isoformat() if isinstance(value, (date, datetime))
                           else str(value), allow_nan=False).encode()
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -138,6 +161,11 @@ class Handler(SimpleHTTPRequestHandler):
         self.handle_api(lambda: self.get_api(parsed))
 
     def get_api(self, parsed):
+        if parsed.path == "/api/health":
+            with connection() as database:
+                database.execute("SELECT dataset_id FROM latest_datasets LIMIT 0")
+
+            return {"status": "ok"}
         if parsed.path == "/api/catalog":
             return catalog()
         if parsed.path == "/api/features":

@@ -5,7 +5,7 @@ import psycopg
 
 from habitat.archive import Archive, ChecksumMismatch
 from habitat.archive.index import PostgresArtifactIndex
-from habitat.catalog.ai import CatalogAssistant
+from habitat.catalog.classifier import dataset_labeler
 from habitat.catalog.publish import publish_series_version
 from habitat.catalog.store import PostgresCatalog
 from habitat.catalog.taxa import resolve_taxon
@@ -89,9 +89,8 @@ def publish_changed(
             source_id=source_id,
             description=get_source(source_id).description,
             access_scope=access_scope,
-            assistant=CatalogAssistant() if use_ai else None,
+            assistant=dataset_labeler(use_ai),
         )
         if descriptor is not None:
             published.append(series)
     return published
-

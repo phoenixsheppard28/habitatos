@@ -1,0 +1,90 @@
+name: habitat-watch
+
+x-app: &app
+  image: habitat-watch:local
+  build:
+    context: .
+  environment: &app-environment
+    HABITAT_DATABASE_URL: "host=db port=5432 dbname=habitat user=habitat"
+    PGPASSWORD: ${HABITAT_POSTGRES_PASSWORD:-habitat-local}
+    HABITAT_DATA_DIR: /app/data
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    environment:
+      POSTGRES_DB: habitat
+      POSTGRES_USER: habitat
+      POSTGRES_PASSWORD: ${HABITAT_POSTGRES_PASSWORD:-habitat-local}
+    command: ["postgres", "-c", "search_path=public,extensions"]
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U habitat -d habitat"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["python", "-m", "habitat.migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    <<: *app
+    environment:
+      <<: *app-environment
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MOVEBANK_USERNAME: ${MOVEBANK_USERNAME:-}
+      MOVEBANK_PASSWORD: ${MOVEBANK_PASSWORD:-}
+      HABITAT_CLASSIFIER_URL: http://classifier:8001
+      HABITAT_CLASSIFIER_THRESHOLD: ${HABITAT_CLASSIFIER_THRESHOLD:-0.7}
+    ports:
+      - "127.0.0.1:${HABITAT_PORT:-8080}:8000"
+    volumes:
+      - artifacts:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      classifier:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 15s
+    init: true
+    restart: unless-stopped
+
+  classifier:
+    build:
+      context: services/classifier
+    environment:
+      GLICLASS_MODEL: knowledgator/gliclass-small-v1.0
+      GLICLASS_REVISION: 21edefaf7951f68c68c505f9139ba536d3b448f7
+      GLICLASS_THREADS: ${GLICLASS_THREADS:-2}
+    volumes:
+      - classifier-models:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 10m
+    init: true
+    restart: unless-stopped
+
+volumes:
+  database:
+  artifacts:
+  classifier-models:

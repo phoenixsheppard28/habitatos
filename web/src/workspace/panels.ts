@@ -1,8 +1,12 @@
 import { element } from './dom';
 
+type DockSide = 'left' | 'right';
+
 export class WorkspacePanels {
   private chat = element('chat');
   private workspace = document.querySelector<HTMLElement>('.workspace')!;
+  private floatingPosition: { left: number; top: number } | null = null;
+  private snapSide: DockSide | null = null;
 
   constructor() {
     element('layers-toggle').addEventListener('click', () =>
@@ -11,8 +15,13 @@ export class WorkspacePanels {
     element('layers-close').addEventListener('click', () => this.setSidebar(false));
     element('rail-chat').addEventListener('click', () => this.showChat());
     element('chat-launcher').addEventListener('click', () => this.showChat());
+    element('chat-dock').addEventListener('click', () => {
+      if (this.chat.classList.contains('docked')) this.undockChat();
+      else this.dockChat('right');
+    });
     element('chat-close').addEventListener('click', () => {
       this.chat.hidden = true;
+      this.previewSnap(null);
       element('chat-launcher').hidden = false;
       element('chat-launcher').focus();
     });
@@ -60,39 +69,123 @@ export class WorkspacePanels {
   }
 
   private constrainChat(): void {
-    if (this.chat.hidden || !this.chat.style.left) return;
+    if (this.chat.hidden) return;
+    if (this.chat.classList.contains('docked')) {
+      if (window.innerWidth <= 1100) this.setSidebar(false);
+
+      return;
+    }
+    if (!this.chat.style.left) return;
 
     const chatBounds = this.chat.getBoundingClientRect();
     const workspaceBounds = this.workspace.getBoundingClientRect();
     this.positionChat(chatBounds.left - workspaceBounds.left, chatBounds.top - workspaceBounds.top);
   }
 
+  private dockChat(side: DockSide): void {
+    if (!this.chat.classList.contains('docked')) {
+      const bounds = this.chat.getBoundingClientRect();
+      const workspaceBounds = this.workspace.getBoundingClientRect();
+      this.floatingPosition = {
+        left: bounds.left - workspaceBounds.left,
+        top: bounds.top - workspaceBounds.top,
+      };
+    }
+    if (window.innerWidth <= 1100) this.setSidebar(false);
+
+    this.chat.classList.add('docked');
+    this.chat.dataset.dock = side;
+    this.chat.style.removeProperty('left');
+    this.chat.style.removeProperty('top');
+    this.chat.style.removeProperty('right');
+    this.previewSnap(null);
+    this.updateDockControl();
+  }
+
+  private undockChat(): void {
+    this.chat.classList.remove('docked');
+    delete this.chat.dataset.dock;
+    this.updateDockControl();
+    if (this.floatingPosition) {
+      this.positionChat(this.floatingPosition.left, this.floatingPosition.top);
+    }
+  }
+
+  private updateDockControl(): void {
+    const docked = this.chat.classList.contains('docked');
+    const control = element('chat-dock');
+    const label = docked ? 'Float assistant' : 'Dock assistant to the right';
+    control.setAttribute('aria-pressed', String(docked));
+    control.setAttribute('aria-label', label);
+    control.title = label;
+  }
+
+  private previewSnap(side: DockSide | null): void {
+    this.snapSide = side;
+    if (side) this.workspace.dataset.chatSnap = side;
+    else delete this.workspace.dataset.chatSnap;
+  }
+
   private enableChatDrag(): void {
     const handle = element('chat-handle');
-    let dragOffset: { left: number; top: number } | null = null;
+    let drag: {
+      left: number;
+      top: number;
+      startX: number;
+      startY: number;
+      width: number;
+      moved: boolean;
+    } | null = null;
     handle.addEventListener('pointerdown', (event) => {
       if ((event.target as HTMLElement).closest('button') || event.button !== 0) return;
 
       const bounds = this.chat.getBoundingClientRect();
-      dragOffset = {
+      drag = {
         left: event.clientX - bounds.left,
         top: event.clientY - bounds.top,
+        startX: event.clientX,
+        startY: event.clientY,
+        width: bounds.width,
+        moved: false,
       };
       handle.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
     handle.addEventListener('pointermove', (event) => {
-      if (!dragOffset) return;
+      if (!drag) return;
+      if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4)
+        return;
+
+      drag.moved = true;
+      if (this.chat.classList.contains('docked')) {
+        this.undockChat();
+        drag.left *= this.chat.offsetWidth / drag.width;
+      }
 
       const bounds = this.workspace.getBoundingClientRect();
       this.positionChat(
-        event.clientX - bounds.left - dragOffset.left,
-        event.clientY - bounds.top - dragOffset.top,
+        event.clientX - bounds.left - drag.left,
+        event.clientY - bounds.top - drag.top,
       );
+      const snapSide =
+        event.clientX <= bounds.left + 48
+          ? 'left'
+          : event.clientX >= bounds.right - 48
+            ? 'right'
+            : null;
+      this.previewSnap(snapSide);
     });
-    for (const eventName of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    handle.addEventListener('pointerup', (event) => {
+      if (drag?.moved && this.snapSide) this.dockChat(this.snapSide);
+
+      drag = null;
+      this.previewSnap(null);
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    });
+    for (const eventName of ['pointercancel', 'lostpointercapture']) {
       handle.addEventListener(eventName, () => {
-        dragOffset = null;
+        drag = null;
+        this.previewSnap(null);
       });
     }
     handle.addEventListener('keydown', (event) => {
@@ -103,6 +196,8 @@ export class WorkspacePanels {
         return;
 
       event.preventDefault();
+      if (this.chat.classList.contains('docked')) this.undockChat();
+
       const bounds = this.chat.getBoundingClientRect();
       const workspaceBounds = this.workspace.getBoundingClientRect();
       const distance = event.shiftKey ? 40 : 12;

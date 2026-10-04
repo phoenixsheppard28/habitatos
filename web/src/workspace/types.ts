@@ -82,6 +82,7 @@ export interface ChatMessage {
 export interface ChatResponse {
   answer: string;
   updated: boolean;
+  retrieved_dataset_ids?: string[];
   citations?: SourceCitation[];
 }
 

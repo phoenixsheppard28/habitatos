@@ -15,11 +15,14 @@ export class WorkspaceMap {
   private extent = L.featureGroup().addTo(this.map);
   private renderedSnapshot: DatasetSnapshot | null = null;
   private renderedMonth: number | null = null;
-  private basemap = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-  }).addTo(this.map);
+  private basemap = L.tileLayer(
+    'https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    {
+      attribution:
+        'Sources: <a href="https://goto.arcgisonline.com/maps/World_Topo_Map">Esri</a>, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS User Community',
+      maxZoom: 19,
+    },
+  ).addTo(this.map);
 
   constructor(private store: WorkspaceStore) {
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);

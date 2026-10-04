@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 import anthropic
 from pydantic import BaseModel
@@ -25,6 +25,10 @@ Use only tag keys and values from the vocabulary in the request."""
 class DatasetLabels(BaseModel):
     summary: str
     tags: list[Tag]
+
+
+class DatasetLabeler(Protocol):
+    def label_dataset(self, dataset: DatasetVersion, sample_rows: list[dict[str, Any]]) -> DatasetLabels: ...
 
 
 class QuestionFilters(BaseModel):

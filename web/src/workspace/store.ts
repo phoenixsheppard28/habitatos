@@ -29,7 +29,7 @@ export class WorkspaceStore {
     for (const listener of this.listeners) listener(this.state);
   }
 
-  async refresh(): Promise<void> {
+  async refresh(preferredDatasetId?: string): Promise<void> {
     this.pendingRequest?.abort();
     const controller = new AbortController();
     this.pendingRequest = controller;
@@ -46,6 +46,7 @@ export class WorkspaceStore {
       this.state.datasets = response.datasets;
       this.state.assistantAvailable = response.assistant_available;
       const selected =
+        response.datasets.find((dataset) => dataset.dataset_id === preferredDatasetId) ??
         response.datasets.find((dataset) => dataset.dataset_id === previousId) ??
         response.datasets.find((dataset) => dataset.family === 'animal_locations') ??
         response.datasets[0];

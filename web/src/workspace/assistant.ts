@@ -1,5 +1,6 @@
 import { askAssistant } from './api';
 import { element, formatMonth, node, sourceLink } from './dom';
+import { renderMarkdown } from './markdown';
 import type { WorkspacePanels } from './panels';
 import type { WorkspaceStore } from './store';
 import type { ChatMessage, SourceCitation } from './types';
@@ -68,7 +69,7 @@ export class WorkspaceAssistant {
       pending.remove();
       this.appendMessage('assistant', response.answer, response.citations);
       this.messages = [...messages, { role: 'assistant', content: response.answer }];
-      if (response.updated) await this.store.refresh();
+      if (response.updated) await this.store.refresh(response.retrieved_dataset_ids?.[0]);
     } catch (error) {
       pending.remove();
       this.appendMessage(
@@ -103,7 +104,7 @@ export class WorkspaceAssistant {
         role === 'user' ? 'label' : 'answer-brand',
       ),
     );
-    article.append(node('p', text, role === 'user' ? 'question' : 'finding'));
+    article.append(role === 'user' ? node('p', text, 'question') : renderMarkdown(text));
     const urls = new Set<string>();
     for (const citation of citations) {
       const url = citation.source?.url;

@@ -46,6 +46,22 @@ beforeEach(() => {
 });
 
 describe('workspace data transitions', () => {
+  it('opens retrieved data after refreshing a workspace that already has a selection', async () => {
+    const store = new WorkspaceStore();
+    await store.refresh();
+    const retrieved = { ...dataset, dataset_id: 'retrieved-rainfall' };
+    vi.mocked(fetchCatalog).mockResolvedValue({
+      datasets: [dataset, retrieved],
+      assistant_available: true,
+    });
+    vi.mocked(fetchDataset).mockResolvedValue({ ...snapshot, dataset_id: retrieved.dataset_id });
+
+    await store.refresh(retrieved.dataset_id);
+
+    expect(store.state.selected?.dataset_id).toBe(retrieved.dataset_id);
+    expect(store.state.snapshot?.dataset_id).toBe(retrieved.dataset_id);
+  });
+
   it('applies the same timeline cutoff to features and database summaries', async () => {
     const store = new WorkspaceStore();
     await store.refresh();

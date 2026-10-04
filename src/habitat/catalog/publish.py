@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 from datetime import UTC, datetime
+import logging
 
 from shapely import wkt
 from shapely.geometry.base import BaseGeometry
 
-from habitat.catalog.ai import CatalogAssistant
+from habitat.catalog.ai import DatasetLabeler
+from habitat.catalog.classifier import ClassificationUnavailable
 from habitat.catalog.footprint import footprint_from_cells, grows_materially
 from habitat.catalog.store import MemoryCatalog, PostgresCatalog
 from habitat.catalog.tags import deterministic_tags, merge_tags
@@ -14,6 +16,7 @@ from habitat.normalize.rows import ANIMAL_LOCATIONS
 from habitat.storage.series import SeriesStore
 
 SAMPLE_ROW_COUNT = 20
+logger = logging.getLogger(__name__)
 
 ROW_GRAIN = {
     "cell_observations": "one row per cell, variable and acquisition",
@@ -29,7 +32,7 @@ def publish_series_version(
     source_id: str,
     description: str,
     access_scope: str,
-    assistant: CatalogAssistant | None = None,
+    assistant: DatasetLabeler | None = None,
     region_layers: dict[str, Iterable[tuple[str, BaseGeometry]]] | None = None,
 ) -> DatasetVersion | None:
     """Register the latest series version in the catalog, with coverage and tags. Returns None when it is already registered."""
@@ -73,9 +76,13 @@ def publish_series_version(
 
     if assistant is not None and needs_ai_labels(previous, footprint, summary.start, summary.end):
         sample = store.sample_rows(version, SAMPLE_ROW_COUNT)
-        labels = assistant.label_dataset(descriptor, sample)
-        descriptor.tags = merge_tags(computed_tags, labels.tags)
-        descriptor.summary = labels.summary
+        try:
+            labels = assistant.label_dataset(descriptor, sample)
+        except ClassificationUnavailable:
+            logger.warning("Local classification failed for %s; publishing with existing and deterministic tags.", series_id)
+        else:
+            descriptor.tags = merge_tags(computed_tags, labels.tags)
+            descriptor.summary = labels.summary
 
     catalog.register_dataset(descriptor)
     return descriptor
@@ -114,4 +121,3 @@ def quarters_between(start: datetime, end: datetime) -> set[tuple[int, int]]:
         quarters.add((year, quarter))
         year, quarter = (year + 1, 0) if quarter == 3 else (year, quarter + 1)
     return quarters
-

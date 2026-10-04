@@ -1,7 +1,40 @@
 # Habitat Watch
 
-The map workspace lives in [`web/`](web/README.md). It uses Leaflet, standard OpenStreetMap tiles, and Vite.
-The Databricks-style sidebar contains data, visualization, and analysis objects. The UI uses synthetic ecological samples.
+The map workspace lives in [`web/`](web/README.md). It uses TypeScript, Leaflet, Esri World Topographic Map tiles, and Vite.
+The workspace reads published observations through the Python API. The assistant connects to retrieval, Recipe, and Analysis.
+
+## Start the complete app
+
+Install Docker with Docker Compose support.
+Run this command from the repository root:
+
+```sh
+docker compose up --build -d --wait
+```
+
+Open http://localhost:8080.
+Compose starts PostGIS and GLiClass, applies database migrations, and starts the API with the built frontend.
+The backend includes Fetch, Normalize, Recipe, and Analysis.
+GLiClass assigns dataset tags locally with confidence scores.
+The first classifier start downloads the pinned, Apache-2.0 model weights.
+Database records, downloaded files, and analysis artifacts persist in Docker volumes.
+The first start creates an empty catalog.
+Use the assistant or the pipeline command to retrieve data.
+
+Set `ANTHROPIC_API_KEY` in the root `.env` file to enable the assistant.
+Movebank study retrieval also requires `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
+Compose reads these settings at runtime.
+
+For frontend development, keep the stack active and run:
+
+```sh
+pnpm --dir web install
+pnpm --dir web run dev
+```
+
+Open http://localhost:5173.
+Vite forwards `/api` requests to the container at http://127.0.0.1:8080.
+See [`docs/docker.md`](docs/docker.md) for configuration, pipeline commands, migrations, and service checks.
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 

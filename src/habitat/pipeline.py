@@ -159,7 +159,7 @@ def main() -> None:
     parser.add_argument("--end", type=date.fromisoformat, help="last day, YYYY-MM-DD")
     parser.add_argument("--package", help="dataset of the source: Movebank package UUID, study id, record or fixture id")
     parser.add_argument("--question", help="ask the fetch agent instead of naming a source")
-    parser.add_argument("--ai-tags", action="store_true", help="label new dataset versions with Claude")
+    parser.add_argument("--ai-tags", action="store_true", help="enable model tags; the configured local classifier takes priority")
     args = parser.parse_args()
 
     if bool(args.source) == bool(args.question):

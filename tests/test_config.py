@@ -1,5 +1,6 @@
 from habitat import config
 from habitat.db import database_url
+import pytest
 
 
 def test_data_dir_from_env_file_takes_effect(tmp_path, monkeypatch):
@@ -45,3 +46,11 @@ def test_missing_database_url_raises(monkeypatch):
         assert config.DATABASE_URL_VARIABLE in str(error)
     else:
         raise AssertionError("expected RuntimeError")
+
+
+@pytest.mark.parametrize("threshold", ["-0.1", "1.1", "nan"])
+def test_classifier_threshold_must_be_a_probability(tmp_path, monkeypatch, threshold):
+    monkeypatch.setenv("HABITAT_CLASSIFIER_THRESHOLD", threshold)
+
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        config.load_settings(tmp_path / "missing.env")

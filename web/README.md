@@ -2,9 +2,25 @@
 
 The workspace uses TypeScript, Leaflet, and Vite.
 The Python API reads published observations from the configured PostgreSQL database.
-Maps use OpenStreetMap tiles with contributor attribution.
+Maps use Esri World Topographic Map tiles with source attribution.
 
 ## Start development
+
+Start the complete backend from the repository root:
+
+```sh
+docker compose up --build -d --wait
+pnpm --dir web install
+pnpm --dir web run dev
+```
+
+Open http://localhost:5173 for frontend development.
+Vite forwards `/api` requests to http://127.0.0.1:8080.
+The container also serves the built workspace at http://localhost:8080.
+The stack includes a local GLiClass service for dataset tagging.
+See [`../docs/docker.md`](../docs/docker.md) for container configuration and service commands.
+
+### Run the backend outside Docker
 
 Run these commands from the repository root:
 
@@ -20,7 +36,7 @@ Movebank study retrieval also uses `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
 Start the backend in one terminal:
 
 ```sh
-uv run habitat-web
+uv run habitat-web --port 8080
 ```
 
 Start the frontend in another terminal:
@@ -30,7 +46,8 @@ pnpm --dir web run dev
 ```
 
 Open http://localhost:5173.
-Vite forwards `/api` requests to http://127.0.0.1:8000.
+Vite forwards `/api` requests to http://127.0.0.1:8080.
+Set `HABITAT_API_TARGET` in `web/.env.local` to use a different backend address.
 The backend also serves the built workspace from `web/dist`.
 
 ## Build and verify
@@ -72,6 +89,12 @@ Each request checks the public catalog before it uses a cached snapshot.
 
 ## Assistant
 
+Assistant responses display Markdown headings, lists, tables, links, and code blocks.
+The floating assistant provides a larger reading area.
+Drag the assistant header to either side to dock the panel.
+Use the dock button to switch between the floating panel and the right side.
+The docked panel uses the full workspace height.
+
 The assistant sends questions and recent conversation messages to the Python API.
 The API calls the configured model and exposes three bounded tools:
 
@@ -82,6 +105,10 @@ The API calls the configured model and exposes three bounded tools:
 Retrieval requires an explicit source, region, date range, and any required study or package identifier.
 Environmental retrieval accepts at most one year and 25 square degrees per request.
 Successful publication refreshes the catalog.
+When relevant data is absent, the assistant offers retrieval from a supported source.
+The assistant requests confirmation and any missing region, dates, or study identifier.
+After confirmation, the assistant retrieves the data and continues the original question.
+The workspace selects the published dataset automatically.
 Analysis returns an insufficient-data status when compatible evidence is unavailable.
 The assistant does not generate unsupported forecasts.
 
