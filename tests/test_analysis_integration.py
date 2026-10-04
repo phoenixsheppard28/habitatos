@@ -22,7 +22,7 @@ from workflow.handlers import FetchSource, stage_handlers
 
 RAIN_DAYS = {date(2011, 2, day) for day in range(22, 29)} | {date(2011, 3, day) for day in range(1, 7)}
 WILDEBEEST = "Connochaetes taurinus"
-MOVEMENT_DATASET = "movebank_repository--movebank-data-repository--ease2-global-1km"
+MOVEMENT_DATASET = "movebank_repository--movebank-data-repository--ease2-global-1km--study-208413731"
 WGS84 = Geod(ellps="WGS84")
 
 REQUIREMENTS = [

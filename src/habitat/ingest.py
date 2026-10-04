@@ -80,14 +80,18 @@ def publish_changed(
     ingested = [o for o in outcomes if o.append]
     published = []
     for series in sorted({o.append.series_id for o in ingested}):
-        source_id = next(o.manifest.extensions.source_id for o in ingested if o.append.series_id == series)
+        manifest = next(o.manifest for o in ingested if o.append.series_id == series)
+        source_id = manifest.extensions.source_id
+        title = manifest.extensions.properties.get("title")
+        description = title.removeprefix("Data from: ") if title else get_source(source_id).description
+
         descriptor = publish_series_version(
             workspace.store,
             workspace.catalog,
             workspace.grid,
             series,
             source_id=source_id,
-            description=get_source(source_id).description,
+            description=description,
             access_scope=access_scope,
             assistant=dataset_labeler(use_ai),
         )

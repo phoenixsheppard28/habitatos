@@ -26,7 +26,7 @@ from habitat.db import connect
 from habitat.fetch import run as fetch
 from habitat.grid import default_grid
 from habitat.ingest import IngestOutcome, Workspace, ingest_manifest, publish_changed
-from habitat.normalize.rows import series_id_for
+from habitat.normalize.rows import series_id
 from habitat.sources import SOURCES, get_source
 from habitat.storage.series import AppendResult
 
@@ -136,7 +136,7 @@ def process(manifest: RawManifest, workspace: Workspace, aoi: BBox | None):
         outcome.reason = f"unknown source_id {item.source_id!r}; register the source before ingest"
         return outcome, None
 
-    outcome.series_id = series_id_for(item.source_id, source.product, workspace.grid)
+    outcome.series_id = series_id(manifest, workspace.grid)
     if ingested(workspace.store, outcome.series_id)(
         item.source_item_id, item.processing_version, item.product_status.value
     ):

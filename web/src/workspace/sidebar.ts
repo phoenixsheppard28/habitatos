@@ -58,7 +58,7 @@ export class WorkspaceSidebar {
       const control = node('button', undefined, 'object-link dataset-link');
       control.type = 'button';
       control.dataset.dataset = dataset.dataset_id;
-      const label = node('span', dataset.source_id, 'dataset-label');
+      const label = node('span', dataset.description || dataset.source_id, 'dataset-label');
       label.append(
         node(
           'small',

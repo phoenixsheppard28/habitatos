@@ -23,7 +23,14 @@ class QuarantineError(ValueError):
 
 
 def series_id(manifest: RawManifest, grid: Grid) -> str:
-    return series_id_for(manifest.extensions.source_id, manifest.extensions.product, grid)
+    item = manifest.extensions
+    identifier = series_id_for(item.source_id, item.product, grid)
+    study_id = item.properties.get("study_id")
+
+    if item.source_id in {"movebank_repository", "movebank_study"} and study_id is not None:
+        return f"{identifier}--study-{study_id}"
+
+    return identifier
 
 
 def series_id_for(source_id: str, product: str, grid: Grid) -> str:
