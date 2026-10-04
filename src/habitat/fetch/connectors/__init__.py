@@ -22,6 +22,8 @@ class ConnectorRequest:
     max_bytes: int = 2 * 1024**3
     max_file_bytes: int = 512 * 1024**2
     cloud_cover: float = 80.0
+    taxon_keys: tuple[int, ...] = ()
+    max_records: int = 1000
 
 
 @dataclass
@@ -61,5 +63,8 @@ def validate_area_and_dates(request: ConnectorRequest) -> tuple[date, date]:
 
     if request.max_file_bytes <= 0 or not 0 <= request.cloud_cover <= 100:
         raise ValueError("max_file_bytes must be positive and cloud_cover 0..100")
+
+    if not 1 <= request.max_records <= 10_000:
+        raise ValueError("max_records must be 1..10000")
 
     return request.start, request.end
