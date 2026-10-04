@@ -103,12 +103,19 @@ def modis_processing_version(item: pystac.Item) -> str:
     return f"{collection}.{production}"
 
 
-def published_at(item: pystac.Item, fallback: datetime) -> datetime:
-    """When the value became public. The retrieval time is a safe upper bound when the catalog does not say."""
+def modis_production_time(item: pystac.Item) -> datetime:
+    # The Planetary Computer MODIS items have no `created` property. The production timestamp in the id is
+    # <year><day of year><hour><minute><second> UTC, as in the LP DAAC file names.
+    production = item.id.split(".")[4]
+    return datetime.strptime(production, "%Y%j%H%M%S").replace(tzinfo=UTC)
+
+
+def published_at(item: pystac.Item) -> datetime | None:
+    """When the value became public, or None when the catalog does not say. The retrieval time is never used."""
     for key in ("created", "s2:generation_time"):
         if value := item.properties.get(key):
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return fallback
+    return None
 
 
 def check_asset_href(href: str) -> None:
@@ -202,6 +209,7 @@ def scene_manifest(
     time_start: datetime,
     time_end: datetime,
     precision: TimePrecision,
+    available_at: datetime,
     processing_version: str,
     properties: dict,
     access_scope: str,
@@ -226,7 +234,7 @@ def scene_manifest(
             time_start=time_start,
             time_end=time_end,
             time_precision=precision,
-            available_at=published_at(item, retrieved_at),
+            available_at=available_at,
             processing_version=processing_version,
             assets=assets,
             properties={**properties, "requested_bbox": list(bbox), "collection": item.collection_id},
@@ -281,6 +289,11 @@ def fetch_scenes(
             result.warnings.append(f"{item.id}: missing assets {missing}; scene skipped")
             continue
 
+        description = describe(item)
+        if description["available_at"] is None:
+            result.warnings.append(f"{item.id}: the catalog gives no publication date; scene skipped")
+            continue
+
         try:
             retrieved_at = datetime.now(UTC)
             assets, version, stored, size = archive_scene(item, asset_names, bbox, archive, request.max_file_bytes)
@@ -293,7 +306,6 @@ def fetch_scenes(
             continue
 
         used += size
-        description = describe(item)
         manifest = scene_manifest(
             item, assets=assets, version=version, stored=stored, source_key=source_key, bbox=bbox,
             access_scope=request.access_scope, retrieved_at=retrieved_at, **description,
@@ -315,6 +327,7 @@ def describe_sentinel2(item: pystac.Item) -> dict:
         "time_start": item.datetime,
         "time_end": item.datetime,
         "precision": TimePrecision.INSTANT,
+        "available_at": published_at(item),
         "processing_version": baseline,
         "properties": {
             "boa_add_offset": boa_add_offset(baseline),
@@ -333,6 +346,7 @@ def describe_modis(item: pystac.Item) -> dict:
         "time_start": datetime.fromisoformat(item.properties["start_datetime"]),
         "time_end": datetime.fromisoformat(item.properties["end_datetime"]),
         "precision": TimePrecision.COMPOSITE,
+        "available_at": published_at(item) or modis_production_time(item),
         "processing_version": modis_processing_version(item),
         "properties": {"platform": item.properties.get("platform") or "terra"},
     }

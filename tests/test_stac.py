@@ -54,11 +54,20 @@ def local_scene(tmp_path):
 def test_sentinel2_is_public_from_its_generation_time():
     generated = item(properties={"s2:generation_time": "2024-02-02T13:12:12.579537Z"})
 
-    assert stac.published_at(generated, RETRIEVED) == datetime(2024, 2, 2, 13, 12, 12, 579537, tzinfo=UTC)
+    assert stac.published_at(generated) == datetime(2024, 2, 2, 13, 12, 12, 579537, tzinfo=UTC)
 
 
-def test_retrieval_time_is_the_fallback():
-    assert stac.published_at(item(), RETRIEVED) == RETRIEVED
+def test_the_retrieval_time_is_never_the_publication_date():
+    assert stac.published_at(item()) is None
+
+
+def test_modis_is_public_from_its_production_time():
+    composite = item(
+        "MOD13Q1.A2024033.h21v09.061.2024051124114",
+        {"start_datetime": "2024-02-02T00:00:00Z", "end_datetime": "2024-02-17T23:59:59Z"},
+    )
+
+    assert stac.describe_modis(composite)["available_at"] == datetime(2024, 2, 20, 12, 41, 14, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("baseline, offset", [("02.14", 0.0), ("03.01", 0.0), ("04.00", -1000.0), ("05.10", -1000.0)])
@@ -134,6 +143,18 @@ def test_sentinel2_scene_is_one_clipped_artifact_that_normalizes(local_scene, mo
 
     rows = normalize(manifest, archive.store, grid, BBOX).table.to_pandas()
     assert np.allclose(rows[rows["variable"] == "ndvi"]["value"].dropna(), 0.4 / 0.6)
+
+
+def test_a_scene_without_a_publication_date_is_skipped_before_download(local_scene, monkeypatch):
+    del local_scene.properties["s2:generation_time"]
+    monkeypatch.setattr(stac, "search_items", lambda *a, **k: [local_scene])
+    monkeypatch.setattr(stac, "clip_to_bbox", lambda *args: pytest.fail("downloaded"))
+    request = ConnectorRequest(bbox=BBOX, start=date(2024, 2, 17), end=date(2024, 2, 17))
+
+    result = stac.fetch_sentinel2(request, Archive())
+
+    assert result.manifests == []
+    assert any("no publication date" in warning for warning in result.warnings)
 
 
 def test_a_second_fetch_uses_the_cache(local_scene, monkeypatch):
