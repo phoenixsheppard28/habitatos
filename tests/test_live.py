@@ -6,7 +6,21 @@ from datetime import date
 import pytest
 
 from habitat import config
+from habitat.archive import Archive
+from habitat.catalog.taxa import resolve_taxon
+from habitat.fetch.connectors import ConnectorRequest
+from habitat.fetch.connectors.literature_counts import LITERATURE_DIR
+from habitat.fetch.connectors.ogutu_kenya_rangelands import fetch_ogutu_kenya_rangelands
 from habitat.ingest import Workspace
+from habitat.normalize.sources.literature_counts import read_literature_file
+from habitat.normalize.sources.ogutu_kenya_rangelands import (
+    COLUMNS,
+    COUNTY,
+    COUNTY_BOUNDARY_SHAPES,
+    SPECIES_TAXA,
+    read_boundaries,
+    read_survey_table,
+)
 from habitat.pipeline import build_request, run
 
 BBOX = (36.8, -1.6, 37.1, -1.3)
@@ -74,3 +88,30 @@ def test_live_agent_path(workspace):
     print(f"[agent] summary: {result.fetch.extensions.get('agent_summary')}")
     assert result.status in ("ok", "partial")
     assert result.fetch.output.raw_artifacts
+
+
+def test_live_ogutu_s4_header_and_boundaries():
+    archive = Archive()
+    [manifest] = fetch_ogutu_kenya_rangelands(ConnectorRequest(), archive).manifests
+
+    survey = read_survey_table(archive.store.open(manifest, "data"))
+    assert list(survey.columns) == COLUMNS
+    assert survey[COUNTY].nunique() == 20
+    boundaries = read_boundaries(archive.store.open(manifest, "boundaries"))
+    for county in survey[COUNTY].unique():
+        assert all(name in boundaries for name in COUNTY_BOUNDARY_SHAPES.get(county, [county]))
+
+
+def test_live_literature_taxon_keys_match_gbif():
+    for path in LITERATURE_DIR.glob("*.csv"):
+        rows = read_literature_file(path)
+        for name, key in set(zip(rows["taxon_name"], rows["gbif_taxon_key"])):
+            resolution = resolve_taxon(name)
+            assert resolution.status == "resolved" and str(resolution.taxa[0].gbif_key) == key, (path.name, name)
+
+
+def test_live_ogutu_species_keys_match_gbif():
+    for taxon_name, key in SPECIES_TAXA.values():
+        if key is not None:
+            resolution = resolve_taxon(taxon_name)
+            assert resolution.status == "resolved" and resolution.taxa[0].gbif_key == key, taxon_name
