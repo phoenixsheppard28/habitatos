@@ -68,7 +68,11 @@ function DownloadButton({ onClick }: { onClick: () => void }) {
 
 export function App() {
   const mapElement = useRef<HTMLDivElement>(null);
+<<<<<<< HEAD
   const mapRef = useRef<OlMap>(undefined);
+=======
+  const mapRef = useRef<Map>();
+>>>>>>> 66deb2b (hi)
   const adapters = useRef(new Map<string, LayerAdapter>());
   const [layers, setLayers] = useState<LayerState[]>([]);
   const [catalogError, setCatalogError] = useState('');
@@ -87,7 +91,11 @@ export function App() {
   }]);
   const fileInput = useRef<HTMLInputElement>(null);
   const assistant = useRef<HTMLElement>(null);
+<<<<<<< HEAD
   const drag = useRef<{ x: number; y: number } | undefined>(undefined);
+=======
+  const drag = useRef<{ x: number; y: number }>();
+>>>>>>> 66deb2b (hi)
 
   const selectedDate = `2025-${String(month + 1).padStart(2, '0')}-15T23:59:59Z`;
   const showToast = useCallback((message: string) => {
@@ -101,7 +109,11 @@ export function App() {
 
   useEffect(() => {
     if (!mapElement.current) return;
+<<<<<<< HEAD
     const map = new OlMap({
+=======
+    const map = new Map({
+>>>>>>> 66deb2b (hi)
       target: mapElement.current,
       layers: [],
       controls: defaultControls({ attribution: true }).extend([new ScaleLine({ units: 'metric' })]),
@@ -210,7 +222,11 @@ export function App() {
       if (file.size > 5 * 1024 * 1024) throw new Error('Choose a file smaller than 5 MB.');
       const text = await file.text();
       const data = file.name.toLowerCase().endsWith('.csv') ? parseCsv(text) : normalizeGeoJson(JSON.parse(text));
+<<<<<<< HEAD
       const count = data.type === 'FeatureCollection' ? (data as FeatureCollection).features.length : 1;
+=======
+      const count = data.type === 'FeatureCollection' ? data.features.length : 1;
+>>>>>>> 66deb2b (hi)
       if (count > 10_000) throw new Error('Choose a file with no more than 10,000 features.');
       const id = `local-${crypto.randomUUID()}`;
       const definition: LayerDefinition = {
