@@ -7,8 +7,7 @@ from habitat.contracts import RawManifest
 from habitat.fetch import session
 from habitat.fetch.catalog import REPOSITORY_PREFIX, search_catalog
 from habitat.fetch.connectors import ConnectorRequest, ConnectorResult, validate_area_and_dates
-from habitat.fetch.connectors import chirps, stac
-from habitat.fetch.connectors import burned_area, landcover, landsat
+from habitat.fetch.connectors import burned_area, chirps, landcover, landsat, stac
 from habitat.fetch.connectors.fixture import check_fixture_access, get_catalog_entry, inspect_fixture
 from habitat.fetch.connectors.movebank_study import check_movebank_access, inspect_movebank
 from habitat.fetch.connectors.zenodo import check_zenodo_access, inspect_zenodo
@@ -154,7 +153,8 @@ def discover_environment(request: ConnectorRequest, sources: list[str]) -> dict[
                 days = min((request.end - request.start).days + 1, request.max_days)
                 found += [{"source_id": "chirps", "item": chirps.item_id(request.start + timedelta(d))} for d in range(days)]
             elif source_id in DEGRADATION_SEARCHES:
-                found += [{"source_id": source_id, "item": i.id} for i in DEGRADATION_SEARCHES[source_id](request.bbox, start, end)]
+                items = DEGRADATION_SEARCHES[source_id](request.bbox, start, end)
+                found += [{"source_id": source_id, "item": i.id} for i in items]
             elif source_id == "sentinel2":
                 found += [{"source_id": source_id, "item": i.id} for i in stac.search_sentinel2(request.bbox, start, end)]
             else:
