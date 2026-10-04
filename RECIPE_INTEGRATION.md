@@ -43,9 +43,11 @@ Three parts connect the lanes:
 | --- | --- | --- |
 | `cell_observations` with only `rainfall_mm` | `rainfall_observations` | `recipe_rainfall_observations` |
 | `cell_observations` with only `ndvi`, `evi`, `mndwi`, `ndmi` | `vegetation_observations` | `recipe_vegetation_observations` |
+| `cell_observations` of a habitat degradation source (`landsat_c2_l2`, `esa_cci_lc`, `io_lulc_annual`, `modis_mcd64a1`, `vegetation_annual_derived`, `vegetation_trend_derived`) | `habitat_indicators` | `recipe_habitat_indicators` (migration 015) |
 | `animal_locations` | `animal_locations` | `recipe_animal_locations` |
 | Other variables, for example `elevation_m` | none | The adapter does not show the dataset to Recipe |
 
+A row of `habitat_indicators` has the variable name in `indicator`, and the unit and the statistic in `unit` and `stat`. Filter on `indicator` and on `interval_end`.
 Each view has the minimum columns of the v1 contract in `README.md`. Each view also has `access_scope`, `available_at` and quality columns.
 The `cell_id` column is in all three families. A recipe can join an animal fix to the rainfall or vegetation of its cell with no spatial join.
 
