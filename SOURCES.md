@@ -1,7 +1,7 @@
 # Sources
 
 This document describes each source of the `habitat` package: how to fetch it, what the archive keeps, and the limits.
-For the data flow and the archive rules, see `PIPELINE.md`.
+For the package layout and the data flow, see `MERGE_PLAN.md`.
 
 ## Summary
 

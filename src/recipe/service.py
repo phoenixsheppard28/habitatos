@@ -130,10 +130,11 @@ class RecipeService:
                         if {"recipe_id": recipe.recipe_id, "version": recipe.version} == recipe.parent_recipe_ref:
                             raise RecipeError("INVALID_RECIPE", "derived recipe must have a new identity/version")
                     inferred = validate_recipe(recipe, query, selected)
-                    # Calculation lineage comes from the validated graph rather
-                    # than the model's unsupported provenance assertions.
+                    # Calculation lineage and roles come from the validated graph
+                    # rather than the model's unsupported assertions.
                     for c in recipe.output.columns:
                         c.derived_from = inferred[recipe.output.step][c.name].derived_from
+                        c.role = inferred[recipe.output.step][c.name].role
                     break
                 except RecipeError as exc:
                     if exc.code not in {"INVALID_RECIPE", "INVALID_PLAN", "UNSUPPORTED_OPERATION"}:

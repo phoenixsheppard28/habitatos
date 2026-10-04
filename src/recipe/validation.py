@@ -91,10 +91,10 @@ def validate_recipe(recipe: RecipeSpec, query: QuerySpec,
                             fail(f"invalid literal for {c.name} ({c.type})")
         elif isinstance(step, TimeBucket):
             out = deepcopy(source(step.input))
-            column(out, step.column, {"timestamp"})
+            bucketed = column(out, step.column, {"timestamp"})
             new(out, step.output, Column(name=step.output, type="timestamp", nullable=True,
                 role="event_time", description=f"UTC {step.period} bucket of {step.column}",
-                derived_from=[f"{step.input}.{step.column}"]))
+                derived_from=list(bucketed.derived_from)))
         elif isinstance(step, Aggregate):
             src = source(step.input)
             if len(set(step.group_by)) != len(step.group_by):
@@ -111,7 +111,7 @@ def validate_recipe(recipe: RecipeSpec, query: QuerySpec,
                     unit=None if agg.method == "count" else c.unit,
                     nullable=agg.method != "count", role="measurement",
                     description=f"{agg.method} of {agg.column}; nulls excluded",
-                    derived_from=[f"{step.input}.{agg.column}"]))
+                    derived_from=list(c.derived_from)))
         else:
             left, right = source(step.left), source(step.right)
             out = deepcopy(left)
@@ -141,9 +141,9 @@ def validate_recipe(recipe: RecipeSpec, query: QuerySpec,
                 c = column(right, step.value_column, NUMERIC)
                 if step.right_columns:
                     fail("window aggregation does not expose arbitrary source rows")
-                new(out, step.output, Column(name=step.output, type="number", unit=c.unit,
+                new(out, step.output, Column(name=step.output, type="number", unit=c.unit, role="measurement",
                     description=f"sum of {step.value_column} in complete preceding intervals",
-                    derived_from=[f"{step.right}.{step.value_column}"]))
+                    derived_from=list(c.derived_from)))
                 new(out, step.output + "_coverage", Column(name=step.output + "_coverage",
                     type="number", nullable=False, description="fraction of window with non-null measurements"))
             else:
