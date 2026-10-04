@@ -11,3 +11,10 @@ data/
 dist/
 build/
 .DS_Store
+web/node_modules/
+web/dist/
+web/.env.geoserver
+web/.env.local
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts

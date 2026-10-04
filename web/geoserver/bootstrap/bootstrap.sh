@@ -22,12 +22,22 @@ request() {
   case "$status" in 200|201|202) ;; 409) ;; *) cat /tmp/geoserver-response >&2; echo "REST $method $path failed with HTTP $status" >&2; exit 1;; esac
 }
 
-request POST "/rest/workspaces" "application/json" '{"workspace":{"name":"habitat"}}'
-request POST "/rest/workspaces/habitat/datastores" "application/json" "{\"dataStore\":{\"name\":\"habitat\",\"connectionParameters\":{\"entry\":[{\"@key\":\"dbtype\",\"$\":\"postgis\"},{\"@key\":\"host\",\"$\":\"postgis\"},{\"@key\":\"port\",\"$\":\"5432\"},{\"@key\":\"database\",\"$\":\"habitat\"},{\"@key\":\"schema\",\"$\":\"public\"},{\"@key\":\"user\",\"$\":\"habitat\"},{\"@key\":\"passwd\",\"$\":\"${POSTGRES_PASSWORD}\"}]}}}"
+exists() { curl --silent --fail --user "$auth" "$base$1" >/dev/null; }
+
+if ! exists "/rest/workspaces/habitat.json"; then
+  request POST "/rest/workspaces" "application/json" '{"workspace":{"name":"habitat"}}'
+fi
+if ! exists "/rest/workspaces/habitat/datastores/habitat.json"; then
+  request POST "/rest/workspaces/habitat/datastores" "application/json" "{\"dataStore\":{\"name\":\"habitat\",\"connectionParameters\":{\"entry\":[{\"@key\":\"dbtype\",\"$\":\"postgis\"},{\"@key\":\"host\",\"$\":\"postgis\"},{\"@key\":\"port\",\"$\":\"5432\"},{\"@key\":\"database\",\"$\":\"habitat\"},{\"@key\":\"schema\",\"$\":\"public\"},{\"@key\":\"user\",\"$\":\"habitat\"},{\"@key\":\"passwd\",\"$\":\"${POSTGRES_PASSWORD}\"}]}}}"
+fi
 
 for layer in movement_points study_boundary rainfall_zones vegetation_extent; do
-  request POST "/rest/workspaces/habitat/datastores/habitat/featuretypes" "application/json" "{\"featureType\":{\"name\":\"$layer\",\"nativeName\":\"$layer\",\"srs\":\"EPSG:4326\",\"enabled\":true}}"
-  request POST "/rest/workspaces/habitat/styles?name=$layer" "application/vnd.ogc.sld+xml" "$(cat "/bootstrap/$layer.sld")"
+  if ! exists "/rest/workspaces/habitat/datastores/habitat/featuretypes/$layer.json"; then
+    request POST "/rest/workspaces/habitat/datastores/habitat/featuretypes" "application/json" "{\"featureType\":{\"name\":\"$layer\",\"nativeName\":\"$layer\",\"srs\":\"EPSG:4326\",\"enabled\":true}}"
+  fi
+  if ! exists "/rest/workspaces/habitat/styles/$layer.json"; then
+    request POST "/rest/workspaces/habitat/styles?name=$layer" "application/vnd.ogc.sld+xml" "$(cat "/bootstrap/$layer.sld")"
+  fi
   request PUT "/rest/layers/habitat:$layer" "application/json" "{\"layer\":{\"defaultStyle\":{\"name\":\"habitat:$layer\"}}}"
 done
 
