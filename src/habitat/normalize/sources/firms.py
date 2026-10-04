@@ -19,9 +19,13 @@ VIIRS_CONFIDENCE = {"l", "n", "h"}
 # Not verified against a FIRMS threshold; see docs/ingestion/EVENTS.md section 4.
 MODIS_LOW_CONFIDENCE_BELOW = 30
 VEGETATION_FIRE_TYPE = 0
+# `scan` and `track` are the pixel size in km; half of the diagonal in metres is 500 * hypot(scan, track).
+HALF_PIXEL_DIAGONAL_PER_KM = 500
 
 
-def normalize_firms(manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None) -> NormalizedBatch:
+def normalize_firms(
+    manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi: BBox | None = None
+) -> NormalizedBatch:
     """FIRMS standard product CSV to point_events. `acq_date` and `acq_time` are UTC.
 
     https://www.earthdata.nasa.gov/data/tools/firms/faq
@@ -71,7 +75,8 @@ def normalize_firms(manifest: RawManifest, store: ArtifactStore, grid: Grid, aoi
             "available_at": pd.Timestamp(manifest.extensions.available_at),
             "longitude": detections["longitude"],
             "latitude": detections["latitude"],
-            "coordinate_uncertainty_m": 500 * np.hypot(detections["scan"].astype(float), detections["track"].astype(float)),
+            "coordinate_uncertainty_m": HALF_PIXEL_DIAGONAL_PER_KM
+            * np.hypot(detections["scan"].astype(float), detections["track"].astype(float)),
             "value": detections["frp"].astype(float),
             "unit": "MW",
             "basis": "satellite_detection",

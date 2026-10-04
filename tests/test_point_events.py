@@ -124,7 +124,8 @@ def test_a_later_batch_with_the_same_record_gives_one_current_row(database, grid
     series = series_id(first, grid)
 
     store.append_batch(series, first, to_point_events(event_rows(), first, grid, "firms-csv-v1"))
-    store.append_batch(series, overlapping, to_point_events(event_rows(value=[130.0]), overlapping, grid, "firms-csv-v1"))
+    later_rows = to_point_events(event_rows(value=[130.0]), overlapping, grid, "firms-csv-v1")
+    store.append_batch(series, overlapping, later_rows)
 
     rows = database.execute("SELECT value, source_item_id FROM current_point_events").fetchall()
     assert rows == [(130.0, overlapping.extensions.source_item_id)]

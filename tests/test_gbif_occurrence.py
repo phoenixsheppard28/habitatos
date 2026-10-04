@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import httpx
@@ -164,7 +164,8 @@ def test_a_year_or_an_interval_is_composite(mock_http, grid):
     assert year["time_end"] == pd.Timestamp("2013-01-01T00:00Z")
     week = rows.loc[INATURALIST_RECORD]
     assert week["time_precision"] == "composite"
-    assert (week["time_start"], week["time_end"]) == (pd.Timestamp("2013-01-20T00:00Z"), pd.Timestamp("2013-01-27T00:00Z"))
+    assert week["time_start"] == pd.Timestamp("2013-01-20T00:00Z")
+    assert week["time_end"] == pd.Timestamp("2013-01-27T00:00Z")
 
 
 def test_origin_record_ids(mock_http, grid):

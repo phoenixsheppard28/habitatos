@@ -75,8 +75,12 @@ OCCURRENCE_COUNTS = f"""
     GROUP BY 1, 2
 """
 
-UNITS = {"fire_count": "count", "fire_frp_sum_mw": "MW", "occurrence_count": "count", "occurrence_effort_count": "count"}
-STATS = {"fire_count": "count", "fire_frp_sum_mw": "sum", "occurrence_count": "count", "occurrence_effort_count": "count"}
+UNITS = {
+    "fire_count": "count", "fire_frp_sum_mw": "MW", "occurrence_count": "count", "occurrence_effort_count": "count",
+}
+STATS = {
+    "fire_count": "count", "fire_frp_sum_mw": "sum", "occurrence_count": "count", "occurrence_effort_count": "count",
+}
 
 
 def derive_event_counts(
