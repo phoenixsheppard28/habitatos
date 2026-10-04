@@ -1,6 +1,6 @@
 """Stage 2 side of the Recipe handoff: catalog callbacks, descriptors and trusted SQL bindings.
 
-Recipe reads the views of migration 008. See RECIPE_INTEGRATION.md.
+Recipe reads the views of migrations 008 and 009. See RECIPE_INTEGRATION.md and ANALYSIS_INTEGRATION.md.
 """
 
 import re
@@ -23,11 +23,13 @@ from habitat.normalize.rows import ANIMAL_LOCATIONS
 
 RAINFALL = "rainfall_observations"
 VEGETATION = "vegetation_observations"
+DAILY_MOVEMENT = "animal_daily_movement"
+DAILY_MOVEMENT_SUFFIX = "--daily-movement"
 VEGETATION_INDICES = frozenset({"ndvi", "evi", "mndwi", "ndmi"})
 POSTGIS_SCHEMA = "extensions"
 
 SEARCH_FILTERS = {
-    "family": f"one of {sorted([ANIMAL_LOCATIONS, RAINFALL, VEGETATION])}, or a list of them",
+    "family": f"one of {sorted([ANIMAL_LOCATIONS, DAILY_MOVEMENT, RAINFALL, VEGETATION])}, or a list of them",
     "variables": f"list of measured variables: rainfall_mm or {sorted(VEGETATION_INDICES)}; any one matches",
     "source_id": "source id or list of them, for example chirps, sentinel2, modis_mod13q1, movebank",
     "tags": "object of catalog tag key to value; every pair must match, for example {\"biome\": \"savanna\"}",
@@ -133,7 +135,36 @@ FAMILIES = {
             Column(name="available_at", type="timestamp", nullable=False, role="available_at",
                    description="When the source published the fix"),
             Column(name="quality_flag", type="string", nullable=False,
-                   description="good, or the reason the fix is suspect"),
+                   description="ok, or the reason the fix is suspect"),
+        ],
+    ),
+    DAILY_MOVEMENT: RecipeFamily(
+        name=DAILY_MOVEMENT,
+        view="recipe_animal_daily_movement",
+        row_grain="one row per animal and UTC day",
+        columns=[
+            *identity_columns(),
+            Column(name="source_dataset_id", type="string", nullable=False,
+                   description="Catalog dataset id of the animal fixes"),
+            Column(name="entity_id", type="string", nullable=False, role="entity_id",
+                   description="Animal id, scoped by source and study, for example movebank:<study>:<animal>"),
+            Column(name="species", type="string", role="species", description="Scientific name of the animal"),
+            Column(name="day", type="timestamp", nullable=False, role="event_time",
+                   description="Start of the UTC day"),
+            Column(name="last_fix_at", type="timestamp", nullable=False,
+                   description="Time of the last good fix of the day, UTC"),
+            Column(name="fix_count", type="integer", nullable=False, description="Good fixes of the animal on the day"),
+            Column(name="longitude", type="number", nullable=False, unit="degree", role="longitude",
+                   description="WGS84 longitude of the last good fix of the day"),
+            Column(name="latitude", type="number", nullable=False, unit="degree", role="latitude",
+                   description="WGS84 latitude of the last good fix of the day"),
+            Column(name="cell_id", type="string", role="cell_id",
+                   description="EASE-Grid 2.0 global 1 km cell of the last good fix of the day"),
+            Column(name="daily_displacement_km", type="number", unit="km", role="daily_displacement",
+                   description="Geodesic distance from the last good fix of the previous UTC day; "
+                               "null when the previous day has no good fix"),
+            Column(name="available_at", type="timestamp", nullable=False, role="available_at",
+                   description="When the source published the fixes of the row"),
         ],
     ),
 }
@@ -154,16 +185,41 @@ def recipe_family(dataset: HabitatDataset) -> str | None:
     return VEGETATION if variables <= VEGETATION_INDICES else None
 
 
+def to_recipe_datasets(dataset: HabitatDataset) -> list[DatasetVersion]:
+    """Animal fixes also give a derived daily movement dataset, with its own Recipe dataset id."""
+    primary = to_recipe_dataset(dataset)
+    if primary is None:
+        return []
+
+    if primary.family != ANIMAL_LOCATIONS:
+        return [primary]
+
+    return [primary, daily_movement_dataset(dataset)]
+
+
+def daily_movement_dataset(dataset: HabitatDataset) -> DatasetVersion:
+    movement = descriptor(dataset, FAMILIES[DAILY_MOVEMENT], dataset.dataset_id + DAILY_MOVEMENT_SUFFIX)
+    derived_from = {"dataset_id": dataset.dataset_id, "version": str(dataset.version)}
+    return movement.model_copy(update={
+        "description": f"Daily movement of the animals in: {dataset.description}. "
+                       "Last good fix per animal and UTC day, and the distance from the previous day",
+        "metadata": {**movement.metadata, "derived_from": derived_from},
+    })
+
+
 def to_recipe_dataset(dataset: HabitatDataset) -> DatasetVersion | None:
     family_name = recipe_family(dataset)
     if family_name is None:
         return None
 
-    family = FAMILIES[family_name]
+    return descriptor(dataset, FAMILIES[family_name], dataset.dataset_id)
+
+
+def descriptor(dataset: HabitatDataset, family: RecipeFamily, dataset_id: str) -> DatasetVersion:
     version = str(dataset.version)
     coverage = dataset.coverage
     return DatasetVersion(
-        dataset_id=dataset.dataset_id,
+        dataset_id=dataset_id,
         version=version,
         access_scope=dataset.access_scope,
         status=dataset.status,
@@ -171,7 +227,7 @@ def to_recipe_dataset(dataset: HabitatDataset) -> DatasetVersion | None:
         description=dataset.description,
         row_grain=family.row_grain,
         columns=[column.model_copy() for column in family.columns],
-        storage={"uri": f"postgres://{family.view}?dataset_id={dataset.dataset_id}&dataset_version={version}",
+        storage={"uri": f"postgres://{family.view}?dataset_id={dataset_id}&dataset_version={version}",
                  "format": "postgres"},
         mapping_version=dataset.mapping_version,
         validation_report_ref=dataset.validation_report_ref
@@ -282,8 +338,7 @@ class HabitatRecipeCatalog:
     def search(self, filters: SearchFilters) -> list[DatasetVersion]:
         datasets = []
         for match in self.catalog.search_datasets(filters):
-            dataset = to_recipe_dataset(match.dataset)
-            if dataset is not None:
+            for dataset in to_recipe_datasets(match.dataset):
                 self.bindings[dataset.key] = binding(dataset, self.schema)
                 datasets.append(dataset)
 

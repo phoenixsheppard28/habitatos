@@ -2,7 +2,7 @@
 
 A self-service ecological data platform that answers questions about historical patterns, forecasts possible changes, and retrieves relevant datasets on demand.
 
-**Status:** The Fetch and Normalize lanes are implemented as one Python package, `habitat`, in [`src/habitat/`](src/habitat/). See [`PIPELINE.md`](PIPELINE.md) for the data flow, [`SOURCES.md`](SOURCES.md) for each source, and [`INTEGRATIONS.md`](INTEGRATIONS.md) for the tables and the request/response handoff. The Recipe lane is in [`src/recipe/`](src/recipe/README.md). [`RECIPE_INTEGRATION.md`](RECIPE_INTEGRATION.md) tells how the normalized tables become Recipe inputs. The Analysis lane and the coordinator remain proposed contracts.
+**Status:** The Fetch and Normalize lanes are implemented as one Python package, `habitat`, in [`src/habitat/`](src/habitat/). See [`MERGE_PLAN.md`](MERGE_PLAN.md) for the package layout and the data flow, [`SOURCES.md`](SOURCES.md) for each source, and [`migrations/`](migrations/) for the tables. The Recipe lane is in [`src/recipe/`](src/recipe/README.md). [`RECIPE_INTEGRATION.md`](RECIPE_INTEGRATION.md) tells how the normalized tables become Recipe inputs. The Analysis lane is in [`src/analysis/`](src/analysis/) ([`DIEGO.md`](DIEGO.md)), and the coordinator is in [`src/workflow/`](src/workflow/). [`ANALYSIS_INTEGRATION.md`](ANALYSIS_INTEGRATION.md) tells how one query flows from Fetch to Analysis.
 
 ## The product
 

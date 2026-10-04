@@ -65,6 +65,13 @@ def run(
     if response.status in NO_PUBLISH_STATUSES:
         return PipelineResult(response)
 
+    return ingest_and_publish(request, response, workspace, use_ai)
+
+
+def ingest_and_publish(
+    request: FetchRequest, response: FetchResponse, workspace: Workspace, use_ai: bool = False
+) -> PipelineResult:
+    """Normalize the raw artifacts of one fetch response, append them to their series and publish the changes."""
     request_aoi = tuple(request.input.requirements.bbox) if request.input.requirements.bbox else None
     outcomes, ingests = [], []
     for manifest in response.output.raw_artifacts:
