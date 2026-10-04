@@ -74,3 +74,32 @@ def test_live_agent_path(workspace):
     print(f"[agent] summary: {result.fetch.extensions.get('agent_summary')}")
     assert result.status in ("ok", "partial")
     assert result.fetch.output.raw_artifacts
+
+
+def test_live_gbif_occurrence_search(grid):
+    from habitat.archive import Archive
+    from habitat.fetch.connectors import ConnectorRequest
+    from habitat.fetch.connectors.gbif_occurrence import fetch_gbif_occurrence
+    from habitat.normalize.router import normalize
+
+    archive = Archive()
+    request = ConnectorRequest(bbox=BBOX, start=date(2012, 3, 1), end=date(2012, 3, 31), max_records=1)
+
+    result = fetch_gbif_occurrence(request, archive)
+
+    print(f"\n[gbif_occurrence] warnings={result.warnings} errors={result.errors}")
+    [manifest] = result.manifests
+    assert normalize(manifest, archive.store, grid).table.num_rows == 1
+
+
+def test_live_firms_country_file_head():
+    from habitat.fetch import http
+    from habitat.fetch.connectors.firms import COUNTRY_FILE_URL, MODIS
+
+    url = COUNTRY_FILE_URL.format(folder=MODIS.folder, prefix=MODIS.file_prefix, year=2012, country="Kenya")
+    with http.client() as client:
+        response = client.head(url)
+
+    print(f"\n[firms] {url} {response.status_code} {dict(response.headers)}")
+    assert response.status_code == 200
+    assert "last-modified" in response.headers and int(response.headers["content-length"]) > 0

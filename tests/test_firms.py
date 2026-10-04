@@ -10,8 +10,10 @@ from habitat.archive import Archive
 from habitat.contracts import POINT_EVENTS_SCHEMA, RawManifest
 from habitat.fetch.connectors import ConnectorRequest
 from habitat.fetch.connectors.firms import countries_for, fetch_firms_modis, fetch_firms_viirs
+from habitat.ingest import Workspace
 from habitat.normalize.router import normalize
 from habitat.normalize.rows import QuarantineError
+from habitat.pipeline import build_request, run
 from habitat.sources import SOURCES
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -238,3 +240,24 @@ def test_a_bbox_at_sea_selects_no_country(mock_http):
 
     assert result.manifests == [] and calls == []
     assert any("no FIRMS country" in warning for warning in result.warnings)
+
+
+def test_a_file_without_detections_in_the_bbox_is_not_archived(mock_http):
+    outside_the_bbox = b"\n".join(MODIS_CSV.splitlines()[:6])
+
+    result, _ = fetched(mock_http, {"modis_2012_Kenya.csv": MODIS_CSV, "modis_2012_Tanzania.csv": outside_the_bbox})
+
+    assert len(result.manifests) == 1
+    assert any("Tanzania 2012: the file has no detections in the bbox" in warning for warning in result.warnings)
+
+
+def test_the_pipeline_publishes_fires_for_recipe(database, grid, mock_http):
+    mock_http(firms_server({"modis_2012_Kenya.csv": MODIS_CSV}))
+
+    result = run(build_request("firms_modis", BBOX, date(2012, 3, 1), date(2012, 3, 31), None, None), False,
+                 Workspace(database, grid))
+
+    assert [outcome.status for outcome in result.outcomes] == ["appended"]
+    assert result.published == ["firms_modis--firms-modis-sp--ease2-global-1km"]
+    rows = database.execute("SELECT count(*), min(event_type), max(event_type) FROM recipe_point_events").fetchone()
+    assert rows == (11, "active_fire", "active_fire")

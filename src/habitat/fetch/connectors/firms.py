@@ -152,9 +152,9 @@ def fetch_country_year(
     with archive.store.staging() as staging:
         target = staging / filename
         http.download(url, target, max_bytes=limit, allowed_hosts=ALLOWED_HOSTS)
-        versions = processing_versions(target)
+        versions = processing_versions(target, request.bbox)
         if not versions:
-            raise ValueError("the file has no detections")
+            raise ValueError("the file has no detections in the bbox")
         processing_version = ",".join(sorted(versions))
         if already_ingested(source_item_id, processing_version, "final"):
             return None
@@ -193,10 +193,17 @@ def fetch_country_year(
     return archive.record(manifest)
 
 
-def processing_versions(path: Path) -> set[str]:
-    """The `version` values of a FIRMS CSV. A reply that is not a FIRMS CSV, such as `Invalid MAP_KEY.`, fails."""
+def processing_versions(path: Path, bbox: BBox) -> set[str]:
+    """The `version` values of the detections in the bbox. A reply that is not a FIRMS CSV, such as
+    `Invalid MAP_KEY.`, fails. A detection without coordinates counts, so the normalizer can quarantine the file.
+    """
+    west, south, east, north = bbox
     with path.open(newline="") as file:
         reader = csv.DictReader(file)
         if not CSV_HEADER_COLUMNS <= set(reader.fieldnames or ()):
             raise ValueError("the reply is not a FIRMS CSV")
-        return {row["version"] for row in reader}
+        return {
+            row["version"] for row in reader
+            if not (row["longitude"] and row["latitude"])
+            or (west <= float(row["longitude"]) <= east and south <= float(row["latitude"]) <= north)
+        }
