@@ -54,14 +54,18 @@ class Rights(BaseModel):
     attribution: str | None = None
 
 
+SourceItemKind = Literal["raster", "tabular", "vector", "derived"]
+
+
 class SourceItem(BaseModel):
-    """Typed `extensions` of a RawManifest for one source item: a raster scene or a tabular file."""
+    """Typed `extensions` of a RawManifest for one source item: a raster scene, a tabular file, a vector file,
+    or a run that derives values from other series."""
 
     source_id: str
     product: str
     source_item_id: str
     source_key: str
-    kind: Literal["raster", "tabular"] = "raster"
+    kind: SourceItemKind = "raster"
     time_start: datetime
     time_end: datetime
     time_precision: TimePrecision
@@ -268,6 +272,24 @@ ANIMAL_LOCATIONS_SCHEMA = pa.schema(
         pa.field("sensor_type", pa.string(), nullable=False),
         pa.field("quality_flag", pa.string(), nullable=False),
         pa.field("mapping_version", pa.string(), nullable=False),
+        pa.field("attributes", pa.string(), nullable=False),
+    ]
+)
+
+
+ANIMAL_ENTITIES_SCHEMA = pa.schema(
+    [
+        pa.field("entity_id", pa.string(), nullable=False),
+        pa.field("source_id", pa.string(), nullable=False),
+        pa.field("study_id", pa.string(), nullable=False),
+        pa.field("local_identifier", pa.string(), nullable=False),
+        pa.field("taxon_name", pa.string(), nullable=True),
+        pa.field("gbif_taxon_key", pa.int64(), nullable=True),
+        pa.field("sex", pa.string(), nullable=True),
+        pa.field("life_stage", pa.string(), nullable=True),
+        pa.field("deploy_on", UTC_TIMESTAMP, nullable=True),
+        pa.field("deploy_off", UTC_TIMESTAMP, nullable=True),
+        pa.field("study_site", pa.string(), nullable=True),
         pa.field("attributes", pa.string(), nullable=False),
     ]
 )

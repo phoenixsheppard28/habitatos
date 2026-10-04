@@ -6,9 +6,9 @@ import pandas as pd
 import pyarrow as pa
 
 from habitat.archive.store import ArtifactStore
-from habitat.contracts import ANIMAL_LOCATIONS_SCHEMA, AnimalEntity, BBox, RawManifest
+from habitat.contracts import ANIMAL_ENTITIES_SCHEMA, ANIMAL_LOCATIONS_SCHEMA, AnimalEntity, BBox, RawManifest
 from habitat.grid import Grid, transformer
-from habitat.normalize.rows import ANIMAL_LOCATIONS, NormalizedBatch, QuarantineError, series_id
+from habitat.normalize.rows import ANIMAL_ENTITIES, ANIMAL_LOCATIONS, NormalizedBatch, QuarantineError, series_id
 
 MAPPING_VERSION = "movebank-csv-v1"
 DIRECT_READ_MAPPING_VERSION = "movebank-direct-read-csv-v1"
@@ -101,8 +101,8 @@ def normalize_fixes(
     )
     table = pa.Table.from_pandas(rows, schema=ANIMAL_LOCATIONS_SCHEMA, preserve_index=False)
 
-    entities = entities_from(fixes, reference_path, study_id)
-    return NormalizedBatch(table, mapping_version, family=ANIMAL_LOCATIONS, entities=entities)
+    entities = entities_table(entities_from(fixes, reference_path, study_id))
+    return NormalizedBatch(table, mapping_version, family=ANIMAL_LOCATIONS, references={ANIMAL_ENTITIES: entities})
 
 
 def cell_ids_for_points(grid: Grid, longitudes: np.ndarray, latitudes: np.ndarray) -> np.ndarray:
@@ -167,6 +167,11 @@ def entities_from(fixes: pd.DataFrame, reference_path: str | None, study_id: str
         entity.attributes.setdefault("deployments", []).append(json.loads(json.dumps(extra, default=str)))
 
     return list(entities.values())
+
+
+def entities_table(entities: list[AnimalEntity]) -> pa.Table:
+    rows = [{**entity.model_dump(exclude={"attributes"}), "attributes": json.dumps(entity.attributes)} for entity in entities]
+    return pa.Table.from_pylist(rows, schema=ANIMAL_ENTITIES_SCHEMA)
 
 
 def parse_time(value) -> pd.Timestamp | None:

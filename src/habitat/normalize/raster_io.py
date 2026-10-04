@@ -2,14 +2,18 @@ from collections.abc import Iterator
 from contextlib import ExitStack
 from dataclasses import dataclass
 
+import math
+
 import numpy as np
 import rasterio
 from affine import Affine
 from rasterio.enums import Resampling
+from rasterio.vrt import WarpedVRT
 from rasterio.warp import transform_bounds
 from rasterio.windows import Window, from_bounds
 
 from habitat.contracts import BBox
+from habitat.grid import transformer
 
 
 @dataclass
@@ -63,6 +67,86 @@ def iter_aligned_blocks(
                 crs=reference_source.crs.to_string(),
                 bands=bands,
             )
+
+
+def iter_warped_blocks(
+    assets: dict[str, str],
+    reference: str,
+    crs: str,
+    aoi: BBox | None = None,
+    resolution_m: float | None = None,
+    block_rows: int = 1024,
+    resampling: Resampling = Resampling.nearest,
+) -> Iterator[RasterBlock]:
+    """Yield row blocks of every asset warped onto one pixel grid in `crs`, for example the grid CRS.
+
+    Use it for a geographic raster, which `aggregate_blocks` rejects. The default pixel size keeps the area of a
+    reference pixel at the centre of the AOI. Nearest resampling keeps class codes. Pixels outside an asset get its
+    nodata value.
+    """
+    with ExitStack() as stack:
+        sources = {name: stack.enter_context(rasterio.open(uri)) for name, uri in assets.items()}
+        reference_source = sources[reference]
+        bounds = source_bounds(reference_source, aoi)
+        if bounds is None:
+            return
+
+        resolution = resolution_m or native_resolution_m(reference_source, crs, bounds)
+        transform, width, height = target_pixels(reference_source.crs, crs, bounds, resolution)
+        warped = {
+            name: stack.enter_context(
+                WarpedVRT(source, crs=crs, transform=transform, width=width, height=height, resampling=resampling)
+            )
+            for name, source in sources.items()
+        }
+
+        for row_offset in range(0, height, block_rows):
+            window = Window(0, row_offset, width, min(block_rows, height - row_offset))
+            yield RasterBlock(
+                transform=rasterio.windows.transform(window, transform),
+                crs=crs,
+                bands={name: vrt.read(1, window=window) for name, vrt in warped.items()},
+            )
+
+
+def source_bounds(source: rasterio.io.DatasetReader, aoi: BBox | None) -> tuple[float, float, float, float] | None:
+    """The part of the source inside the AOI, in the source CRS. None when they do not overlap."""
+    left, bottom, right, top = source.bounds
+    if aoi is not None:
+        aoi_left, aoi_bottom, aoi_right, aoi_top = transform_bounds("EPSG:4326", source.crs, *aoi, densify_pts=21)
+        left, bottom = max(left, aoi_left), max(bottom, aoi_bottom)
+        right, top = min(right, aoi_right), min(top, aoi_top)
+
+    if right <= left or top <= bottom:
+        return None
+
+    return left, bottom, right, top
+
+
+def native_resolution_m(
+    source: rasterio.io.DatasetReader, crs: str, bounds: tuple[float, float, float, float]
+) -> float:
+    """Side of a square with the area of one source pixel at the centre of `bounds`, measured in `crs`."""
+    left, bottom, right, top = bounds
+    x, y = (left + right) / 2, (top + bottom) / 2
+    width, height = source.res
+    corners_x = np.array([x, x + width, x + width, x])
+    corners_y = np.array([y, y, y - height, y - height])
+    target_x, target_y = transformer(source.crs.to_string(), crs).transform(corners_x, corners_y)
+    target_x, target_y = np.asarray(target_x), np.asarray(target_y)
+
+    area = abs(np.dot(target_x, np.roll(target_y, 1)) - np.dot(target_y, np.roll(target_x, 1))) / 2
+    return float(math.sqrt(area))
+
+
+def target_pixels(
+    source_crs, crs: str, bounds: tuple[float, float, float, float], resolution: float
+) -> tuple[Affine, int, int]:
+    left, bottom, right, top = transform_bounds(source_crs, crs, *bounds, densify_pts=21)
+    left, top = math.floor(left / resolution) * resolution, math.ceil(top / resolution) * resolution
+    width = math.ceil((right - left) / resolution)
+    height = math.ceil((top - bottom) / resolution)
+    return Affine(resolution, 0.0, left, 0.0, -resolution, top), width, height
 
 
 def reference_window(source: rasterio.io.DatasetReader, aoi: BBox | None) -> Window:

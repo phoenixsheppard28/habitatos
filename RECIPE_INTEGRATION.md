@@ -56,7 +56,8 @@ Recipe pins a dataset as `(dataset_id, version)`. Its SQL filters a shared relat
 - `dataset_id` is the series id of the habitat catalog.
 - `dataset_version` is the catalog version, as text.
 - A catalog version holds every batch with `added_in_version <= version` that is not superseded at that version.
-- In each version, one value per cell, variable and UTC day is current. The rule is the same as in `current_cell_observations`.
+- In each version, one value per cell, variable, source, UTC day of `time_start` and interval length is current. The rule is the same as in `current_cell_observations`.
+- Two values with the same start and different ends are both current. An example is an annual value and a five-year trend. Filter on `time_end` when you need one of them.
 - Only `ready` catalog versions are in the views. A series version that is not in the catalog is not visible.
 
 ### 2.3 Catalog callbacks

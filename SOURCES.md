@@ -30,7 +30,7 @@ General limits:
 - The connector signs the asset URLs and reads only the AOI window of each COG. It never downloads a full tile.
 - Assets: `green` B03, `red` B04, `nir` B08, `swir16` B11, `scl` SCL.
 - `processing_version` is the processing baseline, for example `05.10`. `properties.boa_add_offset` is −1000 from baseline 04.00, else 0.
-- `available_at` is `s2:generation_time`.
+- `available_at` is `s2:generation_time`. The connector skips a scene without a publication date. It never uses the retrieval time.
 - `source_key` holds the item id and the bbox, because the clipped file depends on the bbox.
 - One clipped scene for a 0.3° × 0.3° area is about 60 MB. The full tiles are about 3.4 GB.
 
@@ -40,6 +40,7 @@ General limits:
 - The connector keeps only items with an id that starts with `MOD13Q1.` (Terra). Old records have an empty platform field, so the id is the filter.
 - Assets: `ndvi`, `evi`, `pixel_reliability`, clipped to the AOI.
 - `processing_version` is `<collection>.<production time>` from the item id.
+- `available_at` is the item `created` date. The Planetary Computer items have no `created` date, so the connector uses the production time from the item id.
 - The value covers a 16-day composite window. It is not a daily observation.
 
 ## chirps

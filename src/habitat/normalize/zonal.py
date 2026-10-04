@@ -8,6 +8,7 @@ from rasterio.transform import rowcol
 from habitat.contracts import BBox
 from habitat.grid import Grid, transformer
 from habitat.normalize.raster_io import RasterBlock, pixel_area_m2, pixel_centres
+from habitat.normalize.rows import QuarantineError
 
 MIN_VALID_FRACTION = 0.5
 
@@ -83,6 +84,23 @@ def aggregate_blocks(
         accumulator.add_block(block, compute_variables(block))
 
     return accumulator.finalize(min_valid_fraction)
+
+
+def class_fractions(
+    codes: np.ndarray, classes: dict[str, Iterable[int]], nodata: int | None = None
+) -> dict[str, np.ndarray]:
+    """One layer per class: 1.0 where the pixel has a code of that class, 0.0 where it has another class, NaN where
+    it has no data. The cell mean of a layer from `aggregate_blocks` is the class fraction. Never average class codes.
+    """
+    has_data = np.ones(codes.shape, bool) if nodata is None else codes != nodata
+    members = {name: np.isin(codes, list(class_codes)) for name, class_codes in classes.items()}
+
+    mapped = np.logical_or.reduce(list(members.values())) if members else np.zeros(codes.shape, bool)
+    unmapped_codes = np.unique(codes[has_data & ~mapped])
+    if unmapped_codes.size:
+        raise QuarantineError(f"class codes {unmapped_codes.tolist()} are not in the mapping table")
+
+    return {name: np.where(has_data, member, np.nan) for name, member in members.items()}
 
 
 def sample_cell_centres(grid: Grid, source, aoi: BBox) -> pd.DataFrame:

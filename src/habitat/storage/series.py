@@ -1,4 +1,5 @@
-from collections.abc import Iterable
+import json
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -10,9 +11,9 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel
 
-from habitat.contracts import AnimalEntity, RawManifest
+from habitat.contracts import RawManifest
 from habitat.grid import Grid, parse_cell_id, transformer
-from habitat.normalize.rows import ANIMAL_LOCATIONS, CELL_OBSERVATIONS, NormalizedBatch
+from habitat.normalize.rows import ANIMAL_ENTITIES, ANIMAL_LOCATIONS, CELL_OBSERVATIONS, NormalizedBatch
 
 
 class BatchRecord(BaseModel):
@@ -74,18 +75,6 @@ VERSION_BATCHES = """
       AND (superseded_in_version IS NULL OR superseded_in_version > %(version)s)
 """
 
-SUMMARY_QUERIES = {
-    CELL_OBSERVATIONS: """
-        SELECT min(time_start), max(time_end), count(*), coalesce(array_agg(DISTINCT variable), '{{}}')
-        FROM cell_observations
-        WHERE series_id = %(series_id)s AND batch_key IN ({batches})
-    """,
-    ANIMAL_LOCATIONS: """
-        SELECT min(observed_at), max(observed_at), count(*), '{{}}'::text[]
-        FROM animal_locations
-        WHERE series_id = %(series_id)s AND batch_key IN ({batches})
-    """,
-}
 
 class SeriesStore:
     """Append-only series in PostgreSQL. A version is the set of batches that were live when it was made."""
@@ -99,6 +88,9 @@ class SeriesStore:
     ) -> AppendResult:
         key = batch_key(manifest, batch.mapping_version)
         item = manifest.extensions
+        unregistered = sorted(set(batch.references) - set(REFERENCE_UPSERTS))
+        if unregistered:
+            raise ValueError(f"no upsert is registered for the reference table(s) {unregistered}")
 
         with self.connection.transaction(), self.connection.cursor() as cursor:
             cursor.execute(
@@ -140,9 +132,9 @@ class SeriesStore:
                     (version, series_id, list(supersedes)),
                 )
 
-            insert_grid_cells(cursor, self.grid, batch.table.column("cell_id").unique().to_pylist())
-            if batch.family == ANIMAL_LOCATIONS:
-                upsert_entities(cursor, batch.entities)
+            insert_grid_cells(cursor, self.grid, cell_ids_in([*batch.references.values(), batch.table]))
+            for name, references in batch.references.items():
+                REFERENCE_UPSERTS[name](cursor, references)
             copy_rows(cursor, batch.family, series_id, key, batch.table)
 
             cursor.execute("UPDATE series SET latest_version = %s WHERE series_id = %s", (version, series_id))
@@ -181,32 +173,11 @@ class SeriesStore:
         )
 
     def summary(self, version: SeriesVersion) -> SeriesSummary:
-        parameters = {"series_id": version.series_id, "version": version.version}
-        table = version.family
-        start, end, row_count, variables = self.connection.execute(
-            SUMMARY_QUERIES[table].format(batches=VERSION_BATCHES), parameters
-        ).fetchone()
-        cell_ids = [
-            cell_id
-            for (cell_id,) in self.connection.execute(
-                f"SELECT DISTINCT cell_id FROM {table} "
-                f"WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES}) AND cell_id IS NOT NULL",
-                parameters,
-            )
-        ]
-        taxa = []
-        if table == ANIMAL_LOCATIONS:
-            taxa = self.connection.execute(
-                f"""
-                SELECT DISTINCT e.gbif_taxon_key, e.taxon_name
-                FROM animal_locations l JOIN animal_entities e USING (entity_id)
-                WHERE l.series_id = %(series_id)s AND l.batch_key IN ({VERSION_BATCHES})
-                  AND e.gbif_taxon_key IS NOT NULL
-                """,
-                parameters,
-            ).fetchall()
+        summarize = FAMILY_SUMMARIES.get(version.family)
+        if summarize is None:
+            raise ValueError(f"no summary function is registered for the family {version.family!r}")
 
-        return SeriesSummary(start, end, row_count, sorted(variables), cell_ids, [tuple(t) for t in taxa])
+        return summarize(self.connection, version)
 
     def sample_rows(self, version: SeriesVersion, limit: int) -> list[dict[str, Any]]:
         with self.connection.cursor(row_factory=dict_row) as cursor:
@@ -252,7 +223,37 @@ def insert_grid_cells(cursor: psycopg.Cursor, grid: Grid, cell_ids: Iterable[str
     )
 
 
-def upsert_entities(cursor: psycopg.Cursor, entities: list[AnimalEntity]) -> None:
+def cell_ids_in(tables: Iterable[pa.Table]) -> set[str]:
+    return {
+        cell_id
+        for table in tables
+        if "cell_id" in table.column_names
+        for cell_id in table.column("cell_id").unique().to_pylist()
+        if cell_id is not None
+    }
+
+
+ReferenceUpsert = Callable[[psycopg.Cursor, pa.Table], None]
+
+
+def upsert_on_key(table_name: str, key_columns: tuple[str, ...]) -> ReferenceUpsert:
+    """An upsert that inserts new reference rows and replaces every non-key column of existing rows."""
+
+    def upsert(cursor: psycopg.Cursor, table: pa.Table) -> None:
+        columns = table.column_names
+        updates = [f"{column} = EXCLUDED.{column}" for column in columns if column not in key_columns]
+        conflict_action = f"DO UPDATE SET {', '.join(updates)}" if updates else "DO NOTHING"
+        cursor.executemany(
+            f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join(['%s'] * len(columns))}) "
+            f"ON CONFLICT ({', '.join(key_columns)}) {conflict_action}",
+            list(zip(*(column.to_pylist() for column in table.columns))),
+        )
+
+    return upsert
+
+
+def upsert_animal_entities(cursor: psycopg.Cursor, entities: pa.Table) -> None:
+    """A later package of the same study adds to what is known about an animal. It never erases a value."""
     cursor.executemany(
         """
         INSERT INTO animal_entities (entity_id, source_id, study_id, local_identifier, taxon_name, gbif_taxon_key,
@@ -270,12 +271,79 @@ def upsert_entities(cursor: psycopg.Cursor, entities: list[AnimalEntity]) -> Non
         """,
         [
             (
-                e.entity_id, e.source_id, e.study_id, e.local_identifier, e.taxon_name, e.gbif_taxon_key, e.sex,
-                e.life_stage, e.deploy_on, e.deploy_off, e.study_site, Jsonb(e.attributes),
+                e["entity_id"], e["source_id"], e["study_id"], e["local_identifier"], e["taxon_name"],
+                e["gbif_taxon_key"], e["sex"], e["life_stage"], e["deploy_on"], e["deploy_off"], e["study_site"],
+                Jsonb(json.loads(e["attributes"])),
             )
-            for e in entities
+            for e in entities.to_pylist()
         ],
     )
+
+
+REFERENCE_UPSERTS: dict[str, ReferenceUpsert] = {ANIMAL_ENTITIES: upsert_animal_entities}
+
+
+def version_parameters(version: SeriesVersion) -> dict[str, Any]:
+    return {"series_id": version.series_id, "version": version.version}
+
+
+def distinct_cell_ids(connection: psycopg.Connection, table: str, version: SeriesVersion) -> list[str]:
+    return [
+        cell_id
+        for (cell_id,) in connection.execute(
+            f"SELECT DISTINCT cell_id FROM {table} "
+            f"WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES}) AND cell_id IS NOT NULL",
+            version_parameters(version),
+        )
+    ]
+
+
+def summarize_cell_observations(connection: psycopg.Connection, version: SeriesVersion) -> SeriesSummary:
+    start, end, row_count, variables = connection.execute(
+        f"""
+        SELECT min(time_start), max(time_end), count(*), coalesce(array_agg(DISTINCT variable), '{{}}')
+        FROM cell_observations
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        """,
+        version_parameters(version),
+    ).fetchone()
+
+    return SeriesSummary(
+        start, end, row_count, sorted(variables), distinct_cell_ids(connection, CELL_OBSERVATIONS, version)
+    )
+
+
+def summarize_animal_locations(connection: psycopg.Connection, version: SeriesVersion) -> SeriesSummary:
+    parameters = version_parameters(version)
+    start, end, row_count = connection.execute(
+        f"""
+        SELECT min(observed_at), max(observed_at), count(*)
+        FROM animal_locations
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        """,
+        parameters,
+    ).fetchone()
+    taxa = connection.execute(
+        f"""
+        SELECT DISTINCT e.gbif_taxon_key, e.taxon_name
+        FROM animal_locations l JOIN animal_entities e USING (entity_id)
+        WHERE l.series_id = %(series_id)s AND l.batch_key IN ({VERSION_BATCHES})
+          AND e.gbif_taxon_key IS NOT NULL
+        """,
+        parameters,
+    ).fetchall()
+
+    return SeriesSummary(
+        start, end, row_count, [], distinct_cell_ids(connection, ANIMAL_LOCATIONS, version), [tuple(t) for t in taxa]
+    )
+
+
+FamilySummary = Callable[[psycopg.Connection, SeriesVersion], SeriesSummary]
+
+FAMILY_SUMMARIES: dict[str, FamilySummary] = {
+    CELL_OBSERVATIONS: summarize_cell_observations,
+    ANIMAL_LOCATIONS: summarize_animal_locations,
+}
 
 
 def copy_rows(cursor: psycopg.Cursor, family: str, series_id: str, key: str, table: pa.Table) -> None:
