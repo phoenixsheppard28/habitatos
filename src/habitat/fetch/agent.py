@@ -27,6 +27,8 @@ Rules:
 - Evaluate satellite/environment context for every ecological request. Use fetch_environment
   for sentinel2, modis_mod13q1 (Terra), and chirps when a bounding box and dates are resolved.
   If either is missing, ask for them; never invent geography, dates, or animal tracks.
+- Use fetch_events for species sightings, roadkill and fires when a bounding box and dates
+  are resolved. Sightings are presence-only context, not movement data.
 - Public Movebank previews are samples, not full movement datasets. Credentials do
   not guarantee study permission. Report restricted access and license requirements.
 - Without credentials Movebank search covers a tiny built-in demo index, not all studies.
