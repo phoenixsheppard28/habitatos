@@ -5,6 +5,8 @@ import pyarrow as pa
 import pytest
 
 from conftest import make_manifest
+from habitat.catalog.publish import publish_series_version
+from habitat.catalog.store import PostgresCatalog
 from habitat.contracts import ProductStatus, TimePrecision
 from habitat.normalize.rows import NormalizedBatch, series_id, to_cell_observations
 from habitat.storage.series import (
@@ -243,3 +245,53 @@ def test_cell_observations_summary_lists_variables_and_cells(database, grid):
     assert summary.row_count == 2
     assert sorted(summary.cell_ids) == sorted(distinct_cell_ids(database, "cell_observations", version))
     assert sorted(summary.cell_ids) == ["E1K-r1-c1", "E1K-r1-c2"]
+
+
+def test_two_windows_with_the_same_start_and_different_ends_are_both_current(database, grid):
+    store = SeriesStore(database, grid)
+    year_start = datetime(2020, 1, 1, tzinfo=UTC)
+    one_year = make_manifest(
+        "ndvi_derived", {}, year_start, datetime(2021, 1, 1, tzinfo=UTC), item_id="annual:2020",
+        product="ndvi-summary", precision=TimePrecision.COMPOSITE,
+    )
+    five_years = make_manifest(
+        "ndvi_derived", {}, year_start, datetime(2025, 1, 1, tzinfo=UTC), item_id="trend:2020-2024",
+        product="ndvi-summary", precision=TimePrecision.COMPOSITE,
+    )
+    series = series_id(one_year, grid)
+
+    def ndvi_mean(manifest, value):
+        stats = pd.DataFrame(
+            {"cell_id": ["E1K-r1-c1"], "variable": "ndvi_mean", "value": value, "std": None,
+             "valid_fraction": 1.0, "pixel_count": 23}
+        )
+        return to_cell_observations(stats, manifest, grid, "ndvi-summary-v1", "mean", {"ndvi_mean": "index"}, 250)
+
+    store.append_batch(series, one_year, ndvi_mean(one_year, 0.41))
+    store.append_batch(series, five_years, ndvi_mean(five_years, 0.38))
+    publish_series_version(store, PostgresCatalog(database), grid, series, "ndvi_derived", "NDVI summary", "public")
+
+    assert values(store.current_cell_rows(series)) == {0.41, 0.38}
+    current = database.execute("SELECT value FROM current_cell_observations").fetchall()
+    assert {value for (value,) in current} == {0.41, 0.38}
+    recipe = database.execute("SELECT value FROM recipe_cell_observations").fetchall()
+    assert {value for (value,) in recipe} == {0.41, 0.38}
+
+
+def test_two_instant_scenes_of_one_utc_day_still_compete(database, grid):
+    store = SeriesStore(database, grid)
+    morning = make_manifest("sentinel2", {}, datetime(2024, 3, 9, 8, 47, tzinfo=UTC), item_id="morning", product="s2")
+    noon = make_manifest("sentinel2", {}, datetime(2024, 3, 9, 12, 5, tzinfo=UTC), item_id="noon", product="s2")
+    series = series_id(morning, grid)
+
+    def ndvi(manifest, valid_fraction, value):
+        stats = pd.DataFrame(
+            {"cell_id": ["E1K-r1-c1"], "variable": "ndvi", "value": value, "std": 0.0,
+             "valid_fraction": valid_fraction, "pixel_count": 5000}
+        )
+        return to_cell_observations(stats, manifest, grid, "s2-v1", "mean", {"ndvi": "index"}, 10)
+
+    store.append_batch(series, morning, ndvi(morning, 0.6, 0.30))
+    store.append_batch(series, noon, ndvi(noon, 0.9, 0.42))
+
+    assert values(store.current_cell_rows(series)) == {0.42}
