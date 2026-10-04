@@ -16,7 +16,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const body: unknown = await response.json();
   if (!response.ok) {
-    const message = body && typeof body === 'object' && 'error' in body ? String(body.error) : 'The request failed.';
+    const message =
+      body && typeof body === 'object' && 'error' in body
+        ? String(body.error)
+        : 'The request failed.';
     throw new Error(message);
   }
 

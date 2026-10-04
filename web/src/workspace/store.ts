@@ -45,9 +45,10 @@ export class WorkspaceStore {
       const previousId = this.state.selected?.dataset_id;
       this.state.datasets = response.datasets;
       this.state.assistantAvailable = response.assistant_available;
-      const selected = response.datasets.find(dataset => dataset.dataset_id === previousId)
-        ?? response.datasets.find(dataset => dataset.family === 'animal_locations')
-        ?? response.datasets[0];
+      const selected =
+        response.datasets.find((dataset) => dataset.dataset_id === previousId) ??
+        response.datasets.find((dataset) => dataset.family === 'animal_locations') ??
+        response.datasets[0];
 
       if (selected) {
         await this.selectDataset(selected.dataset_id);
@@ -63,7 +64,7 @@ export class WorkspaceStore {
   }
 
   async selectDataset(datasetId: string): Promise<void> {
-    const selected = this.state.datasets.find(dataset => dataset.dataset_id === datasetId);
+    const selected = this.state.datasets.find((dataset) => dataset.dataset_id === datasetId);
     if (!selected) return;
 
     this.pendingRequest?.abort();
@@ -82,7 +83,7 @@ export class WorkspaceStore {
       if (controller.signal.aborted) return;
 
       this.state.snapshot = snapshot;
-      this.state.months = [...new Set(snapshot.monthly.map(summary => summary.month))].sort();
+      this.state.months = [...new Set(snapshot.monthly.map((summary) => summary.month))].sort();
       this.state.monthIndex = Math.max(0, this.state.months.length - 1);
       this.state.status = snapshot.total_records ? 'ready' : 'empty';
       this.notify();
@@ -109,14 +110,18 @@ export class WorkspaceStore {
     const through = this.through;
     if (!through) return [];
 
-    return this.state.snapshot?.features.filter(feature => feature.properties.observed_at.slice(0, 7) <= through) ?? [];
+    return (
+      this.state.snapshot?.features.filter(
+        (feature) => feature.properties.observed_at.slice(0, 7) <= through,
+      ) ?? []
+    );
   }
 
   get visibleSummary(): MonthlySummary[] {
     const through = this.through;
     if (!through) return [];
 
-    return this.state.snapshot?.monthly.filter(summary => summary.month <= through) ?? [];
+    return this.state.snapshot?.monthly.filter((summary) => summary.month <= through) ?? [];
   }
 
   private fail(error: unknown): void {

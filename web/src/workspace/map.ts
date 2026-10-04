@@ -6,14 +6,18 @@ import type { WorkspaceStore } from './store';
 import type { DatasetSnapshot, ObservationFeature, WorkspaceState } from './types';
 
 export class WorkspaceMap {
-  readonly map = L.map('map', { zoomControl: false, preferCanvas: true }).setView([15, 10], 2);
+  readonly map = L.map('map', {
+    zoomControl: false,
+    preferCanvas: true,
+  }).setView([15, 10], 2);
   private observations = L.featureGroup().addTo(this.map);
   private imports = L.featureGroup().addTo(this.map);
   private extent = L.featureGroup().addTo(this.map);
   private renderedSnapshot: DatasetSnapshot | null = null;
   private renderedMonth: number | null = null;
   private basemap = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(this.map);
 
@@ -22,7 +26,7 @@ export class WorkspaceMap {
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(this.map);
     this.map.attributionControl.setPrefix(false);
     new ResizeObserver(() => this.map.invalidateSize()).observe(element('map'));
-    store.subscribe(state => this.render(state));
+    store.subscribe((state) => this.render(state));
 
     element('frame').addEventListener('click', () => this.frame());
     element('basemap').addEventListener('click', () => this.basemap.addTo(this.map));
@@ -30,6 +34,10 @@ export class WorkspaceMap {
 
   frame(): void {
     this.store.setView('map');
+    this.fitDataBounds();
+  }
+
+  private fitDataBounds(): void {
     this.map.invalidateSize();
     const bounds = this.observations.getBounds().isValid()
       ? this.observations.getBounds()
@@ -42,14 +50,24 @@ export class WorkspaceMap {
   addImport(data: GeoJsonObject, filename: string): L.GeoJSON {
     const layer = L.geoJSON(data, {
       style: { color: '#b17a40', weight: 2, fillOpacity: 0.12 },
-      pointToLayer: (_, coordinates) => L.circleMarker(coordinates, {
-        radius: 5, color: '#fff', weight: 1.5, fillColor: '#b17a40', fillOpacity: 1,
-      }),
+      pointToLayer: (_, coordinates) =>
+        L.circleMarker(coordinates, {
+          radius: 5,
+          color: '#fff',
+          weight: 1.5,
+          fillColor: '#b17a40',
+          fillOpacity: 1,
+        }),
       onEachFeature: (feature: Feature<Geometry>, featureLayer) => {
         const content = node('div');
         content.append(node('strong', filename));
         for (const [key, value] of Object.entries(feature.properties ?? {}).slice(0, 10)) {
-          content.append(node('p', `${key}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`));
+          content.append(
+            node(
+              'p',
+              `${key}: ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`,
+            ),
+          );
         }
         featureLayer.bindPopup(content);
       },
@@ -82,14 +100,24 @@ export class WorkspaceMap {
     const bounds = state.selected.coverage.bbox;
     if (bounds) {
       const [west, south, east, north] = bounds;
-      L.rectangle([[south, west], [north, east]], {
-        color: '#687973', weight: 1, dashArray: '6 5', fillOpacity: 0, interactive: false,
-      }).addTo(this.extent);
+      L.rectangle(
+        [
+          [south, west],
+          [north, east],
+        ],
+        {
+          color: '#687973',
+          weight: 1,
+          dashArray: '6 5',
+          fillOpacity: 0,
+          interactive: false,
+        },
+      ).addTo(this.extent);
     }
 
     if (state.selected.family === 'animal_locations') this.drawMovement(this.store.visibleFeatures);
     else this.drawEnvironment(this.store.visibleFeatures);
-    if (changedDataset) this.frame();
+    if (changedDataset) this.fitDataBounds();
   }
 
   private drawMovement(features: ObservationFeature[]): void {
@@ -110,17 +138,28 @@ export class WorkspaceMap {
 
         const [longitude, latitude] = feature.geometry.coordinates;
         const location: L.LatLngTuple = [latitude, longitude];
-        if (previous?.geometry.type === 'Point' && feature.properties.daily_displacement_km != null) {
+        if (
+          previous?.geometry.type === 'Point' &&
+          feature.properties.daily_displacement_km != null
+        ) {
           const [previousLongitude, previousLatitude] = previous.geometry.coordinates;
           L.polyline([[previousLatitude, previousLongitude], location], {
-            color: '#27816b', weight: 1.5, opacity: 0.65, interactive: false,
+            color: '#27816b',
+            weight: 1.5,
+            opacity: 0.65,
+            interactive: false,
           }).addTo(this.observations);
         }
 
         const current = feature.properties.observed_at.slice(0, 7) === this.store.through;
         L.circleMarker(location, {
-          radius: current ? 3.5 : 2, color: '#24765f', weight: 0, fillOpacity: current ? 0.9 : 0.5,
-        }).bindPopup(() => this.observationPopup(feature)).addTo(this.observations);
+          radius: current ? 3.5 : 2,
+          color: '#24765f',
+          weight: 0,
+          fillOpacity: current ? 0.9 : 0.5,
+        })
+          .bindPopup(() => this.observationPopup(feature))
+          .addTo(this.observations);
         previous = feature;
       }
     }
@@ -135,22 +174,27 @@ export class WorkspaceMap {
 
       const key = feature.properties.cell_id ?? feature.properties.source_record_id;
       const previous = latestCells.get(key);
-      if (!previous || previous.properties.observed_at < feature.properties.observed_at) latestCells.set(key, feature);
+      if (!previous || previous.properties.observed_at < feature.properties.observed_at)
+        latestCells.set(key, feature);
     }
 
     L.geoJSON([...latestCells.values()], {
-      style: feature => {
+      style: (feature) => {
         const value = (feature?.properties as ObservationFeature['properties']).value;
 
         return {
           color: variable === 'rainfall_mm' ? '#2272b5' : '#427b51',
           weight: 0.3,
-          fillOpacity: value == null ? 0 : variable === 'rainfall_mm'
-            ? Math.min(0.8, 0.15 + value / 100)
-            : Math.min(0.8, Math.max(0.1, (value + 1) / 2)),
+          fillOpacity:
+            value == null
+              ? 0
+              : variable === 'rainfall_mm'
+                ? Math.min(0.8, 0.15 + value / 100)
+                : Math.min(0.8, Math.max(0.1, (value + 1) / 2)),
         };
       },
-      onEachFeature: (feature, layer) => layer.bindPopup(() => this.observationPopup(feature as ObservationFeature)),
+      onEachFeature: (feature, layer) =>
+        layer.bindPopup(() => this.observationPopup(feature as ObservationFeature)),
     }).addTo(this.observations);
   }
 
@@ -160,13 +204,25 @@ export class WorkspaceMap {
     content.append(node('strong', properties.entity_id ?? properties.cell_id ?? 'Observation'));
     content.append(node('p', properties.observed_at));
     if (properties.entity_id) {
-      content.append(node('p', `Daily displacement: ${formatNumber(properties.daily_displacement_km)} km`));
+      content.append(
+        node('p', `Daily displacement: ${formatNumber(properties.daily_displacement_km)} km`),
+      );
       content.append(node('p', `${properties.fix_count ?? 0} good fixes on this UTC day`));
     } else {
-      content.append(node('p', `${properties.variable}: ${formatNumber(properties.value, 3)} ${properties.unit ?? ''}`));
+      content.append(
+        node(
+          'p',
+          `${properties.variable}: ${formatNumber(properties.value, 3)} ${properties.unit ?? ''}`,
+        ),
+      );
       content.append(node('p', `Quality: ${properties.quality_flag ?? 'Unknown'}`));
     }
-    content.append(node('small', `Dataset version ${properties.dataset_version} · ${properties.source_record_id}`));
+    content.append(
+      node(
+        'small',
+        `Dataset version ${properties.dataset_version} · ${properties.source_record_id}`,
+      ),
+    );
 
     return content;
   }

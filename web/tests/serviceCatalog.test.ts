@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sampleCatalog } from './sampleCatalog';
+import { sampleCatalog } from './fixtures/serviceCatalog';
 
 describe('sample layer catalog', () => {
   it('has stable, unique IDs and complete spatial metadata', () => {

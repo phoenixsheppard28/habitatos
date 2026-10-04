@@ -9,10 +9,17 @@ import { BaseAdapter } from './common';
 import type { AdapterContext } from './types';
 
 function movementStyle(feature: FeatureLike) {
-  const animal = String(feature.get('animal_id') ?? 'sample');
+  const animal = String(feature.get('animal_id') ?? 'unknown');
   const palette = ['#21775e', '#a7673f', '#656e9b', '#84649b'];
-  const color = palette[Math.abs([...animal].reduce((n, c) => n + c.charCodeAt(0), 0)) % palette.length];
-  return new Style({ image: new CircleStyle({ radius: 5, fill: new Fill({ color }), stroke: new Stroke({ color: '#fff', width: 1.5 }) }) });
+  const color =
+    palette[Math.abs([...animal].reduce((n, c) => n + c.charCodeAt(0), 0)) % palette.length];
+  return new Style({
+    image: new CircleStyle({
+      radius: 5,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: '#fff', width: 1.5 }),
+    }),
+  });
 }
 
 export class WfsAdapter extends BaseAdapter {
@@ -21,7 +28,8 @@ export class WfsAdapter extends BaseAdapter {
   private controller?: AbortController;
 
   constructor(definition: LayerDefinition, context: AdapterContext) {
-    if (!definition.serviceUrl || !definition.layerName) throw new Error(`WFS layer ${definition.id} is missing its service URL or layer name.`);
+    if (!definition.serviceUrl || !definition.layerName)
+      throw new Error(`WFS layer ${definition.id} is missing its service URL or layer name.`);
     const source = new VectorSource({
       strategy: bboxStrategy,
       format: new GeoJSON(),
@@ -47,14 +55,19 @@ export class WfsAdapter extends BaseAdapter {
             return response.json();
           })
           .then((json) => {
-            const features = source.getFormat()!.readFeatures(json, { featureProjection: projection });
+            const features = source
+              .getFormat()!
+              .readFeatures(json, { featureProjection: projection });
             source.addFeatures(features);
             success?.(features);
           })
           .catch((error: Error) => {
             if (error.name === 'AbortError') return;
             source.removeLoadedExtent(extent);
-            context.onError(definition.id, `WFS failed to load ${definition.title}: ${error.message}`);
+            context.onError(
+              definition.id,
+              `WFS failed to load ${definition.title}: ${error.message}`,
+            );
             failure?.();
           });
       },

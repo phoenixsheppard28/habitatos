@@ -1,93 +1,117 @@
 # Habitat Watch web workspace
 
-This directory contains the main Leaflet UI and its Vite configuration.
-Make all UI changes in this directory.
-The UI uses standard OpenStreetMap tiles and a Databricks-style sidebar for data, visualizations, and analysis objects.
-Start the frontend without GeoServer to explore the synthetic overlays, tables, charts, and summaries.
+The workspace uses TypeScript, Leaflet, and Vite.
+The Python API reads published observations from the configured PostgreSQL database.
+Maps use OpenStreetMap tiles with contributor attribution.
 
-The React/OpenLayers service implementation is in `src/`. Its catalog and adapters support public, read-only WMS, WMTS, and WFS endpoints.
-The main Leaflet UI uses local synthetic fixtures. The main UI does not consume GeoServer services.
-The local bootstrap uses GeoServer's authenticated REST API to publish fixtures.
+## Start development
 
-## Start GeoServer and the samples
-
-Docker Desktop or another Docker Compose implementation is required.
+Run these commands from the repository root:
 
 ```sh
-cd web
-cp .env.geoserver.example .env.geoserver
-docker compose --env-file .env.geoserver up -d
-docker compose --env-file .env.geoserver logs -f geoserver-init
+uv sync
+pnpm --dir web install
 ```
 
-The one-shot `geoserver-init` service waits for GeoServer, creates the `habitat` workspace and PostGIS store, publishes four fixture tables, applies styles, and enables time dimensions. It is safe to run again. GeoServer is available at http://localhost:8080/geoserver.
+Configure `HABITAT_DATABASE_URL` in the root `.env` file.
+Configure `ANTHROPIC_API_KEY` to enable the assistant.
+Movebank study retrieval also uses `MOVEBANK_USERNAME` and `MOVEBANK_PASSWORD`.
 
-To reset only this local sample stack, stop it normally with `docker compose --env-file .env.geoserver down`. Add `--volumes` only when you intentionally want to delete the local GeoServer configuration and sample database.
-
-## Start the frontend
-
-The frontend installs and builds without Python:
+Start the backend in one terminal:
 
 ```sh
-cd web
-npm install
-npm run dev
+uv run habitat-web
 ```
 
-Open http://localhost:5173. Vite serves `index.html` and builds the workspace into `dist/`.
-The `/geoserver` proxy supports development of the separate service adapters.
-
-Useful checks:
+Start the frontend in another terminal:
 
 ```sh
-npm test
-npm run build
-docker compose --env-file .env.geoserver config
+pnpm --dir web run dev
 ```
 
-## Workspace objects
+Open http://localhost:5173.
+Vite forwards `/api` requests to http://127.0.0.1:8000.
+The backend also serves the built workspace from `web/dist`.
 
-The Databricks-style sidebar contains three sections:
+## Build and verify
 
-- **Data:** movement, rainfall, vegetation, study boundary, and local imports.
-- **Visualizations:** movement map, location table, and monthly distance chart.
-- **Analysis:** movement overview and a comparison of movement with generated rainfall.
+```sh
+pnpm --dir web run build
+pnpm --dir web test
+pnpm --dir web run format:check
+uv run pytest tests/test_web_api.py
+```
 
-Select an object to open the object. Use the search field to filter objects.
-Use the timeline to select the last month for the map, table, chart, and analysis.
-The map uses Leaflet 1.9.4 and standard OpenStreetMap tiles with contributor attribution.
+Use `pnpm --dir web run format` to format the frontend source.
 
-Open Habitat assistant from the sidebar. Drag the assistant header, or use arrow keys when the header has focus.
-Try “show rainfall”, “hide rainfall”, “show vegetation”, “show August”, or “zoom to the tracks”.
-Press Enter to send a question. Press Shift+Enter to insert a new line.
+## Workspace data
 
-Add GeoJSON in WGS84 or CSV with `latitude`/`longitude` or `lat`/`lon` columns.
-Files may contain up to 10,000 features and must not exceed 5 MB.
-Imports remain in the browser session. Select an imported feature to inspect attributes.
-Export downloads the synthetic movement locations through the selected month.
+Select a dataset from the public catalog.
+The catalog contains ready dataset versions and excludes development fixtures.
+The workspace displays loading, empty, and connection error states without substitute records.
 
-## Architecture
+The timeline uses months with actual observations.
+The timeline filters the map, table, chart, overview, and export.
+The table supports filtering and pagination.
+The provenance view contains dataset identifiers, versions, coverage, source links, licenses, and attribution.
 
-- `index.html` defines the main workspace and object sidebar.
-- `src/sampleMap.js` provides OpenStreetMap, synthetic overlays, point inspection, and the timeline.
-- `src/workspaceObjects.js` provides navigation, search, tables, charts, and calculated summaries.
-- `src/interactions.js` provides assistant commands, file imports, and exports.
-- `src/workspace.css` defines desktop and mobile layouts.
-- `src/catalog/` defines the versioned layer contract and asynchronous catalog provider. Catalog entries contain data and capabilities, never OpenLayers instances.
-- `src/map/adapters/` owns creation, time updates, service errors, and disposal for WMS, WMTS, bounded WFS, and temporary local vectors.
-- `src/App.tsx` contains the separate React/OpenLayers service workspace.
-- `geoserver/` contains sample PostGIS data, styles, and the trusted local publishing bootstrap.
-- `docs/layer-compatibility.md` records the supported standards path and known gaps.
+Movement records contain the last good GPS fix per animal and UTC day.
+Daily displacement connects fixes on consecutive days only.
+Missing displacement values stay null.
 
-## Publishing boundary
+Satellite maps display the latest measurement per cell through the selected month.
+NDVI is the default map variable when NDVI is available.
+Other variables appear in the table and monthly summaries.
+Monthly summaries separate environmental variables.
 
-The frontend may receive public service URLs, layer names, bounds, coordinate systems, time metadata, attribution, and supported actions. It must not receive GeoServer administrator credentials or call the REST configuration API.
+The API limits map, table, and export responses to 20,000 records.
+The workspace identifies truncated responses.
+Database summaries cover every observation in the selected version.
+The backend caches eight immutable dataset snapshots.
+Each request checks the public catalog before it uses a cached snapshot.
 
-In production, the Python pipeline will hand an approved dataset to trusted backend publishing tooling. That backend will write or register spatial data, configure GeoServer through authenticated server-side calls, and update the catalog API. The browser will then read the catalog and public map services. Local file imports remain browser-only and are not uploaded or published.
+## Assistant
 
-## Current limits
+The assistant sends questions and recent conversation messages to the Python API.
+The API calls the configured model and exposes three bounded tools:
 
-The main UI uses deterministic assistant commands and synthetic records.
-Local imports are map layers. The movement table, chart, and summaries use the built-in sample tracks.
-The rainfall grid is static. Monthly rainfall values in the point records support the comparison table.
-The service adapters limit WFS requests to the current map extent and a feature-count cap.
+- Read database summaries and source citations.
+- Prepare features through Recipe, then execute historical Analysis.
+- Retrieve, normalize, and publish data through registered source connectors.
+
+Retrieval requires an explicit source, region, date range, and any required study or package identifier.
+Environmental retrieval accepts at most one year and 25 square degrees per request.
+Successful publication refreshes the catalog.
+Analysis returns an insufficient-data status when compatible evidence is unavailable.
+The assistant does not generate unsupported forecasts.
+
+## Local imports and exports
+
+Import WGS84 GeoJSON or CSV with `latitude`/`longitude` or `lat`/`lon` columns.
+Files must contain 1–10,000 features and must not exceed 5 MB.
+Imports are browser map layers.
+Imports are not sent to the backend.
+Database analysis and exports use the selected published dataset.
+
+Export downloads the loaded observations through the selected month as GeoJSON.
+Exports include the dataset version, observation grain, source citations, and truncation status.
+
+## Source modules
+
+| Module | Responsibility |
+| --- | --- |
+| `index.html` | Workspace structure and accessible controls |
+| `src/workspace/main.ts` | Initialization, imports, and exports |
+| `src/workspace/types.ts` | API and workspace types |
+| `src/workspace/api.ts` | HTTP requests and error handling |
+| `src/workspace/store.ts` | Catalog, selection, timeline, and request cancellation |
+| `src/workspace/map.ts` | Leaflet observations, coverage, and local layers |
+| `src/workspace/views.ts` | Tables, charts, overview, and provenance |
+| `src/workspace/sidebar.ts` | Dataset navigation and object search |
+| `src/workspace/timeline.ts` | Timeline controls and playback |
+| `src/workspace/assistant.ts` | Conversation requests and responses |
+| `src/workspace/panels.ts` | Sidebar controls and assistant positioning |
+| `src/workspace/imports.ts` | CSV parsing and geographic validation |
+| `src/workspace.css` | Desktop and mobile layouts |
+| `../src/habitat/web.py` | Catalog, observation endpoints, and static serving |
+| `../src/habitat/web_assistant.py` | Model calls and integration with retrieval, Recipe, and Analysis |

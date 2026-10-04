@@ -17,7 +17,11 @@ export function node<K extends keyof HTMLElementTagNameMap>(
   return created;
 }
 
-export function button(text: string, onClick: () => void, className = 'plain-button'): HTMLButtonElement {
+export function button(
+  text: string,
+  onClick: () => void,
+  className = 'plain-button',
+): HTMLButtonElement {
   const created = node('button', text, className);
   created.type = 'button';
   created.addEventListener('click', onClick);
@@ -35,7 +39,9 @@ export function formatMonth(value: string | undefined): string {
   if (!value) return 'No dates';
 
   return new Date(`${value}-01T00:00:00Z`).toLocaleDateString(undefined, {
-    month: 'short', year: 'numeric', timeZone: 'UTC',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 

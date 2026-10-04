@@ -8,7 +8,8 @@ export class WmsAdapter extends BaseAdapter {
   private source: ImageWMS;
 
   constructor(definition: LayerDefinition, context: AdapterContext) {
-    if (!definition.serviceUrl || !definition.layerName) throw new Error(`WMS layer ${definition.id} is missing its service URL or layer name.`);
+    if (!definition.serviceUrl || !definition.layerName)
+      throw new Error(`WMS layer ${definition.id} is missing its service URL or layer name.`);
     const source = new ImageWMS({
       url: definition.serviceUrl,
       params: { LAYERS: definition.layerName, TILED: false },
@@ -20,7 +21,14 @@ export class WmsAdapter extends BaseAdapter {
     const layer = new ImageLayer({ source });
     super(definition, layer, context);
     this.source = source;
-    this.keys.push(source.on('imageloaderror', () => context.onError(definition.id, `WMS failed to load ${definition.title}. Check that GeoServer is running and the layer is published.`)));
+    this.keys.push(
+      source.on('imageloaderror', () =>
+        context.onError(
+          definition.id,
+          `WMS failed to load ${definition.title}. Check that GeoServer is running and the layer is published.`,
+        ),
+      ),
+    );
   }
 
   setTime(end: string): void {

@@ -1,71 +1,272 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f8fa">
-  <title>Habitat Watch · Workspace</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap">
-  <link rel="stylesheet" href="/src/workspace.css">
-</head>
-<body>
-<svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <symbol id="icon-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol>
-    <symbol id="icon-map" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16"/></symbol>
-    <symbol id="icon-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></symbol>
-    <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 3v17h17M8 14l4-5 4 3 5-7"/></symbol>
-    <symbol id="icon-analysis" viewBox="0 0 24 24"><path d="M7 3h10v18H7zM10 7h4M10 11h4M10 15h2"/></symbol>
-    <symbol id="icon-chat" viewBox="0 0 24 24"><path d="M21 11a8 8 0 0 1-8 8H6l-3 3V11a9 9 0 1 1 18 0ZM8 10h8m-8 4h5"/></symbol>
-    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-    <symbol id="icon-extent" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="4"/></symbol>
-  </defs>
-</svg>
-<header class="service">
-  <button class="icon-button" id="layers-toggle" aria-label="Show or hide sidebar" aria-expanded="true"><svg class="icon"><use href="#icon-stack"/></svg></button>
-  <div class="brand"><svg class="icon brand-mark"><use href="#icon-stack"/></svg><strong>Habitat Watch</strong></div>
-  <div class="breadcrumb">Workspace <span>/</span> <b>Sublette County</b></div>
-  <div class="header-right"><span class="demo">SAMPLE DATA</span><button class="plain-button" id="export" type="button">↓ Export data</button><span class="avatar" aria-label="Habitat workspace">HW</span></div>
-</header>
-<main class="workspace">
-  <aside class="sidebar" id="layers" aria-label="Workspace objects">
-    <div class="sidebar-heading"><div><span class="eyebrow">WORKSPACE</span><strong>Habitat exploration</strong></div><button class="icon-button" id="layers-close" aria-label="Close sidebar">×</button></div>
-    <button class="create-button" id="rail-add" type="button"><svg class="icon"><use href="#icon-plus"/></svg> Add data</button>
-    <label class="object-search"><span aria-hidden="true">⌕</span><input id="object-search" type="search" placeholder="Find an object…" aria-label="Find workspace objects"></label>
-    <nav class="object-tree" aria-label="Data, visualizations, and analysis">
-      <details class="object-section" open><summary><svg class="icon"><use href="#icon-table"/></svg> Data <span class="object-count" id="data-count">4</span></summary><div id="layer-list"></div><button class="object-link muted-link" id="add-data" type="button">+ Import local file</button></details>
-      <details class="object-section" open><summary><svg class="icon"><use href="#icon-chart"/></svg> Visualizations <span class="object-count">3</span></summary>
-        <button class="object-link active" data-view="map" data-object="movement-map" type="button"><svg class="icon"><use href="#icon-map"/></svg><span>Movement map<small>Geographic visualization</small></span></button>
-        <button class="object-link" data-view="table" data-object="movement-table" type="button"><svg class="icon"><use href="#icon-table"/></svg><span>Movement locations<small>Data table</small></span></button>
-        <button class="object-link" data-view="chart" data-object="movement-chart" type="button"><svg class="icon"><use href="#icon-chart"/></svg><span>Monthly movement<small>Distance chart</small></span></button>
-      </details>
-      <details class="object-section" open><summary><svg class="icon"><use href="#icon-analysis"/></svg> Analysis <span class="object-count">2</span></summary>
-        <button class="object-link" data-view="analysis" data-object="movement-overview" type="button"><svg class="icon"><use href="#icon-analysis"/></svg><span>Movement overview<small>Summary of sample tracks</small></span></button>
-        <button class="object-link" data-view="analysis" data-object="dry-months" type="button"><svg class="icon"><use href="#icon-analysis"/></svg><span>Dry-month comparison<small>Movement and rainfall</small></span></button>
-      </details>
-      <p class="search-empty" id="search-empty" hidden>No matching objects.</p>
-    </nav>
-    <div class="sidebar-bottom"><button id="rail-chat" type="button"><svg class="icon"><use href="#icon-chat"/></svg> Habitat assistant</button><div class="workspace-status"><i></i><span>Local workspace<small>Synthetic data · 2025</small></span></div></div>
-  </aside>
-  <section class="stage" aria-label="Exploration workspace">
-    <header class="object-header"><div class="object-path">Habitat exploration <span>/</span> <span id="object-category">Visualizations</span></div><div class="object-title-row"><div><h1 id="object-title">Movement map</h1><p id="object-description">Pronghorn movement · Sublette County, Wyoming · 2025</p></div><div class="object-tools"><button class="plain-button" id="basemap" type="button"><svg class="icon"><use href="#icon-map"/></svg> OpenStreetMap</button><button class="icon-button" id="frame" aria-label="Zoom to study area"><svg class="icon"><use href="#icon-extent"/></svg></button></div></div></header>
-    <div class="view-tabs" aria-label="Visualization views"><button data-view="map" data-object="movement-map" class="active" aria-current="page">Map</button><button data-view="table" data-object="movement-table">Table</button><button data-view="chart" data-object="movement-chart">Chart</button><button data-view="analysis" data-object="movement-overview">Analysis</button><span>Sample workspace</span></div>
-    <div class="canvas">
-      <div class="map-view" id="map-view"><div id="map" role="application" aria-label="OpenStreetMap with synthetic pronghorn tracks"></div><div class="map-heading"><strong>Sublette County, Wyoming</strong><p>4 tagged animals · 48 sample locations</p></div><div class="map-status"><i></i><span id="map-status">3 layers visible</span></div><div class="inspect" id="inspect" hidden><h2 id="inspect-title"></h2><p id="inspect-when"></p><p id="inspect-move"></p><p id="inspect-rain"></p><button class="text-button" id="inspect-close" type="button">Close</button></div></div>
-      <section class="object-content" id="object-content" aria-label="Selected workspace object" hidden></section>
-      <div class="timebar"><button class="play" id="play" type="button" aria-pressed="false">Play</button><div class="when" id="when">15 Dec 2025</div><div class="slider"><span>Jan</span><input id="month" type="range" min="0" max="11" value="11" aria-label="Month in view"><span>Dec</span></div><span class="timeline-year">2025</span></div>
-    </div>
-  </section>
-  <aside class="chat" id="chat" aria-label="Map assistant" hidden>
-    <div class="chat-header" id="chat-handle" tabindex="0" aria-label="Move assistant. Drag or use arrow keys."><span class="assistant-mark"><svg class="icon"><use href="#icon-chat"/></svg></span><div class="chat-title"><strong>Habitat assistant</strong><p>Your workspace, in conversation</p></div><span class="grip" aria-hidden="true">⠿</span><button class="icon-button" id="minimize" type="button" aria-label="Minimize assistant" aria-expanded="true">−</button><button class="icon-button" id="chat-close" type="button" aria-label="Close assistant">×</button></div>
-    <div class="thread" id="thread" role="log" aria-live="polite" aria-relevant="additions"><article class="exchange"><p class="label">YOU</p><p class="question">Where did the tracked pronghorn move during the dry months last year?</p><div class="answer-brand">Habitat Watch</div><p class="finding">In these sample records, all four tagged pronghorn moved north through 2025. Explore the tracks alongside monthly rainfall to compare the pattern.</p><p class="meta">4 tagged animals · 48 locations · Jan–Dec 2025</p><details class="evidence"><summary>View supporting data · 2 sample layers</summary><p>Movement: 12 synthetic locations per animal.<br>Rainfall: generated monthly values, not observed rainfall.</p></details><p class="limit">Sample data only. Tracking does not represent the whole herd or establish why animals moved.</p><div class="followups"><button type="button" data-prompt="Show the dry months">Show dry months ↗</button><button type="button" data-prompt="Give me more detail about movement">More detail ↗</button><button type="button" data-prompt="Show vegetation on the map">Add vegetation +</button></div></article></div>
-    <form class="ask" id="ask"><label for="question">Ask about this workspace</label><div class="composer"><textarea id="question" name="question" placeholder="Ask a question or change the map…"></textarea><div class="composer-bottom"><button class="icon-button" id="attach" type="button" aria-label="Attach geographic data">+</button><span class="context-tag">Sublette County · 2025</span><button class="send" type="submit" aria-label="Send question">↑</button></div></div><p class="chat-footnote">Sample responses · files stay on this device</p></form>
-  </aside>
-  <button class="chat-launcher" id="chat-launcher" type="button" hidden><svg class="icon"><use href="#icon-chat"/></svg> Ask about this map</button>
-  <input id="file-input" type="file" accept=".geojson,.json,.csv" hidden><div class="toast" id="toast" role="status" hidden></div>
-</main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script type="module" src="/src/interactions.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f8fa" />
+    <title>Habitat Watch · Workspace</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap"
+    />
+  </head>
+  <body>
+    <svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <symbol id="icon-map" viewBox="0 0 24 24">
+          <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16" />
+        </symbol>
+        <symbol id="icon-table" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M3 10h18M3 15h18M9 4v16" />
+        </symbol>
+        <symbol id="icon-chart" viewBox="0 0 24 24">
+          <path d="M4 3v17h17M8 14l4-5 4 3 5-7" />
+        </symbol>
+        <symbol id="icon-analysis" viewBox="0 0 24 24">
+          <path d="M7 3h10v18H7zM10 7h4M10 11h4M10 15h2" />
+        </symbol>
+        <symbol id="icon-chat" viewBox="0 0 24 24">
+          <path d="M21 11a8 8 0 0 1-8 8H6l-3 3V11a9 9 0 1 1 18 0ZM8 10h8m-8 4h5" />
+        </symbol>
+        <symbol id="icon-plus" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" />
+        </symbol>
+        <symbol id="icon-extent" viewBox="0 0 24 24">
+          <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
+          <circle cx="12" cy="12" r="4" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <header class="service">
+      <button
+        class="icon-button"
+        id="layers-toggle"
+        aria-label="Show or hide sidebar"
+        aria-expanded="true"
+      >
+        <svg class="icon"><use href="#icon-table" /></svg>
+      </button>
+      <div class="brand"><strong>Habitat Watch</strong></div>
+      <div class="breadcrumb">
+        Workspace <span>/</span> <b id="workspace-name">Public catalog</b>
+      </div>
+      <div class="header-right">
+        <span class="connection-badge" id="connection-status" role="status">Connecting</span>
+        <button class="plain-button" id="refresh" type="button">↻ Refresh</button>
+        <button class="plain-button" id="export" type="button" disabled>↓ Export data</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" id="layers" aria-label="Workspace objects">
+        <div class="sidebar-heading">
+          <div><span class="eyebrow">WORKSPACE</span><strong>Habitat exploration</strong></div>
+          <button class="icon-button" id="layers-close" aria-label="Close sidebar">×</button>
+        </div>
+        <button class="create-button" id="rail-add" type="button">
+          <svg class="icon"><use href="#icon-plus" /></svg> Import local data
+        </button>
+        <label class="object-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            id="object-search"
+            type="search"
+            placeholder="Find a dataset or view…"
+            aria-label="Find workspace objects"
+          />
+        </label>
+        <nav class="object-tree" aria-label="Data, visualizations, and analysis">
+          <details class="object-section" open>
+            <summary>
+              <svg class="icon"><use href="#icon-table" /></svg>
+              Data <span class="object-count" id="data-count">0</span>
+            </summary>
+            <div id="layer-list"></div>
+            <div id="import-list"></div>
+            <p class="catalog-note" id="catalog-note">Loading the public catalog…</p>
+          </details>
+          <details class="object-section" open>
+            <summary>
+              <svg class="icon"><use href="#icon-chart" /></svg> Visualizations
+            </summary>
+            <button class="object-link active" data-view="map" type="button">
+              <svg class="icon"><use href="#icon-map" /></svg>
+              <span>Observation map<small>Geographic observations</small></span>
+            </button>
+            <button class="object-link" data-view="table" type="button">
+              <svg class="icon"><use href="#icon-table" /></svg>
+              <span>Observation records<small>Searchable data table</small></span>
+            </button>
+            <button class="object-link" data-view="chart" type="button">
+              <svg class="icon"><use href="#icon-chart" /></svg>
+              <span>Monthly summary<small>Database aggregates</small></span>
+            </button>
+          </details>
+          <details class="object-section" open>
+            <summary>
+              <svg class="icon"><use href="#icon-analysis" /></svg> Analysis
+            </summary>
+            <button class="object-link" data-view="overview" type="button">
+              <svg class="icon"><use href="#icon-analysis" /></svg>
+              <span>Dataset overview<small>Coverage and measurement method</small></span>
+            </button>
+            <button class="object-link" data-view="sources" type="button">
+              <svg class="icon"><use href="#icon-table" /></svg>
+              <span>Sources and provenance<small>Dataset versions and attribution</small></span>
+            </button>
+          </details>
+          <p class="search-empty" id="search-empty" hidden>No matching objects.</p>
+        </nav>
+        <div class="sidebar-bottom">
+          <button id="rail-chat" type="button">
+            <svg class="icon"><use href="#icon-chat" /></svg> Habitat assistant
+          </button>
+          <div class="workspace-status">
+            <i></i
+            ><span
+              >Public observations<small id="workspace-status">Waiting for the backend</small></span
+            >
+          </div>
+        </div>
+      </aside>
+
+      <section class="stage" aria-label="Exploration workspace">
+        <header class="object-header">
+          <div class="object-path">
+            Habitat exploration <span>/</span>
+            <span id="object-category">Visualizations</span>
+          </div>
+          <div class="object-title-row">
+            <div>
+              <h1 id="object-title">Observation map</h1>
+              <p id="object-description">Loading catalog data…</p>
+            </div>
+            <div class="object-tools" id="object-tools">
+              <button class="plain-button" id="basemap" type="button">
+                <svg class="icon"><use href="#icon-map" /></svg> OpenStreetMap
+              </button>
+              <button class="icon-button" id="frame" aria-label="Zoom to dataset coverage">
+                <svg class="icon"><use href="#icon-extent" /></svg>
+              </button>
+            </div>
+          </div>
+        </header>
+        <div class="view-tabs" aria-label="Visualization views">
+          <button data-view="map" class="active" aria-current="page">Map</button>
+          <button data-view="table">Table</button>
+          <button data-view="chart">Chart</button>
+          <button data-view="overview">Overview</button>
+          <span id="dataset-version"></span>
+        </div>
+        <div class="canvas">
+          <div class="map-view" id="map-view">
+            <div
+              id="map"
+              role="application"
+              aria-label="OpenStreetMap with ecological observations"
+            ></div>
+            <div class="map-heading">
+              <strong id="map-title">Public observations</strong>
+              <p id="map-description">Connecting to the catalog…</p>
+            </div>
+            <div class="map-status"><i></i><span id="map-status">Loading</span></div>
+          </div>
+          <div class="workspace-notice" id="workspace-notice" role="status" hidden></div>
+          <section
+            class="object-content"
+            id="object-content"
+            aria-label="Selected workspace object"
+            hidden
+          ></section>
+          <div class="timebar">
+            <button class="play" id="play" type="button" aria-pressed="false" disabled>Play</button>
+            <div class="when" id="when">No dates</div>
+            <div class="slider">
+              <span id="timeline-start">—</span>
+              <input
+                id="month"
+                type="range"
+                min="0"
+                max="0"
+                value="0"
+                aria-label="Last observation month in view"
+                disabled
+              />
+              <span id="timeline-end">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="chat" id="chat" aria-label="Habitat assistant" hidden>
+        <div
+          class="chat-header"
+          id="chat-handle"
+          tabindex="0"
+          aria-label="Move assistant. Drag or use arrow keys."
+        >
+          <span class="assistant-mark"
+            ><svg class="icon"><use href="#icon-chat" /></svg
+          ></span>
+          <div class="chat-title">
+            <strong>Habitat assistant</strong>
+            <p>Connected to the data pipeline</p>
+          </div>
+          <span class="grip" aria-hidden="true">⠿</span>
+          <button
+            class="icon-button"
+            id="minimize"
+            type="button"
+            aria-label="Minimize assistant"
+            aria-expanded="true"
+          >
+            −
+          </button>
+          <button class="icon-button" id="chat-close" type="button" aria-label="Close assistant">
+            ×
+          </button>
+        </div>
+        <div class="thread" id="thread" role="log" aria-live="polite" aria-relevant="additions">
+          <p class="assistant-intro">
+            Ask about dataset coverage, analyze observations, or request data for a region and date
+            range.
+          </p>
+        </div>
+        <form class="ask" id="ask">
+          <label for="question">Ask about this workspace</label>
+          <div class="composer">
+            <textarea
+              id="question"
+              name="question"
+              maxlength="4000"
+              placeholder="Ask a question about the observations…"
+            ></textarea>
+            <div class="composer-bottom">
+              <button
+                class="icon-button"
+                id="attach"
+                type="button"
+                aria-label="Import geographic data"
+              >
+                +
+              </button>
+              <span class="context-tag" id="chat-context">Public catalog</span>
+              <button class="send" id="send-question" type="submit" aria-label="Send question">
+                ↑
+              </button>
+            </div>
+          </div>
+          <p class="chat-footnote" id="assistant-status">Local imports remain on this device.</p>
+        </form>
+      </aside>
+      <button class="chat-launcher" id="chat-launcher" type="button" hidden>
+        <svg class="icon"><use href="#icon-chat" /></svg> Ask about this map
+      </button>
+      <input id="file-input" type="file" accept=".geojson,.json,.csv" hidden />
+      <div class="toast" id="toast" role="status" hidden></div>
+    </main>
+    <script type="module" src="/src/workspace/main.ts"></script>
+  </body>
 </html>

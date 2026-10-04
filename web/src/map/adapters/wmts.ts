@@ -11,7 +11,8 @@ export class WmtsAdapter extends BaseAdapter {
   private source: WMTS;
 
   constructor(definition: LayerDefinition, context: AdapterContext) {
-    if (!definition.serviceUrl || !definition.layerName) throw new Error(`WMTS layer ${definition.id} is missing its service URL or layer name.`);
+    if (!definition.serviceUrl || !definition.layerName)
+      throw new Error(`WMTS layer ${definition.id} is missing its service URL or layer name.`);
     const projection = getProjection('EPSG:3857');
     if (!projection) throw new Error('EPSG:3857 is unavailable.');
     const extent = projection.getExtent();
@@ -33,7 +34,14 @@ export class WmtsAdapter extends BaseAdapter {
     const layer = new TileLayer({ source });
     super(definition, layer, context);
     this.source = source;
-    this.keys.push(source.on('tileloaderror', () => context.onError(definition.id, `WMTS failed to load ${definition.title}. GeoWebCache may still be starting.`)));
+    this.keys.push(
+      source.on('tileloaderror', () =>
+        context.onError(
+          definition.id,
+          `WMTS failed to load ${definition.title}. GeoWebCache may still be starting.`,
+        ),
+      ),
+    );
   }
 
   setTime(end: string): void {
