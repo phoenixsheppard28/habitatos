@@ -10,9 +10,7 @@ import psycopg
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field, ValidationError
 
-from habitat.catalog.store import PostgresCatalog
 from habitat.config import PROJECT_ROOT, settings
-from habitat.contracts import SearchFilters
 from habitat.db import database_url
 
 logger = logging.getLogger(__name__)
