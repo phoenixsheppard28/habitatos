@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from habitat.contracts import RawManifest
 from habitat.grid import Grid, parse_cell_id, transformer
 from habitat.normalize.rows import ANIMAL_ENTITIES, ANIMAL_LOCATIONS, CELL_OBSERVATIONS, NormalizedBatch
+from habitat.normalize.rows import SITE_FEATURES
 
 
 class BatchRecord(BaseModel):
@@ -338,16 +339,46 @@ def summarize_animal_locations(connection: psycopg.Connection, version: SeriesVe
     )
 
 
+def summarize_site_features(connection: psycopg.Connection, version: SeriesVersion) -> SeriesSummary:
+    """A feature stays valid until a later version replaces it, so the coverage ends at the latest publication."""
+    start, end, row_count, feature_classes = connection.execute(
+        f"""
+        SELECT min(time_start), greatest(max(time_start), max(available_at)), count(*),
+               coalesce(array_agg(DISTINCT feature_class), '{{}}')
+        FROM site_features
+        WHERE series_id = %(series_id)s AND batch_key IN ({VERSION_BATCHES})
+        """,
+        version_parameters(version),
+    ).fetchone()
+
+    return SeriesSummary(
+        start, end, row_count, sorted(feature_classes), distinct_cell_ids(connection, SITE_FEATURES, version)
+    )
+
+
 FamilySummary = Callable[[psycopg.Connection, SeriesVersion], SeriesSummary]
 
 FAMILY_SUMMARIES: dict[str, FamilySummary] = {
     CELL_OBSERVATIONS: summarize_cell_observations,
     ANIMAL_LOCATIONS: summarize_animal_locations,
+    SITE_FEATURES: summarize_site_features,
 }
 
 
 def copy_rows(cursor: psycopg.Cursor, family: str, series_id: str, key: str, table: pa.Table) -> None:
     columns = ["series_id", "batch_key", *table.column_names]
+    values = [copy_values(name, column.to_pylist()) for name, column in zip(table.column_names, table.columns)]
     with cursor.copy(f"COPY {family} ({', '.join(columns)}) FROM STDIN") as copy:
-        for row in zip(*(column.to_pylist() for column in table.columns)):
+        for row in zip(*values):
             copy.write_row((series_id, key, *row))
+
+
+GEOMETRY_COLUMN = "geometry"
+
+
+def copy_values(column: str, values: list) -> list:
+    """PostGIS reads WKB as hex text. COPY would write raw bytes in the bytea form, which PostGIS rejects."""
+    if column != GEOMETRY_COLUMN:
+        return values
+
+    return [value.hex() if isinstance(value, bytes) else value for value in values]
