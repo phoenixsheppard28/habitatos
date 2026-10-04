@@ -4,6 +4,7 @@ import json
 
 from anthropic import beta_tool
 
+from habitat.derive import run as derive_run
 from habitat.fetch import service, session
 
 
@@ -89,6 +90,25 @@ def fetch_environment(
         return json.dumps(failure)
 
 
+@beta_tool
+def derive_habitat_indicators(
+    bbox: list[float],
+    window_start: int,
+    window_end: int,
+    baseline_start: int = 2001,
+    baseline_end: int = 2015,
+) -> str:
+    """Compute habitat degradation indicators per 1 km cell from stored data. Downloads nothing.
+
+    Gives annual NDVI summaries and rainfall, then the NDVI trend, rain-use efficiency and RESTREND
+    over the inclusive window years, with the RESTREND fit on the baseline years. Needs stored
+    modis_mod13q1 NDVI and chirps rainfall for whole years: fetch them first. Returns the input
+    dataset versions and the quality flags. It never returns a "degraded" label; analysis decides.
+    """
+    result = derive_run.derive_habitat_indicators(bbox, window_start, window_end, baseline_start, baseline_end)
+    return json.dumps(result)
+
+
 FETCH_AGENT_TOOLS = [
     list_downloaded_files,
     search_catalog,
@@ -96,4 +116,5 @@ FETCH_AGENT_TOOLS = [
     check_access,
     download_dataset,
     fetch_environment,
+    derive_habitat_indicators,
 ]

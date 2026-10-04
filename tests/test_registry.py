@@ -5,6 +5,8 @@ from habitat.sources import SOURCES
 
 EXPECTED = {"sentinel2", "modis_mod13q1", "chirps", "movebank_repository", "movebank_study", "zenodo", "fixture"}
 EXPECTED |= {"landsat_c2_l2", "esa_cci_lc", "io_lulc_annual", "modis_mcd64a1"}
+DERIVED = {"vegetation_annual_derived", "vegetation_trend_derived"}
+EXPECTED |= DERIVED
 
 
 def test_every_source_id_has_a_connector():
@@ -14,7 +16,7 @@ def test_every_source_id_has_a_connector():
 
 
 def test_sources_without_mapping_are_only_zenodo_and_fixture():
-    assert {key for key, source in SOURCES.items() if source.normalizer is None} == {"zenodo", "fixture"}
+    assert {key for key, source in SOURCES.items() if source.normalizer is None} == {"zenodo", "fixture", *DERIVED}
 
 
 def test_every_source_with_a_normalizer_has_a_storage_format():

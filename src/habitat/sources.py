@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from habitat.archive.store import ArtifactStore
+from habitat.derive.registry import ANNUAL_PRODUCT, DERIVED_FORMAT, TREND_PRODUCT, fetch_derived
 from habitat.contracts import BBox, RawManifest
 from habitat.fetch.connectors import Connector
 from habitat.fetch.connectors.burned_area import PRODUCT as MCD64A1_PRODUCT
@@ -92,6 +93,20 @@ SOURCES: dict[str, Source] = {
             "MODIS MCD64A1 monthly burned area as the burned fraction per 1 km cell",
             frozenset({"fire_observations"}),
             fetch_mcd64a1, normalize_mcd64a1, STAC_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "vegetation_annual_derived", ANNUAL_PRODUCT,
+            "Annual NDVI mean, integral, seasonal amplitude, dry-season floor and rainfall per 1 km cell, "
+            "derived from MODIS MOD13Q1 and CHIRPS",
+            frozenset({"habitat_degradation"}),
+            fetch_derived, None, DERIVED_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "vegetation_trend_derived", TREND_PRODUCT,
+            "NDVI trend, rain-use efficiency and RESTREND per 1 km cell over an analysis window, "
+            "derived from the annual vegetation summaries",
+            frozenset({"habitat_degradation"}),
+            fetch_derived, None, DERIVED_FORMAT, needs_area_and_dates=True,
         ),
         Source(
             "movebank_repository", REPOSITORY_PRODUCT,

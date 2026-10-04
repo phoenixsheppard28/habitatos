@@ -274,6 +274,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "rasterio" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "shapely" },
 ]
 
@@ -297,6 +298,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "rasterio", specifier = ">=1.4" },
     { name = "scikit-learn", specifier = ">=1.4" },
+    { name = "scipy", specifier = ">=1.11" },
     { name = "shapely", specifier = ">=2.0,<3" },
 ]
 
