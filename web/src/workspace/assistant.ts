@@ -1,5 +1,5 @@
 import { askAssistant } from './api';
-import { element, formatMonth, node, sourceLink } from './dom';
+import { button, element, formatMonth, node, sourceLink } from './dom';
 import { renderMarkdown } from './markdown';
 import type { WorkspacePanels } from './panels';
 import type { WorkspaceStore } from './store';
@@ -119,6 +119,10 @@ export class WorkspaceAssistant {
       }
       this.messages = [...messages, { role: 'assistant', content: response.answer }];
       if (response.updated) await this.store.refresh(response.retrieved_dataset_ids?.[0]);
+      if (response.analyses?.length) {
+        this.store.addAnalyses(response.analyses);
+        article.append(button('View analysis in Charts', () => this.store.setView('chart')));
+      }
     } catch (error) {
       pending.remove();
       this.appendMessage(

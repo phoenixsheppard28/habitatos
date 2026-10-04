@@ -87,6 +87,46 @@ export interface ChatResponse {
   request_id?: string;
   elapsed_seconds?: number;
   timings?: PipelineProgress[];
+  analyses?: WorkspaceAnalysis[];
+}
+
+export interface ChartSpec {
+  schema_version: '1.0';
+  chart_id: string;
+  title: string;
+  kind: 'line' | 'bar' | 'scatter';
+  x_axis: { label: string; type: 'category' | 'temporal' | 'numeric' };
+  y_axis: { label: string; unit?: string | null };
+  series: {
+    name: string;
+    points: { x: string | number; y: number | null; note?: string | null }[];
+    style?: 'solid' | 'dashed';
+  }[];
+  description?: string | null;
+  max_gap?: number | null;
+}
+
+export interface WorkspaceAnalysis {
+  analysis_id: string;
+  prepared_id: string;
+  status: 'ok' | 'partial';
+  warnings: string[];
+  charts: ChartSpec[];
+  result: {
+    result_id: string;
+    question: string;
+    created_at: string;
+    status: 'complete' | 'partial';
+    findings: string[];
+    metrics?: Record<string, unknown>;
+    timeline?: unknown;
+    evidence: {
+      datasets?: { dataset_id: string; version: string | number }[];
+      rights?: { attribution?: string | null } | null;
+    };
+    limitations: string[];
+    artifact_versions: { method?: string };
+  };
 }
 
 export interface PipelineProgress {
@@ -104,6 +144,7 @@ export type View = 'map' | 'table' | 'chart' | 'overview' | 'sources';
 export type LoadStatus = 'loading' | 'ready' | 'empty' | 'error';
 
 export interface WorkspaceState {
+  analyses: WorkspaceAnalysis[];
   datasets: Dataset[];
   selected: Dataset | null;
   snapshot: DatasetSnapshot | null;

@@ -1,0 +1,68 @@
+[
+  {
+    "schema_version": "1.0",
+    "chart_id": "movement-timeline",
+    "title": "Daily median displacement",
+    "kind": "line",
+    "x_axis": { "label": "Date (UTC)", "type": "temporal" },
+    "y_axis": { "label": "Daily median displacement", "unit": "km" },
+    "max_gap": 86400000,
+    "description": "Missing values have no marks. Lines stop at missing days.",
+    "series": [
+      {
+        "name": "Observed",
+        "style": "solid",
+        "points": [
+          { "x": "2024-01-01", "y": null, "note": "2 tracked animals" },
+          { "x": "2024-01-02", "y": 7, "note": "2 tracked animals" },
+          { "x": "2024-01-03", "y": 0, "note": "1 tracked animal" },
+          { "x": "2024-01-04", "y": null, "note": "1 tracked animal" },
+          { "x": "2024-01-05", "y": 9, "note": "1 tracked animal" },
+          { "x": "2024-01-07", "y": 4, "note": "1 tracked animal" }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "chart_id": "site-comparison",
+    "title": "Change by monitoring site",
+    "kind": "bar",
+    "x_axis": { "label": "Monitoring site", "type": "category" },
+    "y_axis": { "label": "Measured change", "unit": "%" },
+    "series": [
+      {
+        "name": "Before",
+        "points": [
+          { "x": "Site A", "y": -2 },
+          { "x": "Site B", "y": 3 }
+        ]
+      },
+      {
+        "name": "After",
+        "points": [
+          { "x": "Site A", "y": 4 },
+          { "x": "Site B", "y": null }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "chart_id": "measurement-pairs",
+    "title": "Paired measurements",
+    "kind": "scatter",
+    "x_axis": { "label": "Rainfall (mm)", "type": "numeric" },
+    "y_axis": { "label": "Vegetation index", "unit": "index" },
+    "series": [
+      {
+        "name": "Site A",
+        "points": [
+          { "x": 0, "y": -0.2 },
+          { "x": 5, "y": 0.4 },
+          { "x": 20, "y": 0.5 }
+        ]
+      }
+    ]
+  }
+]

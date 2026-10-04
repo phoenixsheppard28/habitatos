@@ -1,11 +1,12 @@
 import { button, element, formatMonth, formatNumber, node, sourceLink } from './dom';
+import { renderAnalysis } from './charts';
 import type { WorkspaceStore } from './store';
 import type { ObservationFeature, View, WorkspaceState } from './types';
 
 const viewTitles: Record<View, string> = {
   map: 'Observation map',
   table: 'Observation records',
-  chart: 'Monthly summary',
+  chart: 'Analysis charts',
   overview: 'Dataset overview',
   sources: 'Sources and provenance',
 };
@@ -71,11 +72,13 @@ export class WorkspaceViews {
     element('object-content').hidden = mapVisible;
     element('object-tools').hidden = !mapVisible;
     element('object-title').textContent = viewTitles[state.view];
-    element('object-category').textContent = ['overview', 'sources'].includes(state.view)
+    element('object-category').textContent = ['chart', 'overview', 'sources'].includes(state.view)
       ? 'Analysis'
       : 'Workspace';
     element('object-description').textContent =
-      state.selected?.description ?? 'Select a dataset from the public catalog.';
+      state.view === 'chart'
+        ? 'Analysis results from Dora and the selected dataset summary.'
+        : (state.selected?.description ?? 'Select a dataset from the public catalog.');
     element('dataset-version').textContent = state.snapshot
       ? `Dataset version ${state.snapshot.version}`
       : '';
@@ -89,7 +92,8 @@ export class WorkspaceViews {
 
     const notice = element('workspace-notice');
     notice.replaceChildren();
-    notice.hidden = state.status === 'ready';
+    notice.hidden =
+      state.status === 'ready' || (state.view === 'chart' && state.analyses.length > 0);
     if (state.status === 'loading')
       notice.append(node('p', 'Loading observations from the backend…'));
     if (state.status === 'empty') {
@@ -138,6 +142,7 @@ export class WorkspaceViews {
 
     const content = element('object-content');
     content.replaceChildren();
+    if (state.view === 'chart') this.renderAnalyses(content);
     if (mapVisible || !state.snapshot || !state.selected) return;
 
     if (this.lastDatasetId !== state.selected.dataset_id) {
@@ -319,6 +324,40 @@ export class WorkspaceViews {
         'content-note',
       ),
     );
+  }
+
+  private renderAnalyses(content: HTMLElement): void {
+    content.append(
+      contentHeading(
+        'Requested analyses',
+        'Ask Dora for an analysis. Results appear here with their original dates and evidence.',
+      ),
+      button('Ask Dora for a chart', () =>
+        this.discuss(
+          'Analyze the selected dataset for the dates shown and chart the trends. Cite the evidence and limitations.',
+        ),
+      ),
+    );
+
+    if (!this.store.state.analyses.length) {
+      content.append(
+        node(
+          'p',
+          'No requested analyses yet. Ask for movement trends, environmental trends, or a date-window comparison.',
+          'content-note',
+        ),
+      );
+    }
+    for (const analysis of this.store.state.analyses) content.append(renderAnalysis(analysis));
+    if (this.store.state.snapshot) {
+      content.append(
+        node(
+          'p',
+          'The dataset summary below follows the timeline control. Requested analyses retain the dates used for each request.',
+          'content-note',
+        ),
+      );
+    }
   }
 
   private renderOverview(content: HTMLElement): void {

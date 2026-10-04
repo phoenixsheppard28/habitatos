@@ -1,5 +1,11 @@
 import { fetchCatalog, fetchDataset } from './api';
-import type { MonthlySummary, ObservationFeature, View, WorkspaceState } from './types';
+import type {
+  MonthlySummary,
+  ObservationFeature,
+  View,
+  WorkspaceAnalysis,
+  WorkspaceState,
+} from './types';
 
 type StateListener = (state: WorkspaceState) => void;
 
@@ -7,6 +13,7 @@ export class WorkspaceStore {
   private listeners = new Set<StateListener>();
   private pendingRequest: AbortController | null = null;
   readonly state: WorkspaceState = {
+    analyses: [],
     datasets: [],
     selected: null,
     snapshot: null,
@@ -100,6 +107,18 @@ export class WorkspaceStore {
 
   setView(view: View): void {
     this.state.view = view;
+    this.notify();
+  }
+
+  addAnalyses(analyses: WorkspaceAnalysis[]): void {
+    if (!analyses.length) return;
+
+    const incomingIds = new Set(analyses.map((analysis) => analysis.analysis_id));
+    this.state.analyses = [
+      ...analyses.slice().reverse(),
+      ...this.state.analyses.filter((analysis) => !incomingIds.has(analysis.analysis_id)),
+    ];
+    this.state.view = 'chart';
     this.notify();
   }
 

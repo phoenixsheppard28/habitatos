@@ -868,6 +868,71 @@ tbody tr:hover {
   height: 9px;
   background: var(--accent);
 }
+.analysis-result {
+  margin: 20px 0 26px;
+}
+.analysis-result h2 {
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.analysis-plot {
+  margin-top: 24px;
+}
+.analysis-chart {
+  display: block;
+  width: 100%;
+  min-width: 600px;
+  height: auto;
+  margin-top: 12px;
+}
+.analysis-chart-scroll {
+  overflow-x: auto;
+}
+.analysis-chart text {
+  font-family: inherit;
+  font-size: 12px;
+  fill: var(--muted);
+}
+.analysis-gridline {
+  stroke: var(--line);
+}
+.analysis-axis {
+  stroke: #aebbc7;
+}
+.analysis-line {
+  fill: none;
+  stroke-width: 2;
+}
+.analysis-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.analysis-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.analysis-legend i {
+  width: 20px;
+  border-top: 3px solid;
+}
+.analysis-data {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.analysis-data summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.analysis-data ul {
+  padding-left: 20px;
+  line-height: 1.6;
+}
 .analysis-table {
   margin-top: 18px;
 }
