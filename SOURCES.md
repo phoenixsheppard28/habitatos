@@ -14,6 +14,9 @@ For the package layout and the data flow, see `MERGE_PLAN.md`.
 | `movebank_study` | `movebank:<study_id>` | study id | 1 CSV | `animal_locations` |
 | `zenodo` | `zenodo:<record_id>` | record id | 1 file | quarantined (no mapping) |
 | `fixture` | `fixture-movement-001`, `fixture-rainfall-001` | fixture id | 1 CSV | quarantined (synthetic) |
+| `firms_modis` | none (use `fetch_events`) | bbox, dates | 1 FIRMS country CSV per country and year | `point_events` |
+| `firms_viirs` | none (use `fetch_events`) | bbox, dates | 1 FIRMS country CSV per country and year | `point_events` |
+| `gbif_occurrence` | none (use `fetch_events`) | bbox, dates, optional taxa or dataset key | JSON search pages and `datasets.json` | `point_events` |
 
 General limits:
 
@@ -84,6 +87,47 @@ General limits:
 - Synthetic antelope tracks and rainfall cells in `tests/fixtures/`.
 - Use them only for demos and tests. The pipeline quarantines them and never publishes them.
 
+## firms_modis and firms_viirs
+
+- Provider: NASA FIRMS, standard product. `firms_modis` is MODIS Terra and Aqua. `firms_viirs` is VIIRS S-NPP at 375 m.
+- The connector reads the yearly country files. These files need no MAP_KEY.
+- `src/habitat/fetch/connectors/firms_countries.json` gives the land boxes of each FIRMS country. The boxes come from Natural Earth 1:50m admin-0, with a 0.05° margin.
+- The connector gets the file of each country that overlaps the bbox, for each year of the dates.
+- The current year has no file. A missing file gives a warning.
+- A file with no detection in the bbox gives a warning and no manifest.
+- `source_item_id` is `firms:<instrument>:<Country>:<year>:<bbox>`. The normalizer keeps only the rows in the bbox.
+- `processing_version` is the `version` column, for example `6.2` (MODIS) or `2` (VIIRS).
+- `available_at` is the `Last-Modified` time of the file. A file without this header is skipped. The 2012 files have dates in 2024 and 2025.
+- One row is one fire pixel in one satellite overpass. `value` is the fire radiative power in MW.
+- `quality_flag` is `low_confidence` for MODIS confidence below 30 and VIIRS confidence `l`. It is `non_vegetation_fire` when `type` is not 0.
+- `max_days` shortens the date range. A year needs `max_days = 366`.
+- The FIRMS area API (MAP_KEY) is not implemented.
+- License: NASA open data. NASA asks for an acknowledgment of FIRMS.
+
+## gbif_occurrence
+
+- Provider: GBIF occurrence search API. It includes iNaturalist research-grade and eBird records.
+- The search uses the bbox polygon, the dates, `hasCoordinate=true`, optional taxon keys and an optional dataset key.
+- The connector reads at most `max_records` records (default 1,000, maximum 10,000) in pages of 300.
+- When GBIF has more records, the result is a bounded sample with a warning. Download mode is not implemented.
+- The archive keeps the JSON pages as downloaded. `datasets.json` gives the title, `pubDate`, license and DOI of each dataset.
+- `processing_version` is the SHA-256 of the pages. A later search of the same query makes a new batch. The current-row rule keeps one row per `gbifID`.
+- `available_at` is the record `modified` date. When that date is missing or before the end of the event, the normalizer uses the dataset `pubDate`, then the record `lastCrawled` time. Both fallbacks have the flag `available_at_from_dataset`.
+- `taxon_name` and `gbif_taxon_key` are the species name and key. A record above species rank gets the most specific rank.
+- A time without an offset is local time. The row then has the local date with precision `day`.
+- The record license must be CC0 1.0, CC-BY 4.0 or CC-BY-NC 4.0. Another license quarantines the item.
+- `Rights.license` is the most restrictive record license.
+- Records of Global Roadkill Data get `event_type = wildlife_mortality`. Search them with the agent tool `fetch_events`.
+- GBIF records are presence-only. A missing record is not an absence.
+
+## Derived event counts
+
+- `habitat.event_counts.derive_event_counts` counts the current events of one event series per cell.
+- FIRMS gives `fire_count` and `fire_frp_sum_mw` per UTC day, with the source id `firms_modis_derived` or `firms_viirs_derived`.
+- GBIF gives `occurrence_count` and `occurrence_effort_count` per month for one taxon key, with the source id `gbif_occurrence_derived`.
+- The counts use only rows with the flag `ok` or `available_at_from_dataset`.
+- Each run records its inputs in `properties.inputs` and supersedes the previous run.
+
 ## Provider references
 
 - [Movebank API](https://github.com/movebank/movebank-api-doc/blob/master/movebank-api.md)
@@ -94,3 +138,7 @@ General limits:
 - [CHIRPS download directory](https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/tifs/p05/)
 - [CHIRPS product documentation](https://chc.ucsb.edu/data/chirps)
 - [Zenodo REST API](https://developers.zenodo.org/)
+- [NASA FIRMS country files](https://firms.modaps.eosdis.nasa.gov/country/)
+- [NASA FIRMS FAQ](https://www.earthdata.nasa.gov/data/tools/firms/faq)
+- [GBIF occurrence API](https://techdocs.gbif.org/en/openapi/v1/occurrence)
+- [Natural Earth admin-0 countries](https://www.naturalearthdata.com/downloads/50m-cultural-vectors/)

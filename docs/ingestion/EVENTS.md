@@ -1,9 +1,52 @@
 # Point events
 
-Status: proposal.
+Status: implemented (P1).
 
 This document defines the `point_events` family and the first sources for the family.
 All shapes obey the shared rules in [README.md](README.md).
+
+## Implementation status
+
+### Implemented
+
+| Part | Location |
+| --- | --- |
+| Table, `current_point_events`, `recipe_point_events` | `migrations/012_point_events.sql` |
+| `POINT_EVENTS_SCHEMA`, `POINT_EVENTS` | `src/habitat/contracts.py`, `src/habitat/normalize/rows.py` |
+| `EVENT_TYPES`, quality flag order, shared row builder | `src/habitat/normalize/events.py` |
+| Summary, row grain, `parse_question` family | `src/habitat/storage/series.py`, `src/habitat/catalog/publish.py`, `src/habitat/catalog/ai.py` |
+| Recipe descriptor | `src/habitat/recipe_inputs.py`, `RECIPE_INTEGRATION.md` |
+| `firms_modis`, `firms_viirs` from the yearly country files | `src/habitat/fetch/connectors/firms.py`, `src/habitat/normalize/sources/firms.py` |
+| `gbif_occurrence` in search mode | `src/habitat/fetch/connectors/gbif_occurrence.py`, `src/habitat/normalize/sources/gbif_occurrence.py` |
+| `ConnectorRequest.taxon_keys` and `max_records` | `src/habitat/fetch/connectors/__init__.py` |
+| Agent tool `fetch_events` | `src/habitat/fetch/events.py`, `src/habitat/fetch/tools.py` |
+| `fire_count`, `fire_frp_sum_mw`, `occurrence_count`, `occurrence_effort_count` | `src/habitat/event_counts.py` |
+| Source sections | `SOURCES.md` |
+
+### Changes to the design
+
+- The current-row rule is: final before preliminary, then the latest batch. The GBIF `processing_version` is a checksum, so it has no order.
+- The FIRMS `source_item_id` also has the bbox. The normalizer clips the rows to the bbox. Without the bbox, a second bbox would find the item "already ingested".
+- The FIRMS `source_key` has the `Last-Modified` time, not the `processing_version`. Thus the cache works before the download.
+- FIRMS country files are yearly. `max_days` shortens the date range, and the connector gets each year in the range.
+- The FIRMS connector selects the countries with land boxes from Natural Earth. A file with no detection in the bbox gives no manifest.
+- The GBIF `taxon_name` is the canonical name of the most specific rank, for example `species` and `speciesKey`. `acceptedScientificName` has the authorship, so it goes to `attributes`.
+- The GBIF `available_at` fallback is the dataset `pubDate`, then the record `lastCrawled` time. NABU|naturgucker records have no `modified` date, and the dataset has no `pubDate`.
+- The derived counts also use rows with the flag `available_at_from_dataset`. Else no eBird record counts, because eBird records have no `modified` date.
+- A `cell_observations` batch holds one value per cell and variable. Thus the derived counts have one batch per day or month. The first batch of a run supersedes the previous run.
+- `occurrence_count` is per taxon key, in its own series. `occurrence_effort_count` counts all taxa with a `basis` of the taxon records. A zero `occurrence_count` gets no row.
+- Global Roadkill Data has two GBIF datasets, opportunistic and systematic records. On 2026-10-03 both had CC-BY 4.0.
+- `fetch_events` searches each Global Roadkill Data dataset for `wildlife_mortality`. `ConnectorRequest.item` is the dataset key.
+
+### Deferred
+
+- GBIF download mode. `FetchStatus` has the value `pending`, but the fetch service cannot resume a pending job. No step polls a job, and `response_from` never returns `pending`. A larger request gives a bounded sample and a warning.
+- The FIRMS area API with `FIRMS_MAP_KEY`. The yearly country files need no key and cover land. The current year has no country file.
+- `firms_nrt`, `lila_snapshot_serengeti` and the P3 sources.
+- A Recipe family for the derived counts. `recipe_inputs.py` shows only rainfall and vegetation `cell_observations` to Recipe.
+- The pipeline does not run `derive_event_counts` automatically.
+- The deterministic fetch path does not resolve `FetchRequirements.species` to taxon keys. The agent tool `fetch_events` does.
+- `firms_countries.json` has no box for the United States Minor Outlying Islands.
 
 ## 1. Purpose
 
