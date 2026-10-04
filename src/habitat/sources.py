@@ -23,6 +23,10 @@ from habitat.normalize.sources.chirps import normalize_chirps
 from habitat.normalize.sources.modis import normalize_modis
 from habitat.normalize.sources.movebank import normalize_movebank, normalize_movebank_study
 from habitat.normalize.sources.sentinel2 import normalize_sentinel2
+from habitat.fetch.connectors.osm_overpass import PRODUCT as OSM_PRODUCT
+from habitat.fetch.connectors.osm_overpass import STORAGE_FORMAT as OSM_FORMAT
+from habitat.fetch.connectors.osm_overpass import fetch_osm_overpass
+from habitat.normalize.sources.osm_water import normalize_osm_water
 
 Normalizer = Callable[[RawManifest, ArtifactStore, Grid, BBox | None], NormalizedBatch]
 
@@ -84,6 +88,12 @@ SOURCES: dict[str, Source] = {
             "Synthetic demo data for development and tests; never published",
             frozenset({"animal_locations", "rainfall_observations"}),
             fetch_fixture, None, "csv", needs_item=True,
+        ),
+        Source(
+            "osm_overpass", OSM_PRODUCT,
+            "OpenStreetMap rivers, lakes, wetlands, dams and water points, one snapshot per bbox",
+            frozenset({"water_features", "water_points"}),
+            fetch_osm_overpass, normalize_osm_water, OSM_FORMAT, needs_area_and_dates=True,
         ),
     ]
 }

@@ -1,0 +1,723 @@
+{
+ "version": 0.6,
+ "generator": "Overpass API 0.7.62.11 87bfad18",
+ "osm3s": {
+  "timestamp_osm_base": "2026-10-04T02:35:56Z",
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+ },
+ "elements": [
+  {
+   "type": "way",
+   "id": 675032143,
+   "timestamp": "2025-12-11T14:30:04Z",
+   "version": 2,
+   "changeset": 175806050,
+   "bounds": {
+    "minlat": -1.3919952,
+    "minlon": 36.8451811,
+    "maxlat": -1.3907686,
+    "maxlon": 36.8457134
+   },
+   "nodes": [
+    278799224,
+    6321747769,
+    6321747768,
+    6321747767
+   ],
+   "geometry": [
+    {
+     "lat": -1.3907686,
+     "lon": 36.8451811
+    },
+    {
+     "lat": -1.3910361,
+     "lon": 36.8452468
+    },
+    {
+     "lat": -1.3916103,
+     "lon": 36.845485
+    },
+    {
+     "lat": -1.3919952,
+     "lon": 36.8457134
+    }
+   ],
+   "tags": {
+    "intermittent": "no",
+    "name": "Mbagathi River",
+    "tidal": "no",
+    "waterway": "river"
+   }
+  },
+  {
+   "type": "way",
+   "id": 354198036,
+   "timestamp": "2017-11-05T21:54:44Z",
+   "version": 4,
+   "changeset": 53540609,
+   "bounds": {
+    "minlat": -1.496293,
+    "minlon": 36.9515616,
+    "maxlat": -1.495921,
+    "maxlon": 36.9538851
+   },
+   "nodes": [
+    3599593695,
+    3599593696,
+    3599593697,
+    3599593698
+   ],
+   "geometry": [
+    {
+     "lat": -1.496293,
+     "lon": 36.9515616
+    },
+    {
+     "lat": -1.4962177,
+     "lon": 36.9521639
+    },
+    {
+     "lat": -1.4960421,
+     "lon": 36.9532429
+    },
+    {
+     "lat": -1.495921,
+     "lon": 36.9538851
+    }
+   ],
+   "tags": {
+    "intermittent": "yes",
+    "waterway": "stream"
+   }
+  },
+  {
+   "type": "way",
+   "id": 100149053,
+   "timestamp": "2026-02-02T11:12:44Z",
+   "version": 4,
+   "changeset": 178001841,
+   "bounds": {
+    "minlat": -1.4142579,
+    "minlon": 36.9294439,
+    "maxlat": -1.4129688,
+    "maxlon": 36.9308788
+   },
+   "nodes": [
+    1157652125,
+    13519197122,
+    1157651998,
+    11029673104,
+    1157652125
+   ],
+   "geometry": [
+    {
+     "lat": -1.4129688,
+     "lon": 36.9306247
+    },
+    {
+     "lat": -1.4130671,
+     "lon": 36.9307717
+    },
+    {
+     "lat": -1.4133408,
+     "lon": 36.9308788
+    },
+    {
+     "lat": -1.4142579,
+     "lon": 36.9294439
+    },
+    {
+     "lat": -1.4129688,
+     "lon": 36.9306247
+    }
+   ],
+   "tags": {
+    "name": "Athi Dam",
+    "natural": "water",
+    "water": "reservoir"
+   }
+  },
+  {
+   "type": "way",
+   "id": 355490213,
+   "timestamp": "2015-06-22T15:19:24Z",
+   "version": 1,
+   "changeset": 32141078,
+   "bounds": {
+    "minlat": -1.5128844,
+    "minlon": 36.9433408,
+    "maxlat": -1.5126487,
+    "maxlon": 36.9437962
+   },
+   "nodes": [
+    3610891897,
+    3610891898,
+    3610891899,
+    3610891900,
+    3610891897
+   ],
+   "geometry": [
+    {
+     "lat": -1.5128844,
+     "lon": 36.9433408
+    },
+    {
+     "lat": -1.5127869,
+     "lon": 36.9434384
+    },
+    {
+     "lat": -1.5126487,
+     "lon": 36.9436336
+    },
+    {
+     "lat": -1.512665,
+     "lon": 36.9437962
+    },
+    {
+     "lat": -1.5128844,
+     "lon": 36.9433408
+    }
+   ],
+   "tags": {
+    "natural": "water",
+    "water": "pond"
+   }
+  },
+  {
+   "type": "way",
+   "id": 161956406,
+   "timestamp": "2024-06-27T08:14:55Z",
+   "version": 3,
+   "changeset": 153235668,
+   "bounds": {
+    "minlat": -1.4258542,
+    "minlon": 36.8544312,
+    "maxlat": -1.4250391,
+    "maxlon": 36.8551603
+   },
+   "nodes": [
+    1739086562,
+    12014502512,
+    1739086488,
+    1739086507,
+    1739086562
+   ],
+   "geometry": [
+    {
+     "lat": -1.4250391,
+     "lon": 36.8544312
+    },
+    {
+     "lat": -1.425298,
+     "lon": 36.8547111
+    },
+    {
+     "lat": -1.4257137,
+     "lon": 36.8551603
+    },
+    {
+     "lat": -1.4258542,
+     "lon": 36.8549033
+    },
+    {
+     "lat": -1.4250391,
+     "lon": 36.8544312
+    }
+   ],
+   "tags": {
+    "natural": "water"
+   }
+  },
+  {
+   "type": "way",
+   "id": 100147501,
+   "timestamp": "2021-10-25T00:56:44Z",
+   "version": 8,
+   "changeset": 112924749,
+   "bounds": {
+    "minlat": -1.444103,
+    "minlon": 36.9652796,
+    "maxlat": -1.443769,
+    "maxlon": 36.9662205
+   },
+   "nodes": [
+    8115406703,
+    1157638073,
+    1157637990,
+    1157638106,
+    8115406703
+   ],
+   "geometry": [
+    {
+     "lat": -1.444103,
+     "lon": 36.9652796
+    },
+    {
+     "lat": -1.4438679,
+     "lon": 36.9654963
+    },
+    {
+     "lat": -1.443769,
+     "lon": 36.9657645
+    },
+    {
+     "lat": -1.4438304,
+     "lon": 36.9662205
+    },
+    {
+     "lat": -1.444103,
+     "lon": 36.9652796
+    }
+   ],
+   "tags": {
+    "natural": "water",
+    "water": "river"
+   }
+  },
+  {
+   "type": "way",
+   "id": 871204319,
+   "timestamp": "2020-11-13T13:50:47Z",
+   "version": 1,
+   "changeset": 94065713,
+   "bounds": {
+    "minlat": -1.4439395,
+    "minlon": 36.9650365,
+    "maxlat": -1.4437688,
+    "maxlon": 36.9651942
+   },
+   "nodes": [
+    1157638432,
+    8115406702,
+    8115406701,
+    8115406704
+   ],
+   "geometry": [
+    {
+     "lat": -1.4438264,
+     "lon": 36.9650538
+    },
+    {
+     "lat": -1.4437715,
+     "lon": 36.9650365
+    },
+    {
+     "lat": -1.4437688,
+     "lon": 36.9650768
+    },
+    {
+     "lat": -1.4439395,
+     "lon": 36.9651942
+    }
+   ],
+   "tags": {
+    "waterway": "weir"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3807359328,
+   "lat": -1.4391969,
+   "lon": 36.9026276,
+   "timestamp": "2015-11-10T17:01:37Z",
+   "version": 2,
+   "changeset": 35220286,
+   "tags": {
+    "access": "yes",
+    "amenity": "water_point",
+    "construction_date": "2005",
+    "drinking_water": "yes",
+    "generator:source": "diesel",
+    "man_made": "water_well",
+    "operational_status": "operational",
+    "operator": "Ngo/Fbo (Staff)",
+    "owner": "Ack Egutoto",
+    "ownership": "private_nonprofit",
+    "pump": "powered",
+    "source": "SNV Kenya Water Point Mapping",
+    "source:date": "2012"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3926513161,
+   "lat": -1.4580174,
+   "lon": 36.9660234,
+   "timestamp": "2016-01-04T05:11:22Z",
+   "version": 1,
+   "changeset": 36352258,
+   "tags": {
+    "man_made": "water_well"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3807359327,
+   "lat": -1.4368374,
+   "lon": 36.8845714,
+   "timestamp": "2015-11-10T17:01:37Z",
+   "version": 2,
+   "changeset": 35220286,
+   "tags": {
+    "access": "yes",
+    "amenity": "water_point",
+    "construction_date": "1997",
+    "drinking_water": "conditional",
+    "operational_status": "operational",
+    "operator": "No Maintanance",
+    "owner": "Egutoto",
+    "ownership": "private_nonprofit",
+    "source": "SNV Kenya Water Point Mapping",
+    "source:date": "2012"
+   }
+  },
+  {
+   "type": "node",
+   "id": 3807359329,
+   "lat": -1.4548604,
+   "lon": 36.900428,
+   "timestamp": "2015-11-10T17:01:37Z",
+   "version": 2,
+   "changeset": 35220286,
+   "tags": {
+    "access": "yes",
+    "amenity": "water_point",
+    "construction_date": "2009",
+    "disused:amenity": "water_point",
+    "drinking_water": "yes",
+    "generator:source": "diesel",
+    "man_made": "water_well",
+    "operational_status": "closed",
+    "operator": "No Maintanance",
+    "owner": "Oloshaiki",
+    "ownership": "private_nonprofit",
+    "pump": "powered",
+    "source": "SNV Kenya Water Point Mapping",
+    "source:date": "2012"
+   }
+  },
+  {
+   "type": "relation",
+   "id": 11874038,
+   "timestamp": "2025-12-11T16:51:10Z",
+   "version": 5,
+   "changeset": 175811841,
+   "bounds": {
+    "minlat": -3.1964196,
+    "minlon": 36.692627,
+    "maxlat": -1.0669519,
+    "maxlon": 40.1405466
+   },
+   "members": [
+    {
+     "type": "way",
+     "ref": 25575938,
+     "role": "main_stream",
+     "geometry": [
+      {
+       "lat": -1.404747,
+       "lon": 36.7410712
+      },
+      {
+       "lat": -1.4043395,
+       "lon": 36.741951
+      },
+      {
+       "lat": -1.4042429,
+       "lon": 36.7427342
+      }
+     ]
+    },
+    {
+     "type": "way",
+     "ref": 675032143,
+     "role": "main_stream",
+     "geometry": [
+      {
+       "lat": -1.3907686,
+       "lon": 36.8451811
+      },
+      {
+       "lat": -1.3910361,
+       "lon": 36.8452468
+      },
+      {
+       "lat": -1.3916103,
+       "lon": 36.845485
+      }
+     ]
+    }
+   ],
+   "tags": {
+    "name": "Athi-Galana-Sabaki",
+    "type": "waterway",
+    "waterway": "river",
+    "wikidata": "Q1508817",
+    "wikipedia": "en:Athi-Galana-Sabaki River"
+   }
+  },
+  {
+   "type": "node",
+   "id": 900000001,
+   "lat": -1.43,
+   "lon": 36.91,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "tags": {
+    "natural": "spring",
+    "name": "Synthetic spring"
+   }
+  },
+  {
+   "type": "node",
+   "id": 900000002,
+   "lat": -1.44,
+   "lon": 36.92,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "tags": {
+    "man_made": "water_tap",
+    "disused:man_made": "water_tap"
+   }
+  },
+  {
+   "type": "way",
+   "id": 900000003,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "bounds": {
+    "minlat": -1.46,
+    "minlon": 36.85,
+    "maxlat": -1.45,
+    "maxlon": 36.86
+   },
+   "nodes": [
+    9000000030,
+    9000000031,
+    9000000032,
+    9000000033,
+    9000000034
+   ],
+   "geometry": [
+    {
+     "lat": -1.45,
+     "lon": 36.85
+    },
+    {
+     "lat": -1.45,
+     "lon": 36.86
+    },
+    {
+     "lat": -1.46,
+     "lon": 36.86
+    },
+    {
+     "lat": -1.46,
+     "lon": 36.85
+    },
+    {
+     "lat": -1.45,
+     "lon": 36.85
+    }
+   ],
+   "tags": {
+    "natural": "wetland",
+    "wetland": "swamp"
+   }
+  },
+  {
+   "type": "way",
+   "id": 900000004,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "bounds": {
+    "minlat": -1.47,
+    "minlon": 36.85,
+    "maxlat": -1.47,
+    "maxlon": 36.87
+   },
+   "nodes": [
+    9000000040,
+    9000000041
+   ],
+   "geometry": [
+    {
+     "lat": -1.47,
+     "lon": 36.85
+    },
+    {
+     "lat": -1.47,
+     "lon": 36.87
+    }
+   ],
+   "tags": {
+    "waterway": "canal"
+   }
+  },
+  {
+   "type": "way",
+   "id": 900000005,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "bounds": {
+    "minlat": -1.48,
+    "minlon": 36.88,
+    "maxlat": -1.48,
+    "maxlon": 36.885
+   },
+   "nodes": [
+    9000000050,
+    9000000051
+   ],
+   "geometry": [
+    {
+     "lat": -1.48,
+     "lon": 36.88
+    },
+    {
+     "lat": -1.48,
+     "lon": 36.885
+    }
+   ],
+   "tags": {
+    "waterway": "dam"
+   }
+  },
+  {
+   "type": "way",
+   "id": 900000006,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "bounds": {
+    "minlat": -1.42,
+    "minlon": 36.95,
+    "maxlat": -1.41,
+    "maxlon": 36.96
+   },
+   "nodes": [
+    9000000060,
+    9000000061,
+    9000000062,
+    9000000063,
+    9000000064
+   ],
+   "geometry": [
+    {
+     "lat": -1.41,
+     "lon": 36.95
+    },
+    {
+     "lat": -1.41,
+     "lon": 36.96
+    },
+    {
+     "lat": -1.42,
+     "lon": 36.96
+    },
+    {
+     "lat": -1.42,
+     "lon": 36.95
+    },
+    {
+     "lat": -1.41,
+     "lon": 36.95
+    }
+   ],
+   "tags": {
+    "natural": "water",
+    "water": "lake",
+    "seasonal": "yes"
+   }
+  },
+  {
+   "type": "relation",
+   "id": 900000007,
+   "timestamp": "2014-06-02T08:00:00Z",
+   "version": 1,
+   "changeset": 1,
+   "bounds": {
+    "minlat": -1.53,
+    "minlon": 36.81,
+    "maxlat": -1.51,
+    "maxlon": 36.83
+   },
+   "tags": {
+    "type": "multipolygon",
+    "natural": "wetland"
+   },
+   "members": [
+    {
+     "type": "way",
+     "ref": 1,
+     "role": "outer",
+     "geometry": [
+      {
+       "lat": -1.51,
+       "lon": 36.81
+      },
+      {
+       "lat": -1.51,
+       "lon": 36.83
+      },
+      {
+       "lat": -1.53,
+       "lon": 36.83
+      }
+     ]
+    },
+    {
+     "type": "way",
+     "ref": 2,
+     "role": "outer",
+     "geometry": [
+      {
+       "lat": -1.53,
+       "lon": 36.83
+      },
+      {
+       "lat": -1.53,
+       "lon": 36.81
+      },
+      {
+       "lat": -1.51,
+       "lon": 36.81
+      }
+     ]
+    },
+    {
+     "type": "way",
+     "ref": 3,
+     "role": "inner",
+     "geometry": [
+      {
+       "lat": -1.515,
+       "lon": 36.815
+      },
+      {
+       "lat": -1.515,
+       "lon": 36.82
+      },
+      {
+       "lat": -1.52,
+       "lon": 36.82
+      },
+      {
+       "lat": -1.52,
+       "lon": 36.815
+      },
+      {
+       "lat": -1.515,
+       "lon": 36.815
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
