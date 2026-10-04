@@ -1,6 +1,6 @@
 # Water pollution and water quality
 
-Status: proposal.
+Status: implemented (P1). See section 12 for the implemented parts and the deferred parts.
 
 This document defines the family `site_observations` and its reference table `monitoring_sites`.
 It also adds satellite water-quality variables to `cell_observations`.
@@ -528,3 +528,53 @@ Open station data for East Africa is very sparse. Report an empty result as a co
 10. Add the `fetch_water_quality` tool and the new `data_kinds`.
 11. Add the `literature_tabular` path with the mapping validator.
 12. Add a section per source to `SOURCES.md`.
+
+## 12. Implementation status
+
+### 12.1 Implemented (P1)
+
+| Part | Files |
+| --- | --- |
+| Tables `site_observations` and `monitoring_sites`, the view `recipe_site_observations` | `migrations/014_site_observations.sql` |
+| View `recipe_water_quality_observations` for `ndti`, `ndci`, `water_turbidity` and `trophic_state_index` | `migrations/014_site_observations.sql` |
+| `SITE_OBSERVATIONS_SCHEMA`, `MONITORING_SITES_SCHEMA` | `src/habitat/contracts.py` |
+| Family constants `SITE_OBSERVATIONS`, `MONITORING_SITES` | `src/habitat/normalize/rows.py` |
+| Reference upsert, family summary | `src/habitat/storage/series.py` |
+| Parameter vocabulary, unit factors, censored values, quality flags, shared table steps | `src/habitat/normalize/water_quality.py` |
+| `wqp` connector and normalizer | `src/habitat/fetch/connectors/wqp.py`, `src/habitat/normalize/sources/wqp.py` |
+| `gemstat` connector and normalizer | `src/habitat/fetch/connectors/gemstat.py`, `src/habitat/normalize/sources/gemstat.py` |
+| `cgls_lwq` connector and normalizer | `src/habitat/fetch/connectors/cgls_lwq.py`, `src/habitat/normalize/sources/cgls_lwq.py` |
+| Sentinel-2 `ndti` and `ndci`, band B05 | `src/habitat/normalize/water_indices.py`, `src/habitat/normalize/sources/sentinel2.py` |
+| Data kinds `water_quality_samples` and `water_quality_observations` | `src/habitat/sources.py` |
+| Agent tool `fetch_water_quality`, `cgls_lwq` in `fetch_environment` | `src/habitat/fetch/tools.py`, `src/habitat/fetch/service.py` |
+| Recipe descriptors | `src/habitat/recipe_inputs.py` |
+| Source sections | `SOURCES.md` |
+
+Decisions that the design did not state:
+
+- The vocabulary accepts more spellings of documented units. Examples: `umho/cm` (1 µmho = 1 µS), `°C`, `---` for pH, `mg/l as NH3` (14.007/17.031), `mg/l` for chlorophyll a (×1000), `ng/l` for mercury (×0.001).
+- WQP gives coordinates in NAD83. NAD83 and WGS84 differ by less than 2 m in the USA. The normalizer uses the coordinates without a transformation. `coordinate_uncertainty_m` is 2 when the source gives no accuracy.
+- WQP: when one characteristic covers two parameters, the unit selects the parameter. Examples: NTU or FNU, cfu or MPN, mg/L or %.
+- WQP: a value such as `<1` is a censored value with the limit 1.
+- GEMStat: the connector keeps the full ZIP once. For each request it keeps an extract ZIP with the stations in the bbox and the samples in the dates. The `source_item_id` holds the bbox and the dates. Thus each area and period is a separate batch.
+- GEMStat: BOD is not mapped, because the archive does not give the incubation time. The bacteria are not mapped, because the unit `1/100 ml` does not tell cfu from MPN.
+- `cgls_lwq`: the asset files use the fill value 9.97e36, although the STAC item says `nan`. The normalizer removes this value.
+- Water indices: `valid_fraction` is the share of the cell with valid water pixels. It is not the share of the water pixels of the cell.
+- A Sentinel-2 series gives two Recipe datasets. The water-quality dataset id has the suffix `--water-quality`.
+- `ConnectorRequest.parameters` limits a station source to vocabulary parameters.
+
+### 12.2 Deferred
+
+- P2 and P3 sources: `landsat_c2_l2`, `sentinel3_olci_wfr`, `waterbase`, `grqa`, `literature_tabular`, `glorich`, `gemstat_portal`, `freshwater_watch`, `wra_kenya`.
+- The mapping validator and the human approval of agent mappings (section 4.9). The flag `agent_mapped` is not used yet.
+- The flag `site_off_water` and the columns `site_feature_id` and `site_feature_distance_m`. They need `site_features` from WATER_POINTS.md.
+- The optional static mask from JRC Global Surface Water (section 6.1, step 4).
+- The `cgls_lwq` 100 m collection and the NRT collections.
+- A Dryad search in `search_catalog`. The agent can search Zenodo now.
+- A validation report with the count of dropped rows. The normalizers log the count now.
+
+### 12.3 Limits of the strict rules
+
+- An unknown unit quarantines the whole item. A large WQP query often has one such unit, for example `NTRU` or `MPN` without a volume. Then the agent must ask for fewer parameters or a smaller area.
+- A station without coordinates quarantines the whole item.
+- The GEMStat live test downloads the full ZIP of about 201 MB.

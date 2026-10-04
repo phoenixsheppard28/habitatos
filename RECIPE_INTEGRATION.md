@@ -44,10 +44,20 @@ Three parts connect the lanes:
 | `cell_observations` with only `rainfall_mm` | `rainfall_observations` | `recipe_rainfall_observations` |
 | `cell_observations` with only `ndvi`, `evi`, `mndwi`, `ndmi` | `vegetation_observations` | `recipe_vegetation_observations` |
 | `animal_locations` | `animal_locations` | `recipe_animal_locations` |
+| `site_observations` | `site_observations` | `recipe_site_observations` (migration 014) |
+| `cell_observations` with `ndti`, `ndci`, `water_turbidity` or `trophic_state_index` | `water_quality_observations`, dataset id `<series>--water-quality` | `recipe_water_quality_observations` (migration 014) |
 | Other variables, for example `elevation_m` | none | The adapter does not show the dataset to Recipe |
 
 Each view has the minimum columns of the v1 contract in `README.md`. Each view also has `access_scope`, `available_at` and quality columns.
 The `cell_id` column is in all three families. A recipe can join an animal fix to the rainfall or vegetation of its cell with no spatial join.
+
+Water-quality rules (see `docs/ingestion/WATER_POLLUTION.md`):
+
+- A Sentinel-2 series gives two Recipe datasets: the vegetation dataset and a water-quality dataset. The water-quality dataset id has the suffix `--water-quality`. The water-quality variables are not in the vegetation view.
+- In `recipe_site_observations`, one row is current per site, parameter, fraction, sample time and sample depth. A final value replaces a preliminary value. Then a later batch replaces an earlier batch.
+- A censored row has the limit in `value` and in `detection_limit`. `censored` is `left` or `right`. A censored row without a known limit has `value` null.
+- NDTI and NDCI are relative indices. `water_turbidity` is in NTU. Do not mix a relative index with a concentration.
+- A station describes the water at its own location. Join a station to an animal through the water body, not through the nearest river station.
 
 ### 2.2 Versions
 
