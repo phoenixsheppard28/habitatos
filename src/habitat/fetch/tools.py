@@ -19,16 +19,23 @@ def search_catalog(
     species: list[str] | None = None,
     include_internet: bool = True,
     include_zenodo: bool = False,
+    bbox: list[float] | None = None,
+    data_kinds: list[str] | None = None,
 ) -> str:
     """
     Search fixtures and Movebank when include_internet is true.
     Set include_zenodo true only if Movebank has no match (Zenodo is slower).
+    Search animal counts and population estimates by species and region with data_kinds ["population_counts"].
+    Resolve the species name first. Use a WGS84 bbox (west, south, east, north).
+    Results include the method and the area type. Counts from different methods are not comparable.
     """
     results = service.search_catalog(
         query,
         species=species,
         include_internet=include_internet,
         include_zenodo=include_zenodo,
+        bbox=bbox,
+        data_kinds=data_kinds,
     )
     return json.dumps(results, indent=2)
 
