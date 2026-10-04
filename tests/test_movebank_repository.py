@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import httpx
 
 from fixtures import movebank_package
@@ -26,6 +28,16 @@ def test_package_becomes_one_artifact_with_locations_and_reference(mock_http, gr
     batch = normalize(manifest, archive.store, grid)
     assert batch.table.num_rows == 4
     assert {e.local_identifier: e.sex for e in batch.entities} == {"Naboisho": "f", "Olope": "m"}
+
+
+def test_a_newer_package_takes_date_license_and_citation_from_its_other_fields(mock_http):
+    mock_http(movebank_package.handler(newer_metadata=True))
+
+    [manifest] = fetch_movebank_repository(REQUEST, Archive()).manifests
+
+    assert manifest.extensions.available_at == datetime(2026, 5, 21, tzinfo=UTC)
+    assert manifest.rights.license == movebank_package.NEWER_METADATA["dc.rights.uri"]
+    assert manifest.rights.attribution == movebank_package.NEWER_METADATA["mdr.citation.CSE"]
 
 
 def test_a_remote_name_cannot_escape_the_archive(mock_http, tmp_path):

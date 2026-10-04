@@ -51,7 +51,16 @@ def metadata(**values):
     return {key: [{"value": value}] for key, value in values.items()}
 
 
-def item(location_name: str = "Wildebeest.csv") -> dict:
+# Packages published since 2026 have no dc.date.available, dc.rights or dc.identifier.citation.
+NEWER_METADATA = {
+    "dc.date.issued": "2026-05-21",
+    "dc.rights.uri": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "mdr.citation.CSE": "Wilde L, Monteith KL, Kauffman MJ. 2026.",
+}
+OLDER_ONLY_KEYS = ("dc.date.available", "dc.rights", "dc.identifier.citation")
+
+
+def item(location_name: str = "Wildebeest.csv", newer_metadata: bool = False) -> dict:
     names = {"bitstream-gps": location_name, "bitstream-reference": FILES["bitstream-reference"][0]}
     bitstreams = [
         {
@@ -61,32 +70,35 @@ def item(location_name: str = "Wildebeest.csv") -> dict:
         }
         for key, name in names.items()
     ]
+    fields = {
+        "mdr.study.id": "208413731",
+        "dc.date.available": "2020-12-01T00:00:00Z",
+        "dwc.ScientificName": "Connochaetes taurinus",
+        "dc.identifier.uri": f"https://datarepository.movebank.org/handle/{HANDLE}",
+        "dc.rights": "CC0",
+        "dc.identifier.citation": "Stabach et al. 2020",
+        "dc.identifier.doi": "10.5441/001/1.h0t27719",
+        "dc.title": "Data from: Wildebeest on the Athi-Kaputiei Plains",
+    }
+    if newer_metadata:
+        fields = {key: value for key, value in fields.items() if key not in OLDER_ONLY_KEYS} | NEWER_METADATA
     return {
         "uuid": PACKAGE_UUID,
         "handle": HANDLE,
-        "metadata": metadata(**{
-            "mdr.study.id": "208413731",
-            "dc.date.available": "2020-12-01T00:00:00Z",
-            "dwc.ScientificName": "Connochaetes taurinus",
-            "dc.identifier.uri": f"https://datarepository.movebank.org/handle/{HANDLE}",
-            "dc.rights": "CC0",
-            "dc.identifier.citation": "Stabach et al. 2020",
-            "dc.identifier.doi": "10.5441/001/1.h0t27719",
-            "dc.title": "Data from: Wildebeest on the Athi-Kaputiei Plains",
-        }),
+        "metadata": metadata(**fields),
         "_embedded": {"bundles": {"_embedded": {"bundles": [
             {"name": "ORIGINAL", "_embedded": {"bitstreams": {"_embedded": {"bitstreams": bitstreams}}}}
         ]}}},
     }
 
 
-def handler(location_name: str = "Wildebeest.csv", gps_csv: str = GPS_CSV):
+def handler(location_name: str = "Wildebeest.csv", gps_csv: str = GPS_CSV, newer_metadata: bool = False):
     bodies = {"bitstream-gps": gps_csv, "bitstream-reference": REFERENCE_CSV}
 
     def handle(request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path.endswith(f"/items/{PACKAGE_UUID}"):
-            return httpx.Response(200, json=item(location_name))
+            return httpx.Response(200, json=item(location_name, newer_metadata))
         for key, body in bodies.items():
             if path.endswith(f"/bitstreams/{key}/content"):
                 return httpx.Response(200, text=body)
