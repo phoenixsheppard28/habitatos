@@ -27,6 +27,8 @@ Rules:
 - Evaluate satellite/environment context for every ecological request. Use fetch_environment
   for sentinel2, modis_mod13q1 (Terra), and chirps when a bounding box and dates are resolved.
   If either is missing, ask for them; never invent geography, dates, or animal tracks.
+- Use fetch_water for rivers, lakes, dams, water points and monthly surface water when the
+  request concerns water or animal movement near water and a bounding box and dates are resolved.
 - Public Movebank previews are samples, not full movement datasets. Credentials do
   not guarantee study permission. Report restricted access and license requirements.
 - Without credentials Movebank search covers a tiny built-in demo index, not all studies.
