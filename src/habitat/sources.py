@@ -27,6 +27,10 @@ from habitat.fetch.connectors.osm_overpass import PRODUCT as OSM_PRODUCT
 from habitat.fetch.connectors.osm_overpass import STORAGE_FORMAT as OSM_FORMAT
 from habitat.fetch.connectors.osm_overpass import fetch_osm_overpass
 from habitat.normalize.sources.osm_water import normalize_osm_water
+from habitat.fetch.connectors.wpdx import PRODUCT as WPDX_PRODUCT
+from habitat.fetch.connectors.wpdx import STORAGE_FORMAT as WPDX_FORMAT
+from habitat.fetch.connectors.wpdx import fetch_wpdx
+from habitat.normalize.sources.wpdx import normalize_wpdx
 
 Normalizer = Callable[[RawManifest, ArtifactStore, Grid, BBox | None], NormalizedBatch]
 
@@ -94,6 +98,12 @@ SOURCES: dict[str, Source] = {
             "OpenStreetMap rivers, lakes, wetlands, dams and water points, one snapshot per bbox",
             frozenset({"water_features", "water_points"}),
             fetch_osm_overpass, normalize_osm_water, OSM_FORMAT, needs_area_and_dates=True,
+        ),
+        Source(
+            "wpdx", WPDX_PRODUCT,
+            "Water Point Data Exchange (WPdx+) human water points with type, status and report date",
+            frozenset({"water_points"}),
+            fetch_wpdx, normalize_wpdx, WPDX_FORMAT, needs_area_and_dates=True,
         ),
     ]
 }
